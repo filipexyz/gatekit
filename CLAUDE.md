@@ -39,5 +39,44 @@ Two credential types:
 
 ## Current Implementation
 
-### Health Endpoint
-- `GET /api/v1/health` - Basic health check
+### Endpoints
+- `GET /api/v1/health` - Public health check
+- `POST /api/v1/projects` - Create project
+- `GET /api/v1/projects` - List all projects
+- `GET /api/v1/projects/:slug` - Get project details
+- `PATCH /api/v1/projects/:slug` - Update project
+- `DELETE /api/v1/projects/:slug` - Delete project
+- `POST /api/v1/projects/:slug/keys` - Generate API key
+- `GET /api/v1/projects/:slug/keys` - List API keys
+- `DELETE /api/v1/projects/:slug/keys/:keyId` - Revoke key
+- `POST /api/v1/projects/:slug/keys/:keyId/roll` - Roll key
+
+## Testing Guidelines
+
+### Test Structure
+Tests are organized as:
+- Unit tests: Located alongside source files (`*.spec.ts`)
+- Integration tests: Located in `test/integration/`
+- Fixtures: Reusable test data generators in `test/fixtures/`
+
+### Running Tests
+```bash
+npm test                  # Run all tests
+npm run test:watch       # Run tests in watch mode
+npm run test:cov         # Run tests with coverage
+npm run test:e2e         # Run integration tests
+```
+
+### Writing Tests
+- **ONLY test what exists** - Don't write tests for unimplemented features
+- Use fixtures for consistent test data generation
+- Mock external dependencies in unit tests
+- Clean database state between tests
+- Test actual behavior, not implementation details
+
+### Test Coverage Requirements
+- Minimum 80% coverage for services
+- All endpoints must have integration tests
+- Test both success and error cases
+
+See `test/test-guidelines.md` for detailed testing guidelines
