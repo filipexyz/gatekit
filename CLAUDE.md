@@ -14,13 +14,17 @@
 
 ## Authentication
 
-Two credential types:
+Dual authentication support:
 
 1. **JWT Token (Auth0)**
    - Header: `Authorization: Bearer <jwt_token>`
+   - Requires Auth0 configuration (AUTH0_DOMAIN, AUTH0_AUDIENCE)
+   - When not configured, returns error asking for API key authentication
 
 2. **API Keys**
    - Header: `X-API-Key: <api_key>`
+   - Primary authentication method
+   - Works independently of Auth0 configuration
 
 ## API Versioning
 

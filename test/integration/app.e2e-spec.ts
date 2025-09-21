@@ -75,7 +75,7 @@ describe('GateKit API (e2e)', () => {
         .get('/api/v1/projects')
         .expect(401)
         .expect((res) => {
-          expect(res.body).toHaveProperty('message', 'API key is required');
+          expect(res.body).toHaveProperty('message', 'Authentication required. Provide either an API key or Bearer token.');
         });
     });
 

@@ -60,9 +60,9 @@ DATABASE_URL=postgresql://gatekit:password@localhost:5432/gatekit
 # Redis
 REDIS_URL=redis://:password@localhost:6379
 
-# Auth0 (optional for now)
-AUTH0_DOMAIN=
-AUTH0_AUDIENCE=
+# Auth0 (optional - enables JWT authentication)
+AUTH0_DOMAIN=your-tenant.auth0.com
+AUTH0_AUDIENCE=https://api.gatekit.dev
 AUTH0_CLIENT_ID=
 AUTH0_CLIENT_SECRET=
 ```
@@ -89,11 +89,19 @@ The API will be available at `http://localhost:3000`
 
 ### Authentication
 
-All endpoints (except `/api/v1/health`) require authentication via API Key:
+The API supports dual authentication methods:
 
+#### API Keys (Primary)
 ```bash
 curl -H "X-API-Key: your-api-key" http://localhost:3000/api/v1/projects
 ```
+
+#### JWT Tokens (Auth0)
+```bash
+curl -H "Authorization: Bearer your-jwt-token" http://localhost:3000/api/v1/projects
+```
+
+Note: JWT authentication requires Auth0 configuration. If not configured, use API keys.
 
 ### Available Endpoints
 

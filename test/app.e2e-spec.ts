@@ -20,7 +20,7 @@ describe('AppController (e2e)', () => {
       .get('/')
       .expect(401)
       .expect((res) => {
-        expect(res.body).toHaveProperty('message', 'API key is required');
+        expect(res.body).toHaveProperty('message', 'Authentication required. Provide either an API key or Bearer token.');
       });
   });
 });

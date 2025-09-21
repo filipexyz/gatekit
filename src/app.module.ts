@@ -8,7 +8,8 @@ import { HealthModule } from './health/health.module';
 import { ProjectsModule } from './projects/projects.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
-import { ApiKeyGuard } from './common/guards/api-key.guard';
+import { AuthModule } from './auth/auth.module';
+import { AppAuthGuard } from './common/guards/app-auth.guard';
 import { appConfig, configValidationSchema } from './config/app.config';
 
 @Module({
@@ -35,6 +36,7 @@ import { appConfig, configValidationSchema } from './config/app.config';
       }),
     }),
     HealthModule,
+    AuthModule,
     ProjectsModule,
     PrismaModule,
     ApiKeysModule,
@@ -42,10 +44,10 @@ import { appConfig, configValidationSchema } from './config/app.config';
   controllers: [AppController],
   providers: [
     AppService,
-    // Global API Key Guard - applies to all routes unless marked as @Public()
+    // Global Authentication Guard - supports both JWT (Auth0) and API Keys
     {
       provide: APP_GUARD,
-      useClass: ApiKeyGuard,
+      useClass: AppAuthGuard,
     },
     // Global Rate Limiting Guard
     {
