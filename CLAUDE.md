@@ -89,3 +89,25 @@ npm test:e2e     # Run integration tests
 ```
 
 For detailed testing guidelines, see: **[test/CLAUDE.md](test/CLAUDE.md)**
+
+## Deployment
+
+```bash
+# Deploy to Fly.io (migrations run automatically)
+fly deploy
+
+# Check status
+fly status
+
+# View logs (recent, no tailing)
+fly logs --no-tail
+
+# View logs (last 100 lines)
+fly logs --no-tail | head -100
+
+# Monitor live logs (use Ctrl+C to stop)
+fly logs -f
+
+# SSH into container
+fly ssh console
+```
