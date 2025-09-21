@@ -41,6 +41,7 @@ model ApiKey {
   projectId   String             @map("project_id")
   keyHash     String             @unique @map("key_hash")
   keyPrefix   String             @map("key_prefix")
+  keySuffix   String             @map("key_suffix")
   name        String
   environment ApiKeyEnvironment
   expiresAt   DateTime?          @map("expires_at")

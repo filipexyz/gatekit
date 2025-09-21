@@ -17,6 +17,7 @@ export const createTestApiKey = async (
   const apiKey = CryptoUtil.generateApiKey(environment);
   const keyHash = CryptoUtil.hashApiKey(apiKey);
   const keyPrefix = CryptoUtil.getKeyPrefix(apiKey);
+  const keySuffix = CryptoUtil.getKeySuffix(apiKey);
 
   const scopes = overrides.scopes || ['messages:send', 'messages:read'];
 
@@ -25,6 +26,7 @@ export const createTestApiKey = async (
       projectId,
       keyHash,
       keyPrefix,
+      keySuffix,
       name: overrides.name || 'Test API Key',
       environment,
       expiresAt: overrides.expiresAt || null,

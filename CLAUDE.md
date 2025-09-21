@@ -33,6 +33,11 @@ Two credential types:
 - **NEVER** add speculative or "nice-to-have" features to documentation or CLAUDE.md
 - **ONLY** document what has been explicitly requested and implemented
 
+### Documentation Structure
+- **Keep domain-specific documentation separate** - Testing docs in `test/CLAUDE.md`, not in main CLAUDE.md
+- **Main CLAUDE.md is for project overview only** - Reference other CLAUDE.md files for specific areas
+- **Each major area should have its own CLAUDE.md** - Tests, infrastructure, etc. have separate documentation
+
 ### Package Management
 - **NEVER** write dependencies directly in package.json
 - **ALWAYS** use CLI commands to install packages
@@ -51,32 +56,36 @@ Two credential types:
 - `DELETE /api/v1/projects/:slug/keys/:keyId` - Revoke key
 - `POST /api/v1/projects/:slug/keys/:keyId/roll` - Roll key
 
-## Testing Guidelines
+## Development Setup
 
-### Test Structure
-Tests are organized as:
-- Unit tests: Located alongside source files (`*.spec.ts`)
-- Integration tests: Located in `test/integration/`
-- Fixtures: Reusable test data generators in `test/fixtures/`
-
-### Running Tests
+### Local Development
 ```bash
-npm test                  # Run all tests
-npm run test:watch       # Run tests in watch mode
-npm run test:cov         # Run tests with coverage
-npm run test:e2e         # Run integration tests
+# Start databases only (PostgreSQL, Redis)
+docker compose up -d postgres redis
+
+# Run application locally
+npm run start:dev
 ```
 
-### Writing Tests
-- **ONLY test what exists** - Don't write tests for unimplemented features
-- Use fixtures for consistent test data generation
-- Mock external dependencies in unit tests
-- Clean database state between tests
-- Test actual behavior, not implementation details
+### Docker Usage
+- **Docker is for production deployment only**
+- **Never run tests inside Docker containers during development**
+- Use local Node.js for all development and testing
 
-### Test Coverage Requirements
-- Minimum 80% coverage for services
-- All endpoints must have integration tests
-- Test both success and error cases
+## Testing
 
-See `test/test-guidelines.md` for detailed testing guidelines
+### IMPORTANT: Testing Documentation
+**All testing guidelines, rules, and examples are documented in `test/CLAUDE.md`**
+
+When writing or modifying tests:
+1. **ALWAYS read `test/CLAUDE.md` first**
+2. Follow the testing rules exactly as specified
+3. Never deviate from the testing patterns documented there
+
+### Quick Commands
+```bash
+npm test         # Run unit tests
+npm test:e2e     # Run integration tests
+```
+
+For detailed testing guidelines, see: **[test/CLAUDE.md](test/CLAUDE.md)**

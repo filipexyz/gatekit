@@ -9,6 +9,7 @@ jest.mock('../common/utils/crypto.util', () => ({
     generateApiKey: jest.fn(),
     hashApiKey: jest.fn(),
     getKeyPrefix: jest.fn(),
+    getKeySuffix: jest.fn(),
     maskApiKey: jest.fn((prefix, suffix) => `${prefix}...${suffix}`),
   },
 }));
@@ -66,11 +67,13 @@ describe('ApiKeysService', () => {
       (CryptoUtil.generateApiKey as jest.Mock).mockReturnValue(mockApiKey);
       (CryptoUtil.hashApiKey as jest.Mock).mockReturnValue(mockKeyHash);
       (CryptoUtil.getKeyPrefix as jest.Mock).mockReturnValue(mockKeyPrefix);
+      (CryptoUtil.getKeySuffix as jest.Mock).mockReturnValue('wxyz');
 
       mockPrismaService.apiKey.create.mockResolvedValue({
         id: 'key-id',
         name: 'Test Key',
         keyPrefix: mockKeyPrefix,
+        keySuffix: 'wxyz',
         environment: 'test',
         expiresAt: null,
         createdAt: new Date(),
@@ -90,6 +93,7 @@ describe('ApiKeysService', () => {
           projectId: 'project-id',
           keyHash: mockKeyHash,
           keyPrefix: mockKeyPrefix,
+          keySuffix: 'wxyz',
           name: 'Test Key',
           environment: 'test',
           scopes: {
@@ -122,6 +126,7 @@ describe('ApiKeysService', () => {
       (CryptoUtil.generateApiKey as jest.Mock).mockReturnValue('gk_test_key');
       (CryptoUtil.hashApiKey as jest.Mock).mockReturnValue('hash');
       (CryptoUtil.getKeyPrefix as jest.Mock).mockReturnValue('gk_test_');
+      (CryptoUtil.getKeySuffix as jest.Mock).mockReturnValue('wxyz');
 
       mockPrismaService.apiKey.create.mockResolvedValue({
         id: 'key-id',
@@ -151,6 +156,7 @@ describe('ApiKeysService', () => {
           id: 'key-1',
           name: 'Key 1',
           keyPrefix: 'gk_test_abcd',
+          keySuffix: 'abcd',
           environment: 'test',
           lastUsedAt: null,
           expiresAt: null,

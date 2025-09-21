@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ApiKeysService } from '../../api-keys/api-keys.service';
 
@@ -43,7 +43,7 @@ export class ApiKeyGuard implements CanActivate {
       );
 
       if (!hasRequiredScopes) {
-        throw new UnauthorizedException('Insufficient permissions');
+        throw new ForbiddenException('Insufficient permissions');
       }
     }
 

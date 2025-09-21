@@ -39,19 +39,26 @@ export class SeedService implements OnModuleInit {
         const testApiKey = CryptoUtil.generateApiKey('test');
         const keyHash = CryptoUtil.hashApiKey(testApiKey);
         const keyPrefix = CryptoUtil.getKeyPrefix(testApiKey);
+        const keySuffix = CryptoUtil.getKeySuffix(testApiKey);
 
         await this.prisma.apiKey.create({
           data: {
             projectId: defaultProject.id,
             keyHash,
             keyPrefix,
+            keySuffix,
             name: 'Development Test Key',
             environment: 'test',
             scopes: {
               create: [
                 { scope: 'messages:send' },
                 { scope: 'messages:read' },
+                { scope: 'projects:read' },
+                { scope: 'projects:write' },
+                { scope: 'keys:manage' },
+                { scope: 'keys:read' },
                 { scope: 'platforms:read' },
+                { scope: 'platforms:write' },
               ],
             },
           },

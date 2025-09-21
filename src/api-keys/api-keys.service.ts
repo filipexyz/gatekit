@@ -32,6 +32,7 @@ export class ApiKeysService {
     const apiKey = CryptoUtil.generateApiKey(createApiKeyDto.environment);
     const keyHash = CryptoUtil.hashApiKey(apiKey);
     const keyPrefix = CryptoUtil.getKeyPrefix(apiKey);
+    const keySuffix = CryptoUtil.getKeySuffix(apiKey);
 
     const scopes = createApiKeyDto.scopes || this.getDefaultScopes(createApiKeyDto.environment);
 
@@ -46,6 +47,7 @@ export class ApiKeysService {
         projectId: project.id,
         keyHash,
         keyPrefix,
+        keySuffix,
         name: createApiKeyDto.name,
         environment: createApiKeyDto.environment,
         expiresAt,
@@ -93,7 +95,7 @@ export class ApiKeysService {
     return apiKeys.map(key => ({
       id: key.id,
       name: key.name,
-      maskedKey: CryptoUtil.maskApiKey(key.keyPrefix, key.keyPrefix.substring(key.keyPrefix.length - 4)),
+      maskedKey: CryptoUtil.maskApiKey(key.keyPrefix, key.keySuffix),
       environment: key.environment,
       scopes: key.scopes.map(s => s.scope),
       lastUsedAt: key.lastUsedAt,
@@ -161,6 +163,7 @@ export class ApiKeysService {
     const newApiKey = CryptoUtil.generateApiKey(oldKey.environment);
     const keyHash = CryptoUtil.hashApiKey(newApiKey);
     const keyPrefix = CryptoUtil.getKeyPrefix(newApiKey);
+    const keySuffix = CryptoUtil.getKeySuffix(newApiKey);
 
     const [, createdApiKey] = await this.prisma.$transaction([
       this.prisma.apiKey.update({
@@ -174,6 +177,7 @@ export class ApiKeysService {
           projectId: project.id,
           keyHash,
           keyPrefix,
+          keySuffix,
           name: `${oldKey.name} (rolled)`,
           environment: oldKey.environment,
           expiresAt: oldKey.expiresAt,

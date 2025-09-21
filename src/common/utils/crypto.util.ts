@@ -1,8 +1,37 @@
-import { randomBytes, createHash, createCipheriv, createDecipheriv } from 'crypto';
+import { randomBytes, createHash, createCipheriv, createDecipheriv, scryptSync } from 'crypto';
 
 export class CryptoUtil {
   private static readonly ENCRYPTION_ALGORITHM = 'aes-256-gcm';
-  private static readonly ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || randomBytes(32).toString('hex');
+  private static encryptionKey: Buffer;
+
+  static initializeEncryptionKey(): void {
+    const key = process.env.ENCRYPTION_KEY;
+
+    if (!key) {
+      throw new Error(
+        'ENCRYPTION_KEY environment variable is required. ' +
+        'Generate a secure key using: openssl rand -hex 32'
+      );
+    }
+
+    if (key.length < 32) {
+      throw new Error(
+        'ENCRYPTION_KEY must be at least 32 characters. ' +
+        'Generate a secure key using: openssl rand -hex 32'
+      );
+    }
+
+    // Derive a proper 32-byte key from the provided key using scrypt
+    const salt = 'gatekit-encryption-salt'; // Static salt for consistent key derivation
+    this.encryptionKey = scryptSync(key, salt, 32);
+  }
+
+  static getEncryptionKey(): Buffer {
+    if (!this.encryptionKey) {
+      this.initializeEncryptionKey();
+    }
+    return this.encryptionKey;
+  }
 
   static generateApiKey(environment: 'production' | 'test' | 'restricted'): string {
     const envPrefix = {
@@ -33,7 +62,7 @@ export class CryptoUtil {
 
   static encrypt(text: string): string {
     const iv = randomBytes(16);
-    const key = Buffer.from(this.ENCRYPTION_KEY.substring(0, 32), 'utf-8');
+    const key = this.getEncryptionKey();
     const cipher = createCipheriv(this.ENCRYPTION_ALGORITHM, key, iv);
 
     let encrypted = cipher.update(text, 'utf8', 'hex');
@@ -46,11 +75,15 @@ export class CryptoUtil {
 
   static decrypt(encryptedData: string): string {
     const parts = encryptedData.split(':');
+    if (parts.length !== 3) {
+      throw new Error('Invalid encrypted data format');
+    }
+
     const iv = Buffer.from(parts[0], 'hex');
     const authTag = Buffer.from(parts[1], 'hex');
     const encrypted = parts[2];
 
-    const key = Buffer.from(this.ENCRYPTION_KEY.substring(0, 32), 'utf-8');
+    const key = this.getEncryptionKey();
     const decipher = createDecipheriv(this.ENCRYPTION_ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
 

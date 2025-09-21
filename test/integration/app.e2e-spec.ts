@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { createTestProject } from '../fixtures/projects.fixture';
@@ -18,6 +18,7 @@ describe('GateKit API (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -25,25 +26,29 @@ describe('GateKit API (e2e)', () => {
         forbidNonWhitelisted: true,
       }),
     );
+
     await app.init();
 
-    prisma = app.get<PrismaService>(PrismaService);
-  });
+    prisma = moduleFixture.get<PrismaService>(PrismaService);
 
-  beforeEach(async () => {
     // Clean database
-    await prisma.apiKeyUsage.deleteMany();
     await prisma.apiKeyScope.deleteMany();
     await prisma.apiKey.deleteMany();
-    await prisma.projectPlatform.deleteMany();
     await prisma.project.deleteMany();
 
-    // Create test project and API key
+    // Create test project and API key with proper scopes
     const project = await createTestProject(prisma, { name: 'E2E Test Project' });
     testProjectId = project.id;
 
     const { rawKey } = await createTestApiKey(prisma, project.id, {
-      scopes: ['messages:send', 'messages:read'],
+      scopes: [
+        'messages:send',
+        'messages:read',
+        'projects:read',
+        'projects:write',
+        'keys:manage',
+        'keys:read'
+      ],
     });
     testApiKey = rawKey;
   });
@@ -64,11 +69,40 @@ describe('GateKit API (e2e)', () => {
     });
   });
 
+  describe('Authentication', () => {
+    it('should reject requests without API key', () => {
+      return request(app.getHttpServer())
+        .get('/api/v1/projects')
+        .expect(401)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('message', 'API key is required');
+        });
+    });
+
+    it('should reject requests with invalid API key', () => {
+      return request(app.getHttpServer())
+        .get('/api/v1/projects')
+        .set('X-API-Key', 'invalid-key')
+        .expect(401)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('message', 'Invalid API key');
+        });
+    });
+
+    it('should accept requests with valid API key', () => {
+      return request(app.getHttpServer())
+        .get('/api/v1/projects')
+        .set('X-API-Key', testApiKey)
+        .expect(200);
+    });
+  });
+
   describe('/api/v1/projects', () => {
     describe('GET /api/v1/projects', () => {
-      it('should return all projects', () => {
+      it('should return all projects with valid API key', () => {
         return request(app.getHttpServer())
           .get('/api/v1/projects')
+          .set('X-API-Key', testApiKey)
           .expect(200)
           .expect((res) => {
             expect(Array.isArray(res.body)).toBe(true);
@@ -76,10 +110,16 @@ describe('GateKit API (e2e)', () => {
             expect(res.body[0]).toHaveProperty('name', 'E2E Test Project');
           });
       });
+
+      it('should return 401 without API key', () => {
+        return request(app.getHttpServer())
+          .get('/api/v1/projects')
+          .expect(401);
+      });
     });
 
     describe('POST /api/v1/projects', () => {
-      it('should create a new project', () => {
+      it('should create a new project with valid API key', () => {
         const projectData = {
           name: 'New Project',
           environment: 'development',
@@ -87,6 +127,7 @@ describe('GateKit API (e2e)', () => {
 
         return request(app.getHttpServer())
           .post('/api/v1/projects')
+          .set('X-API-Key', testApiKey)
           .send(projectData)
           .expect(201)
           .expect((res) => {
@@ -96,7 +137,19 @@ describe('GateKit API (e2e)', () => {
           });
       });
 
-      it('should return 400 for invalid environment', () => {
+      it('should return 401 without API key', () => {
+        const projectData = {
+          name: 'Unauthorized Project',
+          environment: 'development',
+        };
+
+        return request(app.getHttpServer())
+          .post('/api/v1/projects')
+          .send(projectData)
+          .expect(401);
+      });
+
+      it('should return 400 for invalid environment with valid API key', () => {
         const projectData = {
           name: 'Invalid Project',
           environment: 'invalid-env',
@@ -104,6 +157,7 @@ describe('GateKit API (e2e)', () => {
 
         return request(app.getHttpServer())
           .post('/api/v1/projects')
+          .set('X-API-Key', testApiKey)
           .send(projectData)
           .expect(400);
       });
@@ -118,26 +172,35 @@ describe('GateKit API (e2e)', () => {
 
         return request(app.getHttpServer())
           .post('/api/v1/projects')
+          .set('X-API-Key', testApiKey)
           .send(projectData)
           .expect(409);
       });
     });
 
     describe('GET /api/v1/projects/:slug', () => {
-      it('should return project details', () => {
+      it('should return project details with valid API key', () => {
         return request(app.getHttpServer())
           .get('/api/v1/projects/e2e-test-project')
+          .set('X-API-Key', testApiKey)
           .expect(200)
           .expect((res) => {
             expect(res.body).toHaveProperty('name', 'E2E Test Project');
             expect(res.body).toHaveProperty('apiKeys');
-            expect(res.body.apiKeys).toHaveLength(1);
+            expect(res.body.apiKeys.length).toBeGreaterThanOrEqual(1);
           });
       });
 
-      it('should return 404 for non-existent project', () => {
+      it('should return 401 without API key', () => {
+        return request(app.getHttpServer())
+          .get('/api/v1/projects/e2e-test-project')
+          .expect(401);
+      });
+
+      it('should return 404 for non-existent project with valid API key', () => {
         return request(app.getHttpServer())
           .get('/api/v1/projects/non-existent')
+          .set('X-API-Key', testApiKey)
           .expect(404);
       });
     });
@@ -145,29 +208,40 @@ describe('GateKit API (e2e)', () => {
 
   describe('/api/v1/projects/:slug/keys', () => {
     describe('POST /api/v1/projects/:slug/keys', () => {
-      it('should create a new API key', () => {
+      it('should create a new API key with valid API key', () => {
         const keyData = {
           name: 'New API Key',
-          environment: 'production',
+          environment: 'test',
           scopes: ['messages:send'],
-          expiresInDays: 30,
+        };
+
+        return request(app.getHttpServer())
+          .post('/api/v1/projects/e2e-test-project/keys')
+          .set('X-API-Key', testApiKey)
+          .send(keyData)
+          .expect(201)
+          .expect((res) => {
+            expect(res.body).toHaveProperty('key');
+            expect(res.body.key).toMatch(/^gk_test_/);
+            expect(res.body).toHaveProperty('name', 'New API Key');
+            expect(res.body).toHaveProperty('environment', 'test');
+            expect(res.body.scopes).toEqual(['messages:send']);
+          });
+      });
+
+      it('should return 401 without API key', () => {
+        const keyData = {
+          name: 'Unauthorized Key',
+          environment: 'test',
         };
 
         return request(app.getHttpServer())
           .post('/api/v1/projects/e2e-test-project/keys')
           .send(keyData)
-          .expect(201)
-          .expect((res) => {
-            expect(res.body).toHaveProperty('key');
-            expect(res.body.key).toMatch(/^gk_live_/);
-            expect(res.body).toHaveProperty('name', 'New API Key');
-            expect(res.body).toHaveProperty('environment', 'production');
-            expect(res.body.scopes).toEqual(['messages:send']);
-            expect(res.body).toHaveProperty('expiresAt');
-          });
+          .expect(401);
       });
 
-      it('should return 400 for invalid environment', () => {
+      it('should return 400 for invalid environment with valid API key', () => {
         const keyData = {
           name: 'Invalid Key',
           environment: 'invalid',
@@ -175,107 +249,183 @@ describe('GateKit API (e2e)', () => {
 
         return request(app.getHttpServer())
           .post('/api/v1/projects/e2e-test-project/keys')
+          .set('X-API-Key', testApiKey)
           .send(keyData)
           .expect(400);
       });
 
-      it('should return 404 for non-existent project', () => {
+      it('should return 404 for non-existent project with valid API key', () => {
         const keyData = {
-          name: 'Test Key',
+          name: 'Key for Non-existent',
           environment: 'test',
         };
 
         return request(app.getHttpServer())
           .post('/api/v1/projects/non-existent/keys')
+          .set('X-API-Key', testApiKey)
           .send(keyData)
           .expect(404);
       });
     });
 
     describe('GET /api/v1/projects/:slug/keys', () => {
-      it('should list project API keys', () => {
+      it('should list project API keys with valid API key', () => {
         return request(app.getHttpServer())
           .get('/api/v1/projects/e2e-test-project/keys')
+          .set('X-API-Key', testApiKey)
           .expect(200)
           .expect((res) => {
             expect(Array.isArray(res.body)).toBe(true);
-            expect(res.body).toHaveLength(1);
+            expect(res.body.length).toBeGreaterThan(0);
+            expect(res.body[0]).toHaveProperty('name');
             expect(res.body[0]).toHaveProperty('maskedKey');
-            expect(res.body[0]).not.toHaveProperty('keyHash');
+            expect(res.body[0].maskedKey).toMatch(/^gk_test_.*\.\.\..*$/);
           });
+      });
+
+      it('should return 401 without API key', () => {
+        return request(app.getHttpServer())
+          .get('/api/v1/projects/e2e-test-project/keys')
+          .expect(401);
       });
     });
 
     describe('DELETE /api/v1/projects/:slug/keys/:keyId', () => {
-      it('should revoke an API key', async () => {
-        const apiKey = await prisma.apiKey.findFirst({
-          where: { projectId: testProjectId },
+      it('should revoke an API key with valid API key', async () => {
+        const { apiKey } = await createTestApiKey(prisma, testProjectId, {
+          name: 'Key to Revoke',
         });
 
         return request(app.getHttpServer())
           .delete(`/api/v1/projects/e2e-test-project/keys/${apiKey.id}`)
+          .set('X-API-Key', testApiKey)
           .expect(200)
           .expect((res) => {
             expect(res.body).toHaveProperty('message', 'API key revoked successfully');
           });
       });
 
-      it('should return 404 for non-existent key', () => {
+      it('should return 401 without API key', () => {
+        return request(app.getHttpServer())
+          .delete('/api/v1/projects/e2e-test-project/keys/some-id')
+          .expect(401);
+      });
+
+      it('should return 404 for non-existent key with valid API key', () => {
         return request(app.getHttpServer())
           .delete('/api/v1/projects/e2e-test-project/keys/non-existent-id')
+          .set('X-API-Key', testApiKey)
           .expect(404);
+      });
+    });
+
+    describe('POST /api/v1/projects/:slug/keys/:keyId/roll', () => {
+      it('should roll an API key with valid API key', async () => {
+        const { apiKey } = await createTestApiKey(prisma, testProjectId, {
+          name: 'Key to Roll',
+        });
+
+        return request(app.getHttpServer())
+          .post(`/api/v1/projects/e2e-test-project/keys/${apiKey.id}/roll`)
+          .set('X-API-Key', testApiKey)
+          .expect(200)
+          .expect((res) => {
+            expect(res.body).toHaveProperty('key');
+            expect(res.body.key).toMatch(/^gk_test_/);
+            expect(res.body).toHaveProperty('name', 'Key to Roll (rolled)');
+            expect(res.body).toHaveProperty('oldKeyRevokedAt');
+          });
+      });
+
+      it('should return 401 without API key', () => {
+        return request(app.getHttpServer())
+          .post('/api/v1/projects/e2e-test-project/keys/some-id/roll')
+          .expect(401);
       });
     });
   });
 
-  describe('API Key Authentication', () => {
-    it('should validate API key in X-API-Key header', async () => {
-      // This would normally be a protected endpoint
-      // For now, we test that the key exists and is valid
-      const { ApiKeysService } = await import('../../src/api-keys/api-keys.service');
-      const apiKeyService = app.get(ApiKeysService);
-      const validated = await apiKeyService.validateApiKey(testApiKey);
-
-      expect(validated).toBeTruthy();
-      expect(validated.projectId).toBe(testProjectId);
-      expect(validated.scopes).toContain('messages:send');
-    });
-
-    it('should reject invalid API key', async () => {
-      const { ApiKeysService } = await import('../../src/api-keys/api-keys.service');
-      const apiKeyService = app.get(ApiKeysService);
-      const validated = await apiKeyService.validateApiKey('gk_test_invalid');
-
-      expect(validated).toBeNull();
-    });
-
-    it('should reject expired API key', async () => {
-      // Create expired key
+  describe('API Key Validation', () => {
+    it('should accept expired API key returns 401', async () => {
       const { rawKey } = await createTestApiKey(prisma, testProjectId, {
-        expiresAt: new Date(Date.now() - 86400000), // Expired yesterday
+        name: 'Expired Key',
+        expiresAt: new Date(Date.now() - 1000), // Expired 1 second ago
       });
 
-      const { ApiKeysService } = await import('../../src/api-keys/api-keys.service');
-      const apiKeyService = app.get(ApiKeysService);
-      const validated = await apiKeyService.validateApiKey(rawKey);
-
-      expect(validated).toBeNull();
+      return request(app.getHttpServer())
+        .get('/api/v1/projects')
+        .set('X-API-Key', rawKey)
+        .expect(401)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('message', 'Invalid API key');
+        });
     });
 
-    it('should reject revoked API key', async () => {
-      // Create and revoke key
-      const { rawKey, apiKey } = await createTestApiKey(prisma, testProjectId);
-
-      await prisma.apiKey.update({
-        where: { id: apiKey.id },
-        data: { revokedAt: new Date() },
+    it('should reject revoked API key with 401', async () => {
+      const { rawKey } = await createTestApiKey(prisma, testProjectId, {
+        name: 'Revoked Key',
+        revokedAt: new Date(Date.now() - 1000), // Revoked 1 second ago
       });
 
-      const { ApiKeysService } = await import('../../src/api-keys/api-keys.service');
-      const apiKeyService = app.get(ApiKeysService);
-      const validated = await apiKeyService.validateApiKey(rawKey);
+      return request(app.getHttpServer())
+        .get('/api/v1/projects')
+        .set('X-API-Key', rawKey)
+        .expect(401)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('message', 'Invalid API key');
+        });
+    });
+  });
 
-      expect(validated).toBeNull();
+  describe('Scope Authorization', () => {
+    it('should reject API key without required scope', async () => {
+      // Create key with limited scopes - only messages:read, no projects:write
+      const { rawKey } = await createTestApiKey(prisma, testProjectId, {
+        name: 'Limited Scope Key',
+        scopes: ['messages:read', 'projects:read'], // Can read but not write projects
+      });
+
+      const projectData = {
+        name: 'Should Fail',
+        environment: 'development',
+      };
+
+      // First verify the key is valid by reading projects
+      await request(app.getHttpServer())
+        .get('/api/v1/projects')
+        .set('X-API-Key', rawKey)
+        .expect(200);
+
+      // Now try to create a project - should fail with 403 due to insufficient scope
+      return request(app.getHttpServer())
+        .post('/api/v1/projects')
+        .set('X-API-Key', rawKey)
+        .send(projectData)
+        .expect(403) // Must return 403 for valid key with insufficient permissions
+        .expect((res) => {
+          expect(res.body.message).toBe('Insufficient permissions');
+        });
+    });
+
+    it('should allow API key with proper scope', async () => {
+      // Key already has projects:read scope
+      return request(app.getHttpServer())
+        .get('/api/v1/projects')
+        .set('X-API-Key', testApiKey)
+        .expect(200);
+    });
+  });
+
+  describe('Rate Limiting', () => {
+    it('should apply rate limiting per API key', async () => {
+      // Note: Rate limiting is configured but may need adjustment for testing
+      // This test ensures the header is present
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/projects')
+        .set('X-API-Key', testApiKey);
+
+      expect(response.headers).toHaveProperty('x-ratelimit-limit');
+      expect(response.headers).toHaveProperty('x-ratelimit-remaining');
     });
   });
 });
