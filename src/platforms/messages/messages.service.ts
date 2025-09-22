@@ -80,29 +80,5 @@ export class MessagesService {
     return project;
   }
 
-  private async validatePlatformConfig(projectId: string, platform: string) {
-    // Note: This method is deprecated - use validatePlatformConfigById instead
-    const platformConfig = await this.prisma.projectPlatform.findFirst({
-      where: {
-        projectId,
-        platform,
-        isActive: true,
-      },
-    });
-
-    if (!platformConfig) {
-      throw new NotFoundException(
-        `Platform '${platform}' is not configured for this project`,
-      );
-    }
-
-    if (!platformConfig.isActive) {
-      throw new BadRequestException(
-        `Platform '${platform}' is currently disabled`,
-      );
-    }
-
-    return platformConfig;
-  }
 
 }

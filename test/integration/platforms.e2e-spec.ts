@@ -99,7 +99,7 @@ describe('Platforms (e2e)', () => {
           });
       });
 
-      it('should reject duplicate platform configuration', async () => {
+      it('should allow multiple instances of same platform', async () => {
         // Clean any existing platforms first
         await prisma.projectPlatform.deleteMany({
           where: { projectId: testProjectId, platform: 'discord' },
@@ -116,15 +116,19 @@ describe('Platforms (e2e)', () => {
           },
         });
 
-        // Try to create duplicate
+        // Create second instance of same platform (now allowed)
         return request(app.getHttpServer())
           .post('/api/v1/projects/platform-test/platforms')
           .set('X-API-Key', testApiKey)
           .send({
             platform: 'discord',
-            credentials: { token: 'another-token' },
+            credentials: { token: 'second-discord-token' },
           })
-          .expect(409);
+          .expect(201) // Should succeed
+          .expect((res) => {
+            expect(res.body.platform).toBe('discord');
+            expect(res.body.isActive).toBe(true);
+          });
       });
 
       it('should require platforms:write scope', () => {
