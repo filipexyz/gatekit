@@ -61,8 +61,21 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     // Parse connectionKey to get projectId and platformId
     const [projectId, platformId] = connectionKey.split(':');
 
-    // Create Telegram bot (webhook mode)
-    const bot = new TelegramBot(credentials.token, { webHook: true });
+    // Create Telegram bot (webhook mode) with timeout protection
+    let bot;
+    try {
+      bot = await Promise.race([
+        Promise.resolve(new TelegramBot(credentials.token, { webHook: true })),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Telegram bot creation timeout')), 3000)
+        )
+      ]);
+    } catch (error) {
+      if (error.message === 'Telegram bot creation timeout') {
+        throw new Error(`Telegram bot creation timed out for ${connectionKey}`);
+      }
+      throw error;
+    }
 
     const connection: TelegramConnection = {
       connectionKey,

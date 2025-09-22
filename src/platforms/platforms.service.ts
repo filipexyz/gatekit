@@ -209,51 +209,82 @@ export class PlatformsService {
   }
 
   async getProjectPlatform(platformId: string) {
-    const platform = await this.prisma.projectPlatform.findUnique({
-      where: { id: platformId },
-      include: { project: true },
-    });
+    try {
+      // Add timeout to prevent hanging queries
+      const platform = await Promise.race([
+        this.prisma.projectPlatform.findUnique({
+          where: { id: platformId },
+          include: { project: true },
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Database query timeout')), 5000)
+        )
+      ]) as any;
 
-    if (!platform) {
-      throw new NotFoundException(`Platform configuration with ID '${platformId}' not found`);
+      if (!platform) {
+        throw new NotFoundException(`Platform configuration with ID '${platformId}' not found`);
+      }
+
+      if (!platform.isActive) {
+        throw new ConflictException(`Platform configuration '${platformId}' is not active`);
+      }
+
+      // Decrypt credentials with timeout
+      let decryptedCredentials;
+      try {
+        decryptedCredentials = JSON.parse(CryptoUtil.decrypt(platform.credentialsEncrypted));
+      } catch (error) {
+        throw new BadRequestException('Failed to decrypt platform credentials');
+      }
+
+      return {
+        id: platform.id,
+        projectId: platform.projectId,
+        platform: platform.platform,
+        isActive: platform.isActive,
+        testMode: platform.testMode,
+        webhookToken: platform.webhookToken,
+        decryptedCredentials,
+        project: platform.project,
+      };
+    } catch (error) {
+      if (error.message === 'Database query timeout') {
+        throw new BadRequestException('Platform lookup timed out');
+      }
+      throw error;
     }
-
-    if (!platform.isActive) {
-      throw new ConflictException(`Platform configuration '${platformId}' is not active`);
-    }
-
-    // Decrypt credentials
-    const decryptedCredentials = JSON.parse(CryptoUtil.decrypt(platform.credentialsEncrypted));
-
-    return {
-      id: platform.id,
-      projectId: platform.projectId,
-      platform: platform.platform,
-      isActive: platform.isActive,
-      testMode: platform.testMode,
-      webhookToken: platform.webhookToken,
-      decryptedCredentials,
-      project: platform.project,
-    };
   }
 
   async validatePlatformConfigById(platformId: string) {
-    const platform = await this.prisma.projectPlatform.findUnique({
-      where: { id: platformId },
-    });
+    try {
+      // Add timeout to prevent hanging queries
+      const platform = await Promise.race([
+        this.prisma.projectPlatform.findUnique({
+          where: { id: platformId },
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Database query timeout')), 5000)
+        )
+      ]) as any;
 
-    if (!platform) {
-      throw new NotFoundException(
-        `Platform configuration with ID '${platformId}' not found`,
-      );
+      if (!platform) {
+        throw new NotFoundException(
+          `Platform configuration with ID '${platformId}' not found`,
+        );
+      }
+
+      if (!platform.isActive) {
+        throw new BadRequestException(
+          `Platform configuration '${platformId}' is currently disabled`,
+        );
+      }
+
+      return platform;
+    } catch (error) {
+      if (error.message === 'Database query timeout') {
+        throw new BadRequestException('Platform validation timed out');
+      }
+      throw error;
     }
-
-    if (!platform.isActive) {
-      throw new BadRequestException(
-        `Platform configuration '${platformId}' is currently disabled`,
-      );
-    }
-
-    return platform;
   }
 }

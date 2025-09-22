@@ -103,8 +103,13 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
       // Set up Discord event handlers
       this.setupEventHandlers(connection);
 
-      // Login to Discord
-      await client.login(credentials.token);
+      // Login to Discord with timeout protection
+      await Promise.race([
+        client.login(credentials.token),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Discord login timeout')), 5000)
+        )
+      ]);
 
       connection.isConnected = true;
 
