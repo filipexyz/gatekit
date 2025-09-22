@@ -1,9 +1,6 @@
 -- CreateEnum
 CREATE TYPE "public"."ProjectEnvironment" AS ENUM ('production', 'staging', 'development', 'custom');
 
--- CreateEnum
-CREATE TYPE "public"."ApiKeyEnvironment" AS ENUM ('production', 'test', 'restricted');
-
 -- CreateTable
 CREATE TABLE "public"."projects" (
     "id" TEXT NOT NULL,
@@ -24,8 +21,8 @@ CREATE TABLE "public"."api_keys" (
     "project_id" TEXT NOT NULL,
     "key_hash" TEXT NOT NULL,
     "key_prefix" TEXT NOT NULL,
+    "key_suffix" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "environment" "public"."ApiKeyEnvironment" NOT NULL,
     "expires_at" TIMESTAMP(3),
     "last_used_at" TIMESTAMP(3),
     "revoked_at" TIMESTAMP(3),
@@ -49,6 +46,7 @@ CREATE TABLE "public"."project_platforms" (
     "project_id" TEXT NOT NULL,
     "platform" TEXT NOT NULL,
     "credentials_encrypted" TEXT NOT NULL,
+    "webhook_token" TEXT NOT NULL,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "test_mode" BOOLEAN NOT NULL DEFAULT false,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -84,7 +82,13 @@ CREATE INDEX "api_keys_project_id_idx" ON "public"."api_keys"("project_id");
 CREATE INDEX "api_keys_key_hash_idx" ON "public"."api_keys"("key_hash");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "project_platforms_webhook_token_key" ON "public"."project_platforms"("webhook_token");
+
+-- CreateIndex
 CREATE INDEX "project_platforms_project_id_idx" ON "public"."project_platforms"("project_id");
+
+-- CreateIndex
+CREATE INDEX "project_platforms_webhook_token_idx" ON "public"."project_platforms"("webhook_token");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "project_platforms_project_id_platform_key" ON "public"."project_platforms"("project_id", "platform");
