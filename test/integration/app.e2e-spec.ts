@@ -211,7 +211,6 @@ describe('GateKit API (e2e)', () => {
       it('should create a new API key with valid API key', () => {
         const keyData = {
           name: 'New API Key',
-          environment: 'test',
           scopes: ['messages:send'],
         };
 
@@ -222,9 +221,8 @@ describe('GateKit API (e2e)', () => {
           .expect(201)
           .expect((res) => {
             expect(res.body).toHaveProperty('key');
-            expect(res.body.key).toMatch(/^gk_test_/);
+            expect(res.body.key).toMatch(/^gk_dev_/);
             expect(res.body).toHaveProperty('name', 'New API Key');
-            expect(res.body).toHaveProperty('environment', 'test');
             expect(res.body.scopes).toEqual(['messages:send']);
           });
       });
@@ -232,7 +230,7 @@ describe('GateKit API (e2e)', () => {
       it('should return 401 without API key', () => {
         const keyData = {
           name: 'Unauthorized Key',
-          environment: 'test',
+          scopes: ['messages:send'],
         };
 
         return request(app.getHttpServer())
@@ -241,10 +239,9 @@ describe('GateKit API (e2e)', () => {
           .expect(401);
       });
 
-      it('should return 400 for invalid environment with valid API key', () => {
+      it('should return 400 for missing scopes with valid API key', () => {
         const keyData = {
           name: 'Invalid Key',
-          environment: 'invalid',
         };
 
         return request(app.getHttpServer())
@@ -257,7 +254,7 @@ describe('GateKit API (e2e)', () => {
       it('should return 404 for non-existent project with valid API key', () => {
         const keyData = {
           name: 'Key for Non-existent',
-          environment: 'test',
+          scopes: ['messages:send'],
         };
 
         return request(app.getHttpServer())
@@ -279,7 +276,7 @@ describe('GateKit API (e2e)', () => {
             expect(res.body.length).toBeGreaterThan(0);
             expect(res.body[0]).toHaveProperty('name');
             expect(res.body[0]).toHaveProperty('maskedKey');
-            expect(res.body[0].maskedKey).toMatch(/^gk_test_.*\.\.\..*$/);
+            expect(res.body[0].maskedKey).toMatch(/^gk_dev_.*\.\.\..*$/);
           });
       });
 
@@ -331,7 +328,7 @@ describe('GateKit API (e2e)', () => {
           .expect(200)
           .expect((res) => {
             expect(res.body).toHaveProperty('key');
-            expect(res.body.key).toMatch(/^gk_test_/);
+            expect(res.body.key).toMatch(/^gk_dev_/);
             expect(res.body).toHaveProperty('name', 'Key to Roll (rolled)');
             expect(res.body).toHaveProperty('oldKeyRevokedAt');
           });

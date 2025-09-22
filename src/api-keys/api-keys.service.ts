@@ -2,23 +2,12 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { CryptoUtil } from '../common/utils/crypto.util';
-import { ApiKeyEnvironment } from '@prisma/client';
+import { ProjectEnvironment } from '@prisma/client';
 
 @Injectable()
 export class ApiKeysService {
   constructor(private prisma: PrismaService) {}
 
-  private getDefaultScopes(environment: ApiKeyEnvironment): string[] {
-    switch (environment) {
-      case 'production':
-      case 'test':
-        return ['messages:send', 'messages:read'];
-      case 'restricted':
-        return [];
-      default:
-        return ['messages:send', 'messages:read'];
-    }
-  }
 
   async create(projectSlug: string, createApiKeyDto: CreateApiKeyDto, createdBy?: string) {
     const project = await this.prisma.project.findUnique({
@@ -29,12 +18,12 @@ export class ApiKeysService {
       throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
     }
 
-    const apiKey = CryptoUtil.generateApiKey(createApiKeyDto.environment);
+    const apiKey = CryptoUtil.generateApiKey(project.environment);
     const keyHash = CryptoUtil.hashApiKey(apiKey);
     const keyPrefix = CryptoUtil.getKeyPrefix(apiKey);
     const keySuffix = CryptoUtil.getKeySuffix(apiKey);
 
-    const scopes = createApiKeyDto.scopes || this.getDefaultScopes(createApiKeyDto.environment);
+    const scopes = createApiKeyDto.scopes || [];
 
     let expiresAt: Date | null = null;
     if (createApiKeyDto.expiresInDays) {
@@ -49,7 +38,6 @@ export class ApiKeysService {
         keyPrefix,
         keySuffix,
         name: createApiKeyDto.name,
-        environment: createApiKeyDto.environment,
         expiresAt,
         createdBy,
         scopes: {
@@ -67,7 +55,6 @@ export class ApiKeysService {
       name: createdApiKey.name,
       prefix: keyPrefix,
       scopes: createdApiKey.scopes.map(s => s.scope),
-      environment: createdApiKey.environment,
       expiresAt: createdApiKey.expiresAt,
       createdAt: createdApiKey.createdAt,
     };
@@ -96,7 +83,6 @@ export class ApiKeysService {
       id: key.id,
       name: key.name,
       maskedKey: CryptoUtil.maskApiKey(key.keyPrefix, key.keySuffix),
-      environment: key.environment,
       scopes: key.scopes.map(s => s.scope),
       lastUsedAt: key.lastUsedAt,
       expiresAt: key.expiresAt,
@@ -160,7 +146,7 @@ export class ApiKeysService {
       throw new NotFoundException(`Active API key not found`);
     }
 
-    const newApiKey = CryptoUtil.generateApiKey(oldKey.environment);
+    const newApiKey = CryptoUtil.generateApiKey(project.environment);
     const keyHash = CryptoUtil.hashApiKey(newApiKey);
     const keyPrefix = CryptoUtil.getKeyPrefix(newApiKey);
     const keySuffix = CryptoUtil.getKeySuffix(newApiKey);
@@ -179,7 +165,6 @@ export class ApiKeysService {
           keyPrefix,
           keySuffix,
           name: `${oldKey.name} (rolled)`,
-          environment: oldKey.environment,
           expiresAt: oldKey.expiresAt,
           createdBy,
           scopes: {
@@ -198,7 +183,6 @@ export class ApiKeysService {
       name: createdApiKey.name,
       prefix: keyPrefix,
       scopes: createdApiKey.scopes.map(s => s.scope),
-      environment: createdApiKey.environment,
       expiresAt: createdApiKey.expiresAt,
       createdAt: createdApiKey.createdAt,
       oldKeyRevokedAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -238,7 +222,6 @@ export class ApiKeysService {
       projectId: key.projectId,
       project: key.project,
       scopes: key.scopes.map(s => s.scope),
-      environment: key.environment,
     };
   }
 }

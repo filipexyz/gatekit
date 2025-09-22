@@ -51,14 +51,14 @@ describe('ApiKeysService', () => {
   });
 
   describe('create', () => {
-    it('should create API key with default scopes for test environment', async () => {
+    it('should create API key with specified scopes', async () => {
       const projectSlug = 'test-project';
       const createDto = {
         name: 'Test Key',
-        environment: 'test' as const,
+        scopes: ['messages:send', 'messages:read'],
       };
 
-      const mockProject = { id: 'project-id', slug: projectSlug };
+      const mockProject = { id: 'project-id', slug: projectSlug, environment: 'development' };
       const mockApiKey = 'gk_test_abc123';
       const mockKeyHash = 'hashed_key';
       const mockKeyPrefix = 'gk_test_abc1';
@@ -89,20 +89,21 @@ describe('ApiKeysService', () => {
       expect(result).toHaveProperty('id', 'key-id');
       expect(result.scopes).toEqual(['messages:send', 'messages:read']);
       expect(mockPrismaService.apiKey.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
+        data: {
           projectId: 'project-id',
           keyHash: mockKeyHash,
           keyPrefix: mockKeyPrefix,
           keySuffix: 'wxyz',
           name: 'Test Key',
-          environment: 'test',
+          expiresAt: null,
+          createdBy: undefined,
           scopes: {
             create: [
               { scope: 'messages:send' },
               { scope: 'messages:read' },
             ],
           },
-        }),
+        },
         include: { scopes: true },
       });
     });
@@ -111,18 +112,18 @@ describe('ApiKeysService', () => {
       mockPrismaService.project.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.create('non-existent', { name: 'Test', environment: 'test' }),
+        service.create('non-existent', { name: 'Test', scopes: ['messages:send'] }),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('should set expiration date when expiresInDays provided', async () => {
       const createDto = {
         name: 'Test Key',
-        environment: 'test' as const,
+        scopes: ['messages:send'],
         expiresInDays: 30,
       };
 
-      mockPrismaService.project.findUnique.mockResolvedValue({ id: 'project-id' });
+      mockPrismaService.project.findUnique.mockResolvedValue({ id: 'project-id', environment: 'test' });
       (CryptoUtil.generateApiKey as jest.Mock).mockReturnValue('gk_test_key');
       (CryptoUtil.hashApiKey as jest.Mock).mockReturnValue('hash');
       (CryptoUtil.getKeyPrefix as jest.Mock).mockReturnValue('gk_test_');
@@ -148,7 +149,7 @@ describe('ApiKeysService', () => {
   describe('findAll', () => {
     it('should return masked API keys for a project', async () => {
       const projectSlug = 'test-project';
-      const mockProject = { id: 'project-id', slug: projectSlug };
+      const mockProject = { id: 'project-id', slug: projectSlug, environment: 'development' };
 
       mockPrismaService.project.findUnique.mockResolvedValue(mockProject);
       mockPrismaService.apiKey.findMany.mockResolvedValue([
@@ -184,7 +185,7 @@ describe('ApiKeysService', () => {
       const projectSlug = 'test-project';
       const keyId = 'key-id';
 
-      mockPrismaService.project.findUnique.mockResolvedValue({ id: 'project-id' });
+      mockPrismaService.project.findUnique.mockResolvedValue({ id: 'project-id', environment: 'test' });
       mockPrismaService.apiKey.findFirst.mockResolvedValue({
         id: keyId,
         revokedAt: null,
@@ -201,7 +202,7 @@ describe('ApiKeysService', () => {
     });
 
     it('should return message when key already revoked', async () => {
-      mockPrismaService.project.findUnique.mockResolvedValue({ id: 'project-id' });
+      mockPrismaService.project.findUnique.mockResolvedValue({ id: 'project-id', environment: 'test' });
       mockPrismaService.apiKey.findFirst.mockResolvedValue({
         id: 'key-id',
         revokedAt: new Date(),
@@ -214,7 +215,7 @@ describe('ApiKeysService', () => {
     });
 
     it('should throw NotFoundException when key does not exist', async () => {
-      mockPrismaService.project.findUnique.mockResolvedValue({ id: 'project-id' });
+      mockPrismaService.project.findUnique.mockResolvedValue({ id: 'project-id', environment: 'test' });
       mockPrismaService.apiKey.findFirst.mockResolvedValue(null);
 
       await expect(service.revoke('test-project', 'non-existent')).rejects.toThrow(NotFoundException);
@@ -248,7 +249,6 @@ describe('ApiKeysService', () => {
         projectId: 'project-id',
         project: mockKey.project,
         scopes: ['messages:send'],
-        environment: 'test',
       });
 
       expect(mockPrismaService.apiKey.update).toHaveBeenCalledWith({

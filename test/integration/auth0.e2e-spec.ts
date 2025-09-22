@@ -60,7 +60,7 @@ describe('Auth0 Authentication (e2e)', () => {
         .set('Authorization', 'Bearer fake.jwt.token')
         .expect(401)
         .expect((res) => {
-          expect(res.body.message).toBe('JWT authentication is not configured. Please use API key authentication.');
+          expect(res.body.message).toBe('Invalid or expired token');
         });
     });
 

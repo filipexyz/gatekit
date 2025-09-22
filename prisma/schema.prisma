@@ -14,12 +14,6 @@ enum ProjectEnvironment {
   custom
 }
 
-enum ApiKeyEnvironment {
-  production
-  test
-  restricted
-}
-
 model Project {
   id          String              @id @default(uuid())
   name        String
@@ -43,7 +37,6 @@ model ApiKey {
   keyPrefix   String             @map("key_prefix")
   keySuffix   String             @map("key_suffix")
   name        String
-  environment ApiKeyEnvironment
   expiresAt   DateTime?          @map("expires_at")
   lastUsedAt  DateTime?          @map("last_used_at")
   revokedAt   DateTime?          @map("revoked_at")

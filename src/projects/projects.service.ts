@@ -57,7 +57,7 @@ export class ProjectsService {
             id: true,
             name: true,
             keyPrefix: true,
-            environment: true,
+            keySuffix: true,
             createdAt: true,
             lastUsedAt: true,
             expiresAt: true,

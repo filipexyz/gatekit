@@ -1,17 +1,13 @@
-import { IsString, IsEnum, IsOptional, IsNumber, IsArray } from 'class-validator';
-import { ApiKeyEnvironment } from '@prisma/client';
+import { IsString, IsOptional, IsNumber, IsArray, ArrayMinSize } from 'class-validator';
 
 export class CreateApiKeyDto {
   @IsString()
   name: string;
 
-  @IsEnum(ApiKeyEnvironment)
-  environment: ApiKeyEnvironment;
-
-  @IsOptional()
   @IsArray()
+  @ArrayMinSize(1)
   @IsString({ each: true })
-  scopes?: string[];
+  scopes: string[];
 
   @IsOptional()
   @IsNumber()

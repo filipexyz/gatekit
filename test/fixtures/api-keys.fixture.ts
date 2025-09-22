@@ -1,4 +1,4 @@
-import { PrismaClient, ApiKeyEnvironment } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { CryptoUtil } from '../../src/common/utils/crypto.util';
 
 export const createTestApiKey = async (
@@ -6,15 +6,18 @@ export const createTestApiKey = async (
   projectId: string,
   overrides: Partial<{
     name: string;
-    environment: ApiKeyEnvironment;
     scopes: string[];
     expiresAt: Date;
     revokedAt: Date;
     createdBy: string;
   }> = {},
 ) => {
-  const environment = overrides.environment || 'test';
-  const apiKey = CryptoUtil.generateApiKey(environment);
+  // Get the project to use its environment
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+  });
+
+  const apiKey = CryptoUtil.generateApiKey(project?.environment || 'development');
   const keyHash = CryptoUtil.hashApiKey(apiKey);
   const keyPrefix = CryptoUtil.getKeyPrefix(apiKey);
   const keySuffix = CryptoUtil.getKeySuffix(apiKey);
@@ -28,7 +31,6 @@ export const createTestApiKey = async (
       keyPrefix,
       keySuffix,
       name: overrides.name || 'Test API Key',
-      environment,
       expiresAt: overrides.expiresAt || null,
       revokedAt: overrides.revokedAt || null,
       createdBy: overrides.createdBy || null,

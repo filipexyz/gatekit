@@ -33,11 +33,12 @@ export class CryptoUtil {
     return this.encryptionKey;
   }
 
-  static generateApiKey(environment: 'production' | 'test' | 'restricted'): string {
+  static generateApiKey(environment: 'production' | 'staging' | 'development' | 'custom'): string {
     const envPrefix = {
-      production: 'live',
-      test: 'test',
-      restricted: 'restricted',
+      production: 'prod',
+      staging: 'stg',
+      development: 'dev',
+      custom: 'custom',
     };
 
     const randomPart = randomBytes(32).toString('base64url');
