@@ -115,7 +115,7 @@ describe('AppAuthGuard', () => {
       jest.spyOn(apiKeysService, 'validateApiKey').mockResolvedValue(mockValidatedKey as any);
       jest.spyOn(reflector, 'getAllAndOverride').mockImplementation((key: string) => {
         if (key === 'isPublic') return false;
-        if (key === 'scopes') return ['projects:read', 'projects:write'];
+        if (key === 'requiredScopes') return ['projects:read', 'projects:write'];
         return null;
       });
 

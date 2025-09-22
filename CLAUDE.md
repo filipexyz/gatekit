@@ -11,6 +11,8 @@
 - **Language**: TypeScript
 - **ORM**: Prisma
 - **Database**: PostgreSQL
+- **Queue**: Bull with Redis
+- **Cache**: Redis
 
 ## Authentication
 
@@ -48,7 +50,7 @@ Dual authentication support:
 
 ## Current Implementation
 
-### Endpoints
+### Core Endpoints
 - `GET /api/v1/health` - Public health check
 - `POST /api/v1/projects` - Create project
 - `GET /api/v1/projects` - List all projects
@@ -59,6 +61,54 @@ Dual authentication support:
 - `GET /api/v1/projects/:slug/keys` - List API keys
 - `DELETE /api/v1/projects/:slug/keys/:keyId` - Revoke key
 - `POST /api/v1/projects/:slug/keys/:keyId/roll` - Roll key
+
+### Platform Configuration
+- `GET /api/v1/projects/:slug/platforms` - List configured platforms
+- `POST /api/v1/projects/:slug/platforms` - Configure platform
+- `PATCH /api/v1/projects/:slug/platforms/:platform` - Update platform
+- `DELETE /api/v1/projects/:slug/platforms/:platform` - Delete platform
+- `GET /api/v1/projects/:slug/platforms/:platform/webhook` - Get webhook URL
+
+### Messaging (Queue-based)
+- `POST /api/v1/projects/:slug/messages/send` - Queue message for delivery
+- `GET /api/v1/projects/:slug/messages/status/:jobId` - Check message status
+- `GET /api/v1/projects/:slug/messages/queue/metrics` - Queue metrics
+- `POST /api/v1/projects/:slug/messages/retry/:jobId` - Retry failed message
+
+### Webhooks (Dynamic & UUID-secured)
+- `POST /api/v1/webhooks/:platform/:webhookToken` - Dynamic webhook handler for any platform
+- `GET /api/v1/platforms/health` - Platform provider health status
+- `GET /api/v1/platforms/supported` - List supported platforms
+- `GET /api/v1/platforms/webhook-routes` - Available webhook routes
+
+## Architecture Highlights
+
+### Dynamic Platform System
+- **Plugin-based architecture** - Platforms auto-register via `@PlatformProviderDecorator`
+- **Complete isolation** - Each platform provider manages its own connections and logic
+- **Thread-safe design** - No shared state between projects or platforms
+- **Connection strategies** - WebSocket (Discord), Webhook (Telegram), easily extensible
+- **Auto-discovery** - New platforms require only a single provider class
+
+### Message Queue System
+- **All messages are queued** - No synchronous message sending
+- **Bull queue with Redis backend** - Reliable, scalable message processing
+- **Dynamic platform routing** - Queue processor uses platform registry
+- **Automatic retries** - Exponential backoff for failed messages
+- **Job tracking** - Monitor message status via job IDs
+
+### Security Features
+- **UUID-based webhook tokens** - No exposure of project IDs in URLs
+- **AES-256-GCM encryption** - For sensitive credentials
+- **Platform isolation** - Each project gets dedicated platform connections
+- **Thread-safe message routing** - No race conditions between projects
+- **Scope-based authorization** - Granular API key permissions
+
+### Platform Provider Features
+- **One connection per project** - Discord: dedicated WebSocket per project
+- **Resource management** - Connection limits, cleanup, health monitoring
+- **Error resilience** - Graceful degradation when platforms unavailable
+- **Hot-swappable** - Providers can be added/removed without restarting
 
 ## Development Setup
 

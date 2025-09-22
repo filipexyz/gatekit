@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { BullModule } from '@nestjs/bull';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
@@ -11,6 +12,8 @@ import { ApiKeysModule } from './api-keys/api-keys.module';
 import { AuthModule } from './auth/auth.module';
 import { AppAuthGuard } from './common/guards/app-auth.guard';
 import { appConfig, configValidationSchema } from './config/app.config';
+import { PlatformsModule } from './platforms/platforms.module';
+import { QueuesModule } from './queues/queues.module';
 
 @Module({
   imports: [
@@ -35,11 +38,32 @@ import { appConfig, configValidationSchema } from './config/app.config';
         ],
       }),
     }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        redis: {
+          host: config.get<string>('REDIS_HOST', 'localhost'),
+          port: config.get<number>('REDIS_PORT', 6379),
+          password: config.get<string>('REDIS_PASSWORD'),
+          db: config.get<number>('REDIS_DB', 0),
+        },
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+        },
+      }),
+    }),
     HealthModule,
     AuthModule,
     ProjectsModule,
     PrismaModule,
     ApiKeysModule,
+    PlatformsModule,
+    QueuesModule,
   ],
   controllers: [AppController],
   providers: [

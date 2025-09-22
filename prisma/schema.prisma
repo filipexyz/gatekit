@@ -67,6 +67,7 @@ model ProjectPlatform {
   projectId            String   @map("project_id")
   platform             String
   credentialsEncrypted String   @map("credentials_encrypted") @db.Text
+  webhookToken         String   @unique @default(uuid()) @map("webhook_token")
   isActive             Boolean  @default(true) @map("is_active")
   testMode             Boolean  @default(false) @map("test_mode")
   createdAt            DateTime @default(now()) @map("created_at")
@@ -76,6 +77,7 @@ model ProjectPlatform {
 
   @@unique([projectId, platform])
   @@index([projectId])
+  @@index([webhookToken])
   @@map("project_platforms")
 }
 

@@ -1,0 +1,60 @@
+import { Module } from '@nestjs/common';
+import { DiscoveryModule } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { BullModule } from '@nestjs/bull';
+import { PlatformsService } from './platforms.service';
+import { PlatformsController } from './platforms.controller';
+import { MessagesService } from './messages/messages.service';
+import { MessagesController } from './messages/messages.controller';
+import { DynamicWebhookController } from './webhooks/dynamic-webhook.controller';
+import { PlatformHealthController } from './controllers/platform-health.controller';
+import { EventBusService } from './services/event-bus.service';
+import { PlatformRegistry } from './services/platform-registry.service';
+import { PrismaModule } from '../prisma/prisma.module';
+import { EVENT_BUS } from './interfaces/event-bus.interface';
+import { MessageQueue } from '../queues/message.queue';
+
+// Platform Providers
+import { DiscordProvider } from './providers/discord.provider';
+import { TelegramProvider } from './providers/telegram.provider';
+
+@Module({
+  imports: [
+    PrismaModule,
+    DiscoveryModule,
+    BullModule.registerQueue({
+      name: 'messages',
+    }),
+    EventEmitterModule.forRoot({
+      wildcard: false,
+      delimiter: '.',
+      newListener: false,
+      removeListener: false,
+      maxListeners: 10,
+      verboseMemoryLeak: false,
+      ignoreErrors: false,
+    }),
+  ],
+  controllers: [
+    PlatformsController,
+    MessagesController,
+    DynamicWebhookController,
+    PlatformHealthController,
+  ],
+  providers: [
+    PlatformsService,
+    MessagesService,
+    EventBusService,
+    PlatformRegistry,
+    MessageQueue,
+    {
+      provide: EVENT_BUS,
+      useClass: EventBusService,
+    },
+    // Platform Providers - will be auto-discovered
+    DiscordProvider,
+    TelegramProvider,
+  ],
+  exports: [PlatformsService, MessagesService, PlatformRegistry],
+})
+export class PlatformsModule {}

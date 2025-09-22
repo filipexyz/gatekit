@@ -14,16 +14,22 @@ export class CryptoUtil {
       );
     }
 
-    if (key.length < 32) {
+    if (key.length < 64) {
       throw new Error(
-        'ENCRYPTION_KEY must be at least 32 characters. ' +
+        'ENCRYPTION_KEY must be at least 64 characters (32 bytes hex). ' +
         'Generate a secure key using: openssl rand -hex 32'
       );
     }
 
-    // Derive a proper 32-byte key from the provided key using scrypt
-    const salt = 'gatekit-encryption-salt'; // Static salt for consistent key derivation
-    this.encryptionKey = scryptSync(key, salt, 32);
+    // Use the key directly as a hex string
+    this.encryptionKey = Buffer.from(key, 'hex');
+
+    if (this.encryptionKey.length !== 32) {
+      throw new Error(
+        'ENCRYPTION_KEY must be exactly 32 bytes when decoded from hex. ' +
+        'Generate a secure key using: openssl rand -hex 32'
+      );
+    }
   }
 
   static getEncryptionKey(): Buffer {

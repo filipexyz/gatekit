@@ -14,12 +14,14 @@ GateKit solves the problem of platform-specific integrations by providing a sing
 - 📊 **Usage Analytics**: Track API usage across projects and platforms
 - 🔑 **API Key Management**: Create, revoke, and roll keys with granular permissions
 - 🏗️ **Multi-Environment**: Support for test, production, and restricted environments
+- ⚡ **Async Message Queue**: Redis-backed Bull queue for reliable message delivery
+- 🔗 **Webhook Support**: Secure UUID-based webhook endpoints for platform callbacks
 
 ## Tech Stack
 
 - **Framework**: NestJS
 - **Database**: PostgreSQL with Prisma ORM
-- **Cache**: Redis
+- **Cache/Queue**: Redis with Bull
 - **Authentication**: Auth0 (JWT) + API Keys
 - **Language**: TypeScript
 - **Container**: Docker
@@ -148,8 +150,136 @@ POST /api/v1/projects/:slug/keys
 # Revoke API key
 DELETE /api/v1/projects/:slug/keys/:keyId
 
+# Roll API key (generate new key, revoke old)
+POST /api/v1/projects/:slug/keys/:keyId/roll
+```
+
+#### Platform Management
+```bash
+# List configured platforms for project
+GET /api/v1/projects/:slug/platforms
+
+# Configure a platform (Discord, Telegram, etc.)
+POST /api/v1/projects/:slug/platforms
+{
+  "platform": "discord",
+  "credentials": {
+    "token": "your-bot-token"
+  }
+}
+
+# Update platform configuration
+PATCH /api/v1/projects/:slug/platforms/:platform
+
+# Remove platform
+DELETE /api/v1/projects/:slug/platforms/:platform
+
+# Get webhook URL for platform
+GET /api/v1/projects/:slug/platforms/:platform/webhook
+```
+
+#### Platform Health & Discovery
+```bash
+# Check health of all platform providers
+GET /api/v1/platforms/health
+
+# List supported platforms
+GET /api/v1/platforms/supported
+
+# Get available webhook routes
+GET /api/v1/platforms/webhook-routes
+```
+
+#### Messaging (Queue-based)
+```bash
+# Send message (queued for async delivery)
+POST /api/v1/projects/:slug/messages/send
+{
+  "platform": "discord",
+  "target": {
+    "type": "channel",
+    "id": "channel-id"
+  },
+  "content": {
+    "text": "Hello, world!"
+  }
+}
+
+# Check message delivery status
+GET /api/v1/projects/:slug/messages/status/:jobId
+
+# Get queue metrics
+GET /api/v1/projects/:slug/messages/queue/metrics
+
+# Retry failed message
+POST /api/v1/projects/:slug/messages/retry/:jobId
+
+# Revoke API key
+DELETE /api/v1/projects/:slug/keys/:keyId
+
 # Roll API key (generate new, revoke old)
 POST /api/v1/projects/:slug/keys/:keyId/roll
+```
+
+#### Platform Configuration
+```bash
+# List configured platforms
+GET /api/v1/projects/:slug/platforms
+
+# Configure platform (Discord, Telegram, etc.)
+POST /api/v1/projects/:slug/platforms
+{
+  "platform": "discord",
+  "credentials": {
+    "token": "your-bot-token"
+  },
+  "config": {
+    "guildId": "123456789"
+  }
+}
+
+# Update platform configuration
+PATCH /api/v1/projects/:slug/platforms/:platform
+
+# Delete platform configuration
+DELETE /api/v1/projects/:slug/platforms/:platform
+
+# Get webhook URL for platform
+GET /api/v1/projects/:slug/platforms/:platform/webhook
+```
+
+#### Messages
+```bash
+# Send message (queued for async delivery)
+POST /api/v1/projects/:slug/messages/send
+{
+  "platform": "discord",
+  "target": {
+    "type": "channel",
+    "id": "channel-id"
+  },
+  "text": "Hello from GateKit!",
+  "attachments": [],
+  "threadId": null
+}
+# Returns: { "success": true, "jobId": "123", "status": "queued" }
+
+# Check message status
+GET /api/v1/projects/:slug/messages/status/:jobId
+
+# Get queue metrics
+GET /api/v1/projects/:slug/messages/queue/metrics
+# Returns: { "waiting": 5, "active": 2, "completed": 100, "failed": 3 }
+
+# Retry failed message
+POST /api/v1/projects/:slug/messages/retry/:jobId
+```
+
+#### Webhooks
+```bash
+# Platform webhooks (called by platforms like Discord/Telegram)
+POST /webhooks/discord/:webhookToken
+POST /webhooks/telegram/:webhookToken
 ```
 
 ### API Key Scopes
@@ -233,11 +363,19 @@ docker compose logs -f app
 ```
 src/
 ├── api-keys/          # API key management
+├── auth/              # Authentication strategies
 ├── common/            # Shared utilities, guards, decorators
 ├── config/            # Application configuration
 ├── health/            # Health check endpoint
+├── platforms/         # Platform adapters and messaging
+│   ├── adapters/      # Discord, Telegram, etc.
+│   ├── messages/      # Message sending service
+│   └── webhooks/      # Webhook handlers
 ├── prisma/            # Database service and migrations
 ├── projects/          # Project management
+├── queues/            # Bull queue management
+│   ├── processors/    # Message processors
+│   └── message.queue.ts
 └── main.ts           # Application entry point
 
 test/

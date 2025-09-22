@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, ForbiddenException, Optional } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
@@ -8,7 +8,7 @@ import { AppConfig } from '../../config/app.config';
 @Injectable()
 export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
   constructor(
-    private apiKeysService: ApiKeysService,
+    @Optional() private apiKeysService: ApiKeysService,
     private reflector: Reflector,
     private configService: ConfigService,
   ) {
@@ -47,13 +47,17 @@ export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
   private async validateApiKey(context: ExecutionContext, apiKey: string): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
 
+    if (!this.apiKeysService) {
+      throw new UnauthorizedException('API key authentication not configured');
+    }
+
     const validatedKey = await this.apiKeysService.validateApiKey(apiKey);
 
     if (!validatedKey) {
       throw new UnauthorizedException('Invalid API key');
     }
 
-    const requiredScopes = this.reflector.getAllAndOverride<string[]>('scopes', [
+    const requiredScopes = this.reflector.getAllAndOverride<string[]>('requiredScopes', [
       context.getHandler(),
       context.getClass(),
     ]) || [];
@@ -83,7 +87,7 @@ export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
         const request = context.switchToHttp().getRequest();
         request.authType = 'jwt';
 
-        const requiredScopes = this.reflector.getAllAndOverride<string[]>('scopes', [
+        const requiredScopes = this.reflector.getAllAndOverride<string[]>('requiredScopes', [
           context.getHandler(),
           context.getClass(),
         ]) || [];

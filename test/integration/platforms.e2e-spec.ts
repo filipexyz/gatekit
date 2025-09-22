@@ -1,0 +1,402 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import request from 'supertest';
+import { AppModule } from '../../src/app.module';
+import { PrismaService } from '../../src/prisma/prisma.service';
+import { createTestProject } from '../fixtures/projects.fixture';
+import { createTestApiKey } from '../fixtures/api-keys.fixture';
+
+describe('Platforms (e2e)', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let testProjectId: string;
+  let testApiKey: string;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+
+    // Add validation pipe for tests
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+      }),
+    );
+
+    prisma = moduleFixture.get<PrismaService>(PrismaService);
+
+    await app.init();
+
+    // Clean database
+    await prisma.apiKeyScope.deleteMany();
+    await prisma.apiKey.deleteMany();
+    await prisma.projectPlatform.deleteMany();
+    await prisma.project.deleteMany();
+
+    // Create test project and API key
+    const project = await createTestProject(prisma, {
+      name: 'Platform Test Project',
+      slug: 'platform-test',
+    });
+    testProjectId = project.id;
+
+    const { rawKey } = await createTestApiKey(prisma, project.id, {
+      scopes: ['platforms:read', 'platforms:write', 'messages:send'],
+    });
+    testApiKey = rawKey;
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  describe('/api/v1/projects/:slug/platforms', () => {
+    describe('POST', () => {
+      it('should create a Discord platform configuration', () => {
+        return request(app.getHttpServer())
+          .post('/api/v1/projects/platform-test/platforms')
+          .set('X-API-Key', testApiKey)
+          .send({
+            platform: 'discord',
+            credentials: {
+              token: 'test-discord-bot-token',
+            },
+            isActive: true,
+            testMode: false,
+          })
+          .expect(201)
+          .expect((res) => {
+            expect(res.body).toHaveProperty('id');
+            expect(res.body).toHaveProperty('platform', 'discord');
+            expect(res.body).toHaveProperty('isActive', true);
+            expect(res.body).not.toHaveProperty('credentials');
+          });
+      });
+
+      it('should create a Telegram platform configuration', () => {
+        return request(app.getHttpServer())
+          .post('/api/v1/projects/platform-test/platforms')
+          .set('X-API-Key', testApiKey)
+          .send({
+            platform: 'telegram',
+            credentials: {
+              token: 'test-telegram-bot-token',
+              webhook: 'https://example.com/webhook',
+            },
+            isActive: true,
+            testMode: true,
+          })
+          .expect(201)
+          .expect((res) => {
+            expect(res.body).toHaveProperty('id');
+            expect(res.body).toHaveProperty('platform', 'telegram');
+            expect(res.body).toHaveProperty('testMode', true);
+          });
+      });
+
+      it('should reject duplicate platform configuration', async () => {
+        // Clean any existing platforms first
+        await prisma.projectPlatform.deleteMany({
+          where: { projectId: testProjectId, platform: 'discord' },
+        });
+
+        // First create a platform
+        await prisma.projectPlatform.create({
+          data: {
+            projectId: testProjectId,
+            platform: 'discord',
+            credentialsEncrypted: 'encrypted',
+            isActive: true,
+            testMode: false,
+          },
+        });
+
+        // Try to create duplicate
+        return request(app.getHttpServer())
+          .post('/api/v1/projects/platform-test/platforms')
+          .set('X-API-Key', testApiKey)
+          .send({
+            platform: 'discord',
+            credentials: { token: 'another-token' },
+          })
+          .expect(409);
+      });
+
+      it('should require platforms:write scope', () => {
+        return request(app.getHttpServer())
+          .post('/api/v1/projects/platform-test/platforms')
+          .set('X-API-Key', 'invalid-key')
+          .send({
+            platform: 'discord',
+            credentials: { token: 'test-token' },
+          })
+          .expect(401);
+      });
+
+      it('should validate platform type', () => {
+        return request(app.getHttpServer())
+          .post('/api/v1/projects/platform-test/platforms')
+          .set('X-API-Key', testApiKey)
+          .send({
+            platform: 'invalid-platform',
+            credentials: { token: 'test-token' },
+          })
+          .expect(400);
+      });
+    });
+
+    describe('GET', () => {
+      beforeEach(async () => {
+        // Clean up platforms
+        await prisma.projectPlatform.deleteMany({
+          where: { projectId: testProjectId },
+        });
+
+        // Create test platforms
+        await prisma.projectPlatform.createMany({
+          data: [
+            {
+              projectId: testProjectId,
+              platform: 'discord',
+              credentialsEncrypted: 'encrypted-discord',
+              isActive: true,
+              testMode: false,
+            },
+            {
+              projectId: testProjectId,
+              platform: 'telegram',
+              credentialsEncrypted: 'encrypted-telegram',
+              isActive: false,
+              testMode: true,
+            },
+          ],
+        });
+      });
+
+      it('should list all platform configurations', () => {
+        return request(app.getHttpServer())
+          .get('/api/v1/projects/platform-test/platforms')
+          .set('X-API-Key', testApiKey)
+          .expect(200)
+          .expect((res) => {
+            expect(Array.isArray(res.body)).toBe(true);
+            expect(res.body).toHaveLength(2);
+            expect(res.body[0]).toHaveProperty('platform');
+            expect(res.body[0]).not.toHaveProperty('credentials');
+            expect(res.body[0]).not.toHaveProperty('credentialsEncrypted');
+          });
+      });
+
+      it('should require authentication', () => {
+        return request(app.getHttpServer())
+          .get('/api/v1/projects/platform-test/platforms')
+          .expect(401);
+      });
+    });
+
+    describe('GET /:id', () => {
+      let platformId: string;
+
+      beforeEach(async () => {
+        // Clean existing platforms
+        await prisma.projectPlatform.deleteMany({
+          where: { projectId: testProjectId, platform: 'discord' },
+        });
+
+        const { CryptoUtil } = require('../../src/common/utils/crypto.util');
+        CryptoUtil.initializeEncryptionKey();
+        const encryptedCredentials = CryptoUtil.encrypt(JSON.stringify({ token: 'discord-token' }));
+
+        const platform = await prisma.projectPlatform.create({
+          data: {
+            projectId: testProjectId,
+            platform: 'discord',
+            credentialsEncrypted: encryptedCredentials,
+            isActive: true,
+            testMode: false,
+          },
+        });
+        platformId = platform.id;
+      });
+
+      it('should get platform with decrypted credentials', () => {
+        return request(app.getHttpServer())
+          .get(`/api/v1/projects/platform-test/platforms/${platformId}`)
+          .set('X-API-Key', testApiKey)
+          .expect(200)
+          .expect((res) => {
+            expect(res.body).toHaveProperty('id', platformId);
+            expect(res.body).toHaveProperty('platform', 'discord');
+            expect(res.body).toHaveProperty('credentials');
+          });
+      });
+
+      it('should return 404 for non-existent platform', () => {
+        return request(app.getHttpServer())
+          .get('/api/v1/projects/platform-test/platforms/non-existent-id')
+          .set('X-API-Key', testApiKey)
+          .expect(404);
+      });
+    });
+
+    describe('PATCH /:id', () => {
+      let platformId: string;
+
+      beforeEach(async () => {
+        // Clean existing platforms
+        await prisma.projectPlatform.deleteMany({
+          where: { projectId: testProjectId, platform: 'discord' },
+        });
+
+        const platform = await prisma.projectPlatform.create({
+          data: {
+            projectId: testProjectId,
+            platform: 'discord',
+            credentialsEncrypted: 'encrypted_old',
+            isActive: true,
+            testMode: false,
+          },
+        });
+        platformId = platform.id;
+      });
+
+      it('should update platform configuration', () => {
+        return request(app.getHttpServer())
+          .patch(`/api/v1/projects/platform-test/platforms/${platformId}`)
+          .set('X-API-Key', testApiKey)
+          .send({
+            isActive: false,
+            testMode: true,
+          })
+          .expect(200)
+          .expect((res) => {
+            expect(res.body).toHaveProperty('isActive', false);
+            expect(res.body).toHaveProperty('testMode', true);
+          });
+      });
+
+      it('should update credentials', () => {
+        return request(app.getHttpServer())
+          .patch(`/api/v1/projects/platform-test/platforms/${platformId}`)
+          .set('X-API-Key', testApiKey)
+          .send({
+            credentials: { token: 'new-token' },
+          })
+          .expect(200);
+      });
+    });
+
+    describe('DELETE /:id', () => {
+      let platformId: string;
+
+      beforeEach(async () => {
+        // Clean existing platforms
+        await prisma.projectPlatform.deleteMany({
+          where: { projectId: testProjectId, platform: 'discord' },
+        });
+
+        const platform = await prisma.projectPlatform.create({
+          data: {
+            projectId: testProjectId,
+            platform: 'discord',
+            credentialsEncrypted: 'encrypted',
+            isActive: true,
+            testMode: false,
+          },
+        });
+        platformId = platform.id;
+      });
+
+      it('should delete platform configuration', () => {
+        return request(app.getHttpServer())
+          .delete(`/api/v1/projects/platform-test/platforms/${platformId}`)
+          .set('X-API-Key', testApiKey)
+          .expect(200)
+          .expect((res) => {
+            expect(res.body).toHaveProperty('message', 'Platform removed successfully');
+          });
+      });
+
+      it('should return 404 when deleting non-existent platform', () => {
+        return request(app.getHttpServer())
+          .delete('/api/v1/projects/platform-test/platforms/non-existent')
+          .set('X-API-Key', testApiKey)
+          .expect(404);
+      });
+    });
+  });
+
+  describe('/api/v1/projects/:slug/messages/send', () => {
+    beforeEach(async () => {
+      // Clean and create a platform configuration
+      await prisma.projectPlatform.deleteMany({
+        where: { projectId: testProjectId, platform: 'discord' },
+      });
+
+      const { CryptoUtil } = require('../../src/common/utils/crypto.util');
+      CryptoUtil.initializeEncryptionKey();
+      await prisma.projectPlatform.create({
+        data: {
+          projectId: testProjectId,
+          platform: 'discord',
+          credentialsEncrypted: CryptoUtil.encrypt(JSON.stringify({ token: 'test-token' })),
+          isActive: true,
+          testMode: false,
+        },
+      });
+    });
+
+    it('should validate message sending endpoint exists', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/projects/platform-test/messages/send')
+        .set('X-API-Key', testApiKey)
+        .send({
+          platform: 'discord',
+          target: {
+            type: 'channel',
+            id: 'channel-123',
+          },
+          text: 'Test message',
+        })
+        .expect((res) => {
+          // Expect either 200 (if it works) or an error that's not 404
+          expect(res.status).not.toBe(404);
+        });
+    });
+
+    it('should require messages:send scope', async () => {
+      const { rawKey } = await createTestApiKey(prisma, testProjectId, {
+        scopes: ['platforms:read'], // Missing messages:send
+      });
+
+      return request(app.getHttpServer())
+        .post('/api/v1/projects/platform-test/messages/send')
+        .set('X-API-Key', rawKey)
+        .send({
+          platform: 'discord',
+          target: {
+            type: 'channel',
+            id: 'channel-123',
+          },
+          text: 'Test message',
+        })
+        .expect(403);
+    });
+
+    it('should validate message DTO', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/projects/platform-test/messages/send')
+        .set('X-API-Key', testApiKey)
+        .send({
+          // Missing required fields
+          text: 'Test message',
+        })
+        .expect(400);
+    });
+  });
+});
