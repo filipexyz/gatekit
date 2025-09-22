@@ -28,6 +28,7 @@ describe('MessagesService', () => {
 
   const mockPlatformsService = {
     getDecryptedCredentials: jest.fn(),
+    validatePlatformConfigById: jest.fn(),
   };
 
 
@@ -61,9 +62,8 @@ describe('MessagesService', () => {
     it('should queue message for Discord platform', async () => {
       const projectSlug = 'test-project';
       const sendMessageDto = {
-        platform: 'discord' as any,
-        target: { type: 'channel' as any, id: 'channel-123' },
-        text: 'Hello Discord!',
+        targets: [{ type: 'channel' as any, id: 'channel-123', platformId: 'platform-uuid-123' }],
+        content: { text: 'Hello Discord!' },
       };
 
       mockPrismaService.project.findUnique.mockResolvedValue({
@@ -87,8 +87,9 @@ describe('MessagesService', () => {
 
       expect(result).toHaveProperty('success', true);
       expect(result).toHaveProperty('jobId', 'job-123');
-      expect(result).toHaveProperty('platform', 'discord');
-      expect(result).toHaveProperty('status', 'waiting');
+      expect(result).toHaveProperty('targets');
+      expect(result).toHaveProperty('platformIds');
+      expect(result.platformIds).toContain('platform-uuid-123');
       expect(mockMessageQueue.addMessage).toHaveBeenCalledWith({
         projectSlug,
         projectId: 'project-id',
@@ -99,9 +100,8 @@ describe('MessagesService', () => {
     it('should queue message for Telegram platform', async () => {
       const projectSlug = 'test-project';
       const sendMessageDto = {
-        platform: 'telegram' as any,
-        target: { type: 'user' as any, id: 'user-123' },
-        text: 'Hello Telegram!',
+        targets: [{ type: 'user' as any, id: 'user-123', platformId: 'platform-uuid-456' }],
+        content: { text: 'Hello Telegram!' },
       };
 
       mockPrismaService.project.findUnique.mockResolvedValue({
@@ -125,7 +125,8 @@ describe('MessagesService', () => {
 
       expect(result).toHaveProperty('success', true);
       expect(result).toHaveProperty('jobId', 'job-456');
-      expect(result).toHaveProperty('platform', 'telegram');
+      expect(result).toHaveProperty('platformIds');
+      expect(result.platformIds).toContain('platform-uuid-456');
       expect(result).toHaveProperty('status', 'waiting');
       expect(mockMessageQueue.addMessage).toHaveBeenCalledWith({
         projectSlug,
@@ -139,9 +140,8 @@ describe('MessagesService', () => {
 
       await expect(
         service.sendMessage('non-existent', {
-          platform: 'discord' as any,
-          target: { type: 'channel' as any, id: '123' },
-          text: 'test',
+          targets: [{ type: 'channel' as any, id: '123', platformId: 'platform-123' }],
+          content: { text: 'test' },
         }),
       ).rejects.toThrow(NotFoundException);
     });
@@ -149,9 +149,8 @@ describe('MessagesService', () => {
     it('should throw NotFoundException when platform is not configured', async () => {
       const projectSlug = 'test-project';
       const sendMessageDto = {
-        platform: 'discord' as any,
-        target: { type: 'channel' as any, id: 'channel-123' },
-        text: 'Test',
+        targets: [{ type: 'channel' as any, id: 'channel-123', platformId: 'platform-123' }],
+        content: { text: 'Test' },
       };
 
       mockPrismaService.project.findUnique.mockResolvedValue({
@@ -159,7 +158,9 @@ describe('MessagesService', () => {
         slug: projectSlug,
       });
 
-      mockPrismaService.projectPlatform.findUnique.mockResolvedValue(null);
+      mockPlatformsService.validatePlatformConfigById.mockRejectedValue(
+        new NotFoundException('Platform configuration with ID \'platform-123\' not found')
+      );
 
       await expect(
         service.sendMessage(projectSlug, sendMessageDto),
@@ -169,9 +170,8 @@ describe('MessagesService', () => {
     it('should throw BadRequestException when platform is disabled', async () => {
       const projectSlug = 'test-project';
       const sendMessageDto = {
-        platform: 'discord' as any,
-        target: { type: 'channel' as any, id: 'channel-123' },
-        text: 'Test',
+        targets: [{ type: 'channel' as any, id: 'channel-123', platformId: 'disabled-platform-123' }],
+        content: { text: 'Test' },
       };
 
       mockPrismaService.project.findUnique.mockResolvedValue({
@@ -179,12 +179,9 @@ describe('MessagesService', () => {
         slug: projectSlug,
       });
 
-      mockPrismaService.projectPlatform.findUnique.mockResolvedValue({
-        id: 'platform-config-id',
-        projectId: 'project-id',
-        platform: 'discord',
-        isActive: false,
-      });
+      mockPlatformsService.validatePlatformConfigById.mockRejectedValue(
+        new BadRequestException('Platform configuration \'disabled-platform-123\' is currently disabled')
+      );
 
       await expect(
         service.sendMessage(projectSlug, sendMessageDto),

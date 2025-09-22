@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlatformDto } from './dto/create-platform.dto';
 import { UpdatePlatformDto } from './dto/update-platform.dto';
@@ -22,21 +22,7 @@ export class PlatformsService {
       throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
     }
 
-    // Check if platform already exists for this project
-    const existingPlatform = await this.prisma.projectPlatform.findUnique({
-      where: {
-        projectId_platform: {
-          projectId: project.id,
-          platform: createPlatformDto.platform,
-        },
-      },
-    });
-
-    if (existingPlatform) {
-      throw new ConflictException(
-        `Platform '${createPlatformDto.platform}' already configured for project '${projectSlug}'`,
-      );
-    }
+    // Note: Multiple instances of the same platform are now allowed per project
 
     // Encrypt credentials
     const encryptedCredentials = CryptoUtil.encrypt(
@@ -204,12 +190,13 @@ export class PlatformsService {
   }
 
   async getDecryptedCredentials(projectId: string, platform: string) {
-    const projectPlatform = await this.prisma.projectPlatform.findUnique({
+    // Note: This method is deprecated - use getProjectPlatform(platformId) instead
+    // Only used for backward compatibility
+    const projectPlatform = await this.prisma.projectPlatform.findFirst({
       where: {
-        projectId_platform: {
-          projectId,
-          platform,
-        },
+        projectId,
+        platform,
+        isActive: true,
       },
     });
 
@@ -217,10 +204,56 @@ export class PlatformsService {
       throw new NotFoundException(`Platform '${platform}' not configured for project`);
     }
 
-    if (!projectPlatform.isActive) {
-      throw new ConflictException(`Platform '${platform}' is not active`);
+    // No need to check isActive again since we already filtered by it in the query
+    return JSON.parse(CryptoUtil.decrypt(projectPlatform.credentialsEncrypted));
+  }
+
+  async getProjectPlatform(platformId: string) {
+    const platform = await this.prisma.projectPlatform.findUnique({
+      where: { id: platformId },
+      include: { project: true },
+    });
+
+    if (!platform) {
+      throw new NotFoundException(`Platform configuration with ID '${platformId}' not found`);
     }
 
-    return JSON.parse(CryptoUtil.decrypt(projectPlatform.credentialsEncrypted));
+    if (!platform.isActive) {
+      throw new ConflictException(`Platform configuration '${platformId}' is not active`);
+    }
+
+    // Decrypt credentials
+    const decryptedCredentials = JSON.parse(CryptoUtil.decrypt(platform.credentialsEncrypted));
+
+    return {
+      id: platform.id,
+      projectId: platform.projectId,
+      platform: platform.platform,
+      isActive: platform.isActive,
+      testMode: platform.testMode,
+      webhookToken: platform.webhookToken,
+      decryptedCredentials,
+      project: platform.project,
+    };
+  }
+
+  async validatePlatformConfigById(platformId: string) {
+    const platform = await this.prisma.projectPlatform.findUnique({
+      where: { id: platformId },
+    });
+
+    if (!platform) {
+      throw new NotFoundException(
+        `Platform configuration with ID '${platformId}' not found`,
+      );
+    }
+
+    if (!platform.isActive) {
+      throw new BadRequestException(
+        `Platform configuration '${platformId}' is currently disabled`,
+      );
+    }
+
+    return platform;
   }
 }

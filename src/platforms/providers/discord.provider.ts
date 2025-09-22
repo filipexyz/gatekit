@@ -10,7 +10,9 @@ import { MessageEnvelopeV1 } from '../interfaces/message-envelope.interface';
 import { makeEnvelope } from '../utils/envelope.factory';
 
 interface DiscordConnection {
+  connectionKey: string; // projectId:platformId
   projectId: string;
+  platformId: string;
   client: Client;
   token: string;
   isConnected: boolean;
@@ -51,8 +53,8 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
     this.logger.log('Discord provider shut down');
   }
 
-  async createAdapter(projectId: string, credentials: any): Promise<PlatformAdapter> {
-    const existingConnection = this.connections.get(projectId);
+  async createAdapter(connectionKey: string, credentials: any): Promise<PlatformAdapter> {
+    const existingConnection = this.connections.get(connectionKey);
 
     if (existingConnection) {
       if (existingConnection.token === credentials.token) {
@@ -61,8 +63,8 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
         return this;
       } else {
         // Token changed, recreate connection
-        this.logger.log(`Token changed for project ${projectId}, recreating connection`);
-        await this.removeAdapter(projectId);
+        this.logger.log(`Token changed for connection ${connectionKey}, recreating`);
+        await this.removeAdapter(connectionKey);
       }
     }
 
@@ -81,16 +83,21 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
       ],
     });
 
+    // Parse connectionKey to get projectId and platformId
+    const [projectId, platformId] = connectionKey.split(':');
+
     const connection: DiscordConnection = {
+      connectionKey,
       projectId,
+      platformId,
       client,
       token: credentials.token,
       isConnected: false,
       lastActivity: new Date(),
     };
 
-    // Store connection
-    this.connections.set(projectId, connection);
+    // Store connection with composite key
+    this.connections.set(connectionKey, connection);
 
     try {
       // Set up Discord event handlers
@@ -101,13 +108,13 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
 
       connection.isConnected = true;
 
-      this.logger.log(`Discord connection established for project ${projectId}`);
+      this.logger.log(`Discord connection established for ${connectionKey}`);
       return this; // Provider IS the adapter
     } catch (error) {
-      this.logger.error(`Failed to create Discord connection for ${projectId}: ${error.message}`);
+      this.logger.error(`Failed to create Discord connection for ${connectionKey}: ${error.message}`);
 
       // Clean up on failure
-      this.connections.delete(projectId);
+      this.connections.delete(connectionKey);
       try {
         await client.destroy();
       } catch {}
@@ -116,32 +123,32 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
     }
   }
 
-  getAdapter(projectId: string): PlatformAdapter | undefined {
-    const connection = this.connections.get(projectId);
+  getAdapter(connectionKey: string): PlatformAdapter | undefined {
+    const connection = this.connections.get(connectionKey);
     return connection ? this : undefined; // Provider IS the adapter
   }
 
-  async removeAdapter(projectId: string): Promise<void> {
-    const connection = this.connections.get(projectId);
+  async removeAdapter(connectionKey: string): Promise<void> {
+    const connection = this.connections.get(connectionKey);
     if (!connection) return; // Already removed or never existed
 
     // Remove from map immediately to prevent concurrent cleanup
-    this.connections.delete(projectId);
+    this.connections.delete(connectionKey);
 
-    this.logger.log(`Removing Discord connection for project ${projectId}`);
+    this.logger.log(`Removing Discord connection for ${connectionKey}`);
 
     try {
       // Clean up event listeners first (prevents memory leaks)
       if (connection.eventCleanup) {
         connection.eventCleanup();
-        this.logger.debug(`Event listeners cleaned up for project ${projectId}`);
+        this.logger.debug(`Event listeners cleaned up for ${connectionKey}`);
       }
 
       // Destroy the Discord client
       await connection.client.destroy();
-      this.logger.debug(`Discord client destroyed for project ${projectId}`);
+      this.logger.debug(`Discord client destroyed for ${connectionKey}`);
     } catch (error) {
-      this.logger.error(`Error closing Discord connection for ${projectId}: ${error.message}`);
+      this.logger.error(`Error closing Discord connection for ${connectionKey}: ${error.message}`);
     }
   }
 
@@ -270,12 +277,20 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
 
   async sendMessage(
     env: MessageEnvelopeV1,
-    reply: { text?: string; attachments?: any[]; threadId?: string },
+    reply: { text?: string; attachments?: any[]; buttons?: any[]; embeds?: any[]; threadId?: string; replyTo?: string; silent?: boolean },
   ): Promise<{ providerMessageId: string }> {
-    const connection = this.connections.get(env.projectId);
+    // Extract platformId from envelope to construct connection key
+    const platformId = (env.provider?.raw as any)?.platformId;
+    if (!platformId) {
+      this.logger.error('No platformId in envelope, cannot route message');
+      return { providerMessageId: 'discord-no-platform-id' };
+    }
+
+    const connectionKey = `${env.projectId}:${platformId}`;
+    const connection = this.connections.get(connectionKey);
 
     if (!connection || !connection.client.isReady()) {
-      this.logger.warn('Discord client not ready, cannot send message');
+      this.logger.warn(`Discord client not ready for ${connectionKey}, cannot send message`);
       return { providerMessageId: 'discord-not-ready' };
     }
 

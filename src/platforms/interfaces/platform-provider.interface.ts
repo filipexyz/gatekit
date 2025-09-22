@@ -16,10 +16,10 @@ export interface PlatformProvider {
   initialize(): Promise<void>;
   shutdown(): Promise<void>;
 
-  // Adapter management
-  createAdapter(projectId: string, credentials: any): Promise<PlatformAdapter>;
-  getAdapter(projectId: string): PlatformAdapter | undefined;
-  removeAdapter(projectId: string): Promise<void>;
+  // Adapter management (using composite connectionKey: "projectId:platformId")
+  createAdapter(connectionKey: string, credentials: any): Promise<PlatformAdapter>;
+  getAdapter(connectionKey: string): PlatformAdapter | undefined;
+  removeAdapter(connectionKey: string): Promise<void>;
 
   // Connection management (optional - for platforms that manage connections)
   getConnectionStats?(): any;

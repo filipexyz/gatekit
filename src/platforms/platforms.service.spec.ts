@@ -84,16 +84,25 @@ describe('PlatformsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw ConflictException when platform already exists', async () => {
+    it('should allow multiple instances of same platform per project', async () => {
       const mockProject = { id: 'project-id' };
       mockPrismaService.project.findUnique.mockResolvedValue(mockProject);
-      mockPrismaService.projectPlatform.findUnique.mockResolvedValue({
-        id: 'existing-platform',
+
+      // Mock successful creation of second Discord instance
+      mockPrismaService.projectPlatform.create.mockResolvedValue({
+        id: 'second-discord-instance',
+        projectId: 'project-id',
+        platform: 'discord',
+        isActive: true,
+        testMode: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
-      await expect(
-        service.create('test-project', { platform: 'discord' as any, credentials: {} }),
-      ).rejects.toThrow(ConflictException);
+      const result = await service.create('test-project', { platform: 'discord' as any, credentials: {} });
+
+      expect(result).toHaveProperty('platform', 'discord');
+      expect(result).toHaveProperty('id', 'second-discord-instance');
     });
   });
 
@@ -224,7 +233,7 @@ describe('PlatformsService', () => {
       const platform = 'discord';
       const mockCredentials = { token: 'discord-token' };
 
-      mockPrismaService.projectPlatform.findUnique.mockResolvedValue({
+      mockPrismaService.projectPlatform.findFirst.mockResolvedValue({
         credentialsEncrypted: `encrypted_${JSON.stringify(mockCredentials)}`,
         isActive: true,
       });
@@ -235,22 +244,20 @@ describe('PlatformsService', () => {
     });
 
     it('should throw NotFoundException when platform not configured', async () => {
-      mockPrismaService.projectPlatform.findUnique.mockResolvedValue(null);
+      mockPrismaService.projectPlatform.findFirst.mockResolvedValue(null);
 
       await expect(
         service.getDecryptedCredentials('project-id', 'discord'),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw ConflictException when platform is not active', async () => {
-      mockPrismaService.projectPlatform.findUnique.mockResolvedValue({
-        credentialsEncrypted: 'encrypted_{}',
-        isActive: false,
-      });
+    it('should throw NotFoundException when platform is not active', async () => {
+      // Inactive platforms are filtered out by the query, so they appear as "not found"
+      mockPrismaService.projectPlatform.findFirst.mockResolvedValue(null);
 
       await expect(
         service.getDecryptedCredentials('project-id', 'discord'),
-      ).rejects.toThrow(ConflictException);
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

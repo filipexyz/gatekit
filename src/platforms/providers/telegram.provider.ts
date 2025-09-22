@@ -10,7 +10,9 @@ import { MessageEnvelopeV1 } from '../interfaces/message-envelope.interface';
 import { makeEnvelope } from '../utils/envelope.factory';
 
 interface TelegramConnection {
+  connectionKey: string; // projectId:platformId
   projectId: string;
+  platformId: string;
   bot: TelegramBot;
   isActive: boolean;
   webhookCleanup?: () => void;
@@ -48,72 +50,77 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     this.logger.log('Telegram provider shut down');
   }
 
-  async createAdapter(projectId: string, credentials: any): Promise<PlatformAdapter> {
-    const existingConnection = this.connections.get(projectId);
+  async createAdapter(connectionKey: string, credentials: any): Promise<PlatformAdapter> {
+    const existingConnection = this.connections.get(connectionKey);
 
     if (existingConnection) {
       // Return this provider as the adapter
       return this;
     }
 
+    // Parse connectionKey to get projectId and platformId
+    const [projectId, platformId] = connectionKey.split(':');
+
     // Create Telegram bot (webhook mode)
     const bot = new TelegramBot(credentials.token, { webHook: true });
 
     const connection: TelegramConnection = {
+      connectionKey,
       projectId,
+      platformId,
       bot,
       isActive: false,
     };
 
-    // Store connection
-    this.connections.set(projectId, connection);
+    // Store connection with composite key
+    this.connections.set(connectionKey, connection);
 
     try {
       connection.isActive = true;
 
-      this.logger.log(`Telegram connection created for project ${projectId}`);
+      this.logger.log(`Telegram connection created for ${connectionKey}`);
       return this; // Provider IS the adapter
     } catch (error) {
-      this.logger.error(`Failed to create Telegram connection for ${projectId}: ${error.message}`);
+      this.logger.error(`Failed to create Telegram connection for ${connectionKey}: ${error.message}`);
 
       // Clean up on failure
-      this.connections.delete(projectId);
+      this.connections.delete(connectionKey);
 
       throw error;
     }
   }
 
-  getAdapter(projectId: string): PlatformAdapter | undefined {
-    const connection = this.connections.get(projectId);
+  getAdapter(connectionKey: string): PlatformAdapter | undefined {
+    const connection = this.connections.get(connectionKey);
     return connection ? this : undefined;
   }
 
-  async removeAdapter(projectId: string): Promise<void> {
-    const connection = this.connections.get(projectId);
+  async removeAdapter(connectionKey: string): Promise<void> {
+    const connection = this.connections.get(connectionKey);
     if (!connection) return;
 
-    this.logger.log(`Removing Telegram connection for project ${projectId}`);
+    this.logger.log(`Removing Telegram connection for ${connectionKey}`);
 
     try {
       // Clean up webhook handlers if any
       if (connection.webhookCleanup) {
         connection.webhookCleanup();
-        this.logger.debug(`Webhook cleanup completed for project ${projectId}`);
+        this.logger.debug(`Webhook cleanup completed for ${connectionKey}`);
       }
 
       // Mark as inactive to prevent further message processing
       connection.isActive = false;
 
       // Note: Telegram bots don't need explicit connection cleanup like Discord
-      // The bot token remains valid, we just stop processing messages for this project
+      // The bot token remains valid, we just stop processing messages for this connection
 
-      this.logger.debug(`Telegram connection cleaned up for project ${projectId}`);
+      this.logger.debug(`Telegram connection cleaned up for ${connectionKey}`);
     } catch (error) {
-      this.logger.error(`Error cleaning up Telegram connection for ${projectId}: ${error.message}`);
+      this.logger.error(`Error cleaning up Telegram connection for ${connectionKey}: ${error.message}`);
     } finally {
       // Always remove from connections map
-      this.connections.delete(projectId);
-      this.logger.debug(`Connection removed from registry for project ${projectId}`);
+      this.connections.delete(connectionKey);
+      this.logger.debug(`Connection removed from registry for ${connectionKey}`);
     }
   }
 
@@ -275,12 +282,20 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
 
   async sendMessage(
     env: MessageEnvelopeV1,
-    reply: { text?: string; attachments?: any[]; threadId?: string },
+    reply: { text?: string; attachments?: any[]; buttons?: any[]; embeds?: any[]; threadId?: string; replyTo?: string; silent?: boolean },
   ): Promise<{ providerMessageId: string }> {
-    const connection = this.connections.get(env.projectId);
+    // Extract platformId from envelope to construct connection key
+    const platformId = (env.provider?.raw as any)?.platformId;
+    if (!platformId) {
+      this.logger.error('No platformId in envelope, cannot route message');
+      return { providerMessageId: 'telegram-no-platform-id' };
+    }
+
+    const connectionKey = `${env.projectId}:${platformId}`;
+    const connection = this.connections.get(connectionKey);
 
     if (!connection || !connection.isActive) {
-      this.logger.warn('Telegram bot not ready, cannot send message');
+      this.logger.warn(`Telegram bot not ready for ${connectionKey}, cannot send message`);
       return { providerMessageId: 'telegram-not-ready' };
     }
 

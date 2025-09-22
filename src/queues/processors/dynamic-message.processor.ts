@@ -10,14 +10,27 @@ interface MessageJob {
   projectSlug: string;
   projectId: string;
   message: {
-    platform: string;
-    target: {
+    targets: Array<{
+      platformId: string;
       type: string;
       id: string;
+    }>;
+    content: {
+      text?: string;
+      attachments?: any[];
+      buttons?: any[];
+      embeds?: any[];
     };
-    text?: string;
-    attachments?: any[];
-    metadata?: any;
+    options?: {
+      replyTo?: string;
+      silent?: boolean;
+      scheduled?: string;
+    };
+    metadata?: {
+      trackingId?: string;
+      tags?: string[];
+      priority?: string;
+    };
   };
 }
 
@@ -35,75 +48,117 @@ export class DynamicMessageProcessor implements OnModuleDestroy {
     const { projectSlug, projectId, message } = job.data;
 
     this.logger.log(
-      `Processing message job ${job.id} - Platform: ${message.platform}, Target: ${message.target.type}:${message.target.id}`,
+      `Processing message job ${job.id} - Targets: ${message.targets.length}`,
     );
 
-    try {
-      // Get the platform provider
-      const provider = this.platformRegistry.getProvider(message.platform);
+    const results: any[] = [];
+    const errors: any[] = [];
 
-      if (!provider) {
-        throw new Error(`Platform provider '${message.platform}' not found`);
-      }
+    // Process each target separately
+    for (const target of message.targets) {
+      try {
+        // Get platform configuration by ID
+        const platformConfig = await this.platformsService.getProjectPlatform(target.platformId);
 
-      // Get or create adapter for this project
-      let adapter = provider.getAdapter(projectId);
-
-      if (!adapter) {
-        // Get platform credentials
-        const credentials = await this.platformsService.getDecryptedCredentials(
-          projectId,
-          message.platform,
+        this.logger.log(
+          `Sending to ${platformConfig.platform}:${target.type}:${target.id} (platformId: ${target.platformId})`,
         );
 
-        // Create adapter through the provider
-        adapter = await provider.createAdapter(projectId, credentials);
+        // Get the platform provider
+        const provider = this.platformRegistry.getProvider(platformConfig.platform);
+
+        if (!provider) {
+          throw new Error(`Platform provider '${platformConfig.platform}' not found`);
+        }
+
+        // Create composite key for this specific platform instance
+        const connectionKey = `${projectId}:${target.platformId}`;
+
+        // Get or create adapter for this project and platform instance
+        let adapter = provider.getAdapter(connectionKey);
+
+        if (!adapter) {
+          // Create adapter through the provider with platform-specific credentials
+          adapter = await provider.createAdapter(connectionKey, platformConfig.decryptedCredentials);
+        }
+
+        // Create message envelope
+        const envelope = makeEnvelope({
+          channel: platformConfig.platform as any,
+          projectId,
+          threadId: target.id,
+          user: {
+            providerUserId: 'system',
+            display: 'System',
+          },
+          message: {
+            text: message.content.text,
+          },
+          provider: {
+            eventId: `job-${job.id}-${platformConfig.platform}-${target.id}`,
+            raw: {
+              platformId: target.platformId,
+              ...message.metadata,
+            },
+          },
+        });
+
+        // Send the message through the adapter
+        const result = await adapter.sendMessage(envelope, {
+          text: message.content.text,
+          attachments: message.content.attachments,
+          buttons: message.content.buttons,
+          embeds: message.content.embeds,
+          threadId: target.id,
+          replyTo: message.options?.replyTo,
+          silent: message.options?.silent,
+        });
+
+        this.logger.log(
+          `Message sent successfully to ${platformConfig.platform}:${target.type}:${target.id} (platformId: ${target.platformId}) - Provider Message ID: ${result.providerMessageId}`,
+        );
+
+        results.push({
+          success: true,
+          target: {
+            ...target,
+            platform: platformConfig.platform,
+          },
+          providerMessageId: result.providerMessageId,
+          timestamp: new Date().toISOString(),
+        });
+
+      } catch (error) {
+        this.logger.error(
+          `Failed to send message to platformId ${target.platformId}:${target.type}:${target.id}: ${error.message}`,
+        );
+
+        errors.push({
+          target,
+          error: error.message,
+          timestamp: new Date().toISOString(),
+        });
       }
-
-      // Create message envelope
-      const envelope = makeEnvelope({
-        channel: message.platform as any,
-        projectId,
-        threadId: message.target.id,
-        user: {
-          providerUserId: 'system',
-          display: 'System',
-        },
-        message: {
-          text: message.text,
-        },
-        provider: {
-          eventId: `job-${job.id}`,
-          raw: message.metadata || {},
-        },
-      });
-
-      // Send the message through the adapter
-      const result = await adapter.sendMessage(envelope, {
-        text: message.text,
-        attachments: message.attachments,
-        threadId: message.target.id,
-      });
-
-      this.logger.log(
-        `Message sent successfully via ${message.platform} - Provider Message ID: ${result.providerMessageId}`,
-      );
-
-      return {
-        success: true,
-        providerMessageId: result.providerMessageId,
-        platform: message.platform,
-        target: message.target,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to send message via ${message.platform}: ${error.message}`,
-        error.stack,
-      );
-
-      throw error;
     }
+
+    // Return results for all targets
+    const totalTargets = message.targets.length;
+    const successCount = results.length;
+    const failureCount = errors.length;
+
+    this.logger.log(
+      `Job ${job.id} completed: ${successCount}/${totalTargets} successful, ${failureCount} failed`,
+    );
+
+    return {
+      success: failureCount === 0,
+      totalTargets,
+      successCount,
+      failureCount,
+      results,
+      errors,
+      timestamp: new Date().toISOString(),
+    };
   }
 
   async onModuleDestroy() {

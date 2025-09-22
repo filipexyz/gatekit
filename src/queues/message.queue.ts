@@ -27,8 +27,9 @@ export class MessageQueue implements OnModuleDestroy {
       removeOnFail: false, // Keep failed jobs for debugging
     });
 
+    const platformIds = data.message.targets.map(t => t.platformId);
     this.logger.log(
-      `Message queued for ${data.message.platform} to ${data.message.target.type}:${data.message.target.id} (Job ID: ${job.id})`,
+      `Message queued for ${data.message.targets.length} targets with platformIds: ${platformIds.join(', ')} (Job ID: ${job.id})`,
     );
 
     return {

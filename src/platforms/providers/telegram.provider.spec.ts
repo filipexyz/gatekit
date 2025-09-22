@@ -162,9 +162,14 @@ describe('TelegramProvider', () => {
         sendMessage: jest.fn().mockResolvedValue({ message_id: 123 }),
       } as any;
 
-      // Set up active connection
-      (provider as any).connections.set(projectId, {
+      const platformId = 'platform-123';
+      const connectionKey = `${projectId}:${platformId}`;
+
+      // Set up active connection with composite key
+      (provider as any).connections.set(connectionKey, {
+        connectionKey,
         projectId,
+        platformId,
         bot: mockBot,
         isActive: true,
       });
@@ -175,7 +180,7 @@ describe('TelegramProvider', () => {
         channel: 'telegram',
         user: { providerUserId: 'user1', display: 'User1' },
         message: { text: 'test' },
-        provider: { eventId: 'event1', raw: {} },
+        provider: { eventId: 'event1', raw: { platformId } },
       } as any;
 
       const result = await provider.sendMessage(envelope, { text: 'Hello!' });
@@ -188,10 +193,14 @@ describe('TelegramProvider', () => {
 
     it('should handle sendMessage with inactive connection', async () => {
       const projectId = 'test-project';
+      const platformId = 'platform-456';
+      const connectionKey = `${projectId}:${platformId}`;
 
       // Set up inactive connection
-      (provider as any).connections.set(projectId, {
+      (provider as any).connections.set(connectionKey, {
+        connectionKey,
         projectId,
+        platformId,
         bot: null,
         isActive: false,
       });
@@ -199,6 +208,7 @@ describe('TelegramProvider', () => {
       const envelope = {
         projectId,
         threadId: '456',
+        provider: { raw: { platformId } },
       } as any;
 
       const result = await provider.sendMessage(envelope, { text: 'Hello!' });

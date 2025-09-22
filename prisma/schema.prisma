@@ -67,7 +67,7 @@ model ProjectPlatform {
   projectId            String   @map("project_id")
   platform             String
   credentialsEncrypted String   @map("credentials_encrypted") @db.Text
-  webhookToken         String   @unique @default(uuid()) @map("webhook_token")
+  webhookToken         String   @unique @default(uuid()) @map("webhook_token") // UUID webhook endpoint
   isActive             Boolean  @default(true) @map("is_active")
   testMode             Boolean  @default(false) @map("test_mode")
   createdAt            DateTime @default(now()) @map("created_at")
@@ -75,9 +75,9 @@ model ProjectPlatform {
 
   project              Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@unique([projectId, platform])
   @@index([projectId])
   @@index([webhookToken])
+  @@index([projectId, platform])
   @@map("project_platforms")
 }
 

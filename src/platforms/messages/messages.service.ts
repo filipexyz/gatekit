@@ -15,15 +15,20 @@ export class MessagesService {
   ) {}
 
   async sendMessage(projectSlug: string, sendMessageDto: SendMessageDto) {
+    const targetCount = sendMessageDto.targets.length;
+    const platformIds = sendMessageDto.targets.map(t => t.platformId);
+
     this.logger.log(
-      `Queueing message via ${sendMessageDto.platform} to ${sendMessageDto.target.type}:${sendMessageDto.target.id}`,
+      `Queueing message to ${targetCount} targets across platformIds: ${platformIds.join(', ')}`,
     );
 
     // Get project
     const project = await this.getProject(projectSlug);
 
-    // Validate platform configuration exists and is active
-    await this.validatePlatformConfig(project.id, sendMessageDto.platform);
+    // Validate all platform configurations exist and are active by platformId
+    for (const target of sendMessageDto.targets) {
+      await this.platformsService.validatePlatformConfigById(target.platformId);
+    }
 
     // Add message to queue for async processing
     const queueResult = await this.messageQueue.addMessage({
@@ -40,8 +45,8 @@ export class MessagesService {
       success: true,
       jobId: queueResult.jobId,
       status: queueResult.status,
-      platform: sendMessageDto.platform,
-      target: sendMessageDto.target,
+      targets: sendMessageDto.targets,
+      platformIds,
       timestamp: new Date().toISOString(),
       message: 'Message queued for delivery',
     };
@@ -76,12 +81,12 @@ export class MessagesService {
   }
 
   private async validatePlatformConfig(projectId: string, platform: string) {
-    const platformConfig = await this.prisma.projectPlatform.findUnique({
+    // Note: This method is deprecated - use validatePlatformConfigById instead
+    const platformConfig = await this.prisma.projectPlatform.findFirst({
       where: {
-        projectId_platform: {
-          projectId,
-          platform,
-        },
+        projectId,
+        platform,
+        isActive: true,
       },
     });
 

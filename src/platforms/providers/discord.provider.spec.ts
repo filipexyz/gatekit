@@ -93,7 +93,7 @@ describe('DiscordProvider', () => {
         channel: 'discord',
         user: { providerUserId: 'user1', display: 'User1' },
         message: { text: 'test' },
-        provider: { eventId: 'event1', raw: {} },
+        provider: { eventId: 'event1', raw: { platformId: 'platform-1' } },
       } as any;
 
       const env2 = {
@@ -102,7 +102,7 @@ describe('DiscordProvider', () => {
         channel: 'discord',
         user: { providerUserId: 'user2', display: 'User2' },
         message: { text: 'test' },
-        provider: { eventId: 'event2', raw: {} },
+        provider: { eventId: 'event2', raw: { platformId: 'platform-2' } },
       } as any;
 
       // Both should return not-ready since no connections are set up
@@ -112,7 +112,7 @@ describe('DiscordProvider', () => {
         provider.sendMessage(env1, { text: 'Hello 1 again' }),
       ]);
 
-      // Verify isolation - each should have consistent responses
+      // Verify isolation - each should have consistent responses (no connections set up)
       expect(results[0].providerMessageId).toBe('discord-not-ready');
       expect(results[1].providerMessageId).toBe('discord-not-ready');
       expect(results[2].providerMessageId).toBe('discord-not-ready');

@@ -8,7 +8,15 @@ export interface InboundEventSource {
 export interface OutboundTransport {
   sendMessage(
     env: MessageEnvelopeV1,
-    reply: { text?: string; attachments?: any[]; threadId?: string },
+    reply: {
+      text?: string;
+      attachments?: any[];
+      buttons?: any[];
+      embeds?: any[];
+      threadId?: string;
+      replyTo?: string;
+      silent?: boolean;
+    },
   ): Promise<{ providerMessageId: string }>;
 }
 
