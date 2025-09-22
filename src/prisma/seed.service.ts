@@ -36,7 +36,7 @@ export class SeedService implements OnModuleInit {
           },
         });
 
-        const testApiKey = CryptoUtil.generateApiKey('test');
+        const testApiKey = CryptoUtil.generateApiKey(defaultProject.environment);
         const keyHash = CryptoUtil.hashApiKey(testApiKey);
         const keyPrefix = CryptoUtil.getKeyPrefix(testApiKey);
         const keySuffix = CryptoUtil.getKeySuffix(testApiKey);
@@ -48,7 +48,6 @@ export class SeedService implements OnModuleInit {
             keyPrefix,
             keySuffix,
             name: 'Development Test Key',
-            environment: 'test',
             scopes: {
               create: [
                 { scope: 'messages:send' },
