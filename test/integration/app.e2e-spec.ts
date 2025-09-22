@@ -329,7 +329,7 @@ describe('GateKit API (e2e)', () => {
           .expect((res) => {
             expect(res.body).toHaveProperty('key');
             expect(res.body.key).toMatch(/^gk_dev_/);
-            expect(res.body).toHaveProperty('name', 'Key to Roll (rolled)');
+            expect(res.body).toHaveProperty('name', 'Key to Roll');
             expect(res.body).toHaveProperty('oldKeyRevokedAt');
           });
       });

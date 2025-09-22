@@ -164,7 +164,7 @@ export class ApiKeysService {
           keyHash,
           keyPrefix,
           keySuffix,
-          name: `${oldKey.name} (rolled)`,
+          name: oldKey.name,
           expiresAt: oldKey.expiresAt,
           createdBy,
           scopes: {
