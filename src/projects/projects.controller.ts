@@ -16,6 +16,8 @@ export class ProjectsController {
     description: 'Create a new project',
     category: 'Projects',
     requiredScopes: ['projects:write'],
+    inputType: 'CreateProjectDto',
+    outputType: 'Project',
     options: {
       name: { required: true, description: 'Project name', type: 'string' },
       environment: {
@@ -47,6 +49,7 @@ export class ProjectsController {
     description: 'List all projects',
     category: 'Projects',
     requiredScopes: ['projects:read'],
+    outputType: 'Project[]',
     examples: [
       {
         description: 'List all projects',

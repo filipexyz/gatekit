@@ -102,7 +102,7 @@ ${options}
 
         const gk = new GateKit(config);
 
-        ${this.generateMethodCall(subCommand, methodCall)}
+        ${this.generateMethodCall(subCommand, methodCall, category, contractMetadata)}
 
         formatOutput(result, options.json);
       } catch (error) {
@@ -111,20 +111,35 @@ ${options}
     });`;
   }
 
-  private generateMethodCall(subCommand: string, methodCall: string): string {
-    if (subCommand === 'create') {
-      return `const result = await gk.projects.${methodCall}({
-          name: options.name,
-          environment: options.environment || 'development'
-        });`;
+  private generateMethodCall(subCommand: string, methodCall: string, category: string, contractMetadata: any): string {
+    const namespace = category.toLowerCase() === 'apikeys' ? 'apikeys' : category.toLowerCase();
+
+    // If no input type specified, method takes no parameters
+    if (!contractMetadata.inputType) {
+      return `const result = await gk.${namespace}.${methodCall}();`;
     }
 
-    if (subCommand === 'list') {
-      return `const result = await gk.projects.${methodCall}();`;
-    }
+    // Build data object by mapping CLI options to DTO properties using contract metadata
+    const dtoObject = this.buildDtoObjectFromContract(contractMetadata.options || {});
 
-    return `const result = await gk.projects.${methodCall}();`;
+    return `const result = await gk.${namespace}.${methodCall}(${dtoObject});`;
   }
+
+  private buildDtoObjectFromContract(options: Record<string, any>): string {
+    if (!options || Object.keys(options).length === 0) {
+      return '{}';
+    }
+
+    // Simple 1:1 mapping - contract options = DTO properties
+    const optionEntries = Object.keys(options).map(key =>
+      `      ${key}: options.${key}`
+    ).join(',\n');
+
+    return `{
+${optionEntries}
+        }`;
+  }
+
 
   private generateCommandHelpers(): string {
     return `

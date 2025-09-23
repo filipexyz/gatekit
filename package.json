@@ -42,6 +42,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "discord.js": "^14.22.1",
+    "glob": "^11.0.3",
     "ioredis": "^5.7.0",
     "joi": "^18.0.1",
     "jsonwebtoken": "^9.0.2",
@@ -51,6 +52,7 @@
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "ts-morph": "^27.0.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

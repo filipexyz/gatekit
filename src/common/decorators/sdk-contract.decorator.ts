@@ -7,7 +7,7 @@ export interface SdkContractOption {
   description?: string;
   choices?: string[];
   default?: unknown;
-  type?: 'string' | 'number' | 'boolean';
+  type?: 'string' | 'number' | 'boolean' | 'object';
 }
 
 export interface SdkContractMetadata {
@@ -15,6 +15,8 @@ export interface SdkContractMetadata {
   description: string;
   category?: string;
   requiredScopes?: string[];
+  inputType?: string;    // Reference to backend DTO class name
+  outputType?: string;   // Reference to backend model/response type
   options?: Record<string, SdkContractOption>;
   examples?: Array<{
     description: string;

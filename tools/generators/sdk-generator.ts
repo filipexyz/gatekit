@@ -3,6 +3,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ExtractedContract } from '../extractors/contract-extractor.service';
+import { TypeExtractorService } from '../extractors/type-extractor.service';
 
 interface GeneratedSDK {
   types: string;
@@ -14,14 +15,21 @@ interface GeneratedSDK {
 
 export class SDKGenerator {
   async generateFromContracts(contractsPath: string, outputDir: string): Promise<void> {
-    console.log('🔧 Generating SDK from contracts...');
+    console.log('🔧 Generating type-safe SDK from contracts...');
 
     // Load contracts
     const contractsContent = await fs.readFile(contractsPath, 'utf-8');
     const contracts: ExtractedContract[] = JSON.parse(contractsContent);
 
+    // Extract all referenced types
+    const typeNames = this.extractTypeNames(contracts);
+    const typeExtractor = new TypeExtractorService();
+    const extractedTypes = await typeExtractor.extractTypes(typeNames);
+
+    console.log(`📝 Extracted ${extractedTypes.length} TypeScript types from backend`);
+
     // Generate SDK components
-    const sdk = this.generateSDK(contracts);
+    const sdk = this.generateSDK(contracts, extractedTypes);
 
     // Create output directory
     await fs.mkdir(outputDir, { recursive: true });
@@ -33,9 +41,26 @@ export class SDKGenerator {
     console.log(`📦 Ready for: cd ${outputDir} && npm publish`);
   }
 
-  private generateSDK(contracts: ExtractedContract[]): GeneratedSDK {
+  private extractTypeNames(contracts: ExtractedContract[]): string[] {
+    const typeNames = new Set<string>();
+
+    contracts.forEach(contract => {
+      if (contract.contractMetadata.inputType) {
+        typeNames.add(contract.contractMetadata.inputType);
+      }
+      if (contract.contractMetadata.outputType) {
+        typeNames.add(contract.contractMetadata.outputType);
+      }
+    });
+
+    return Array.from(typeNames);
+  }
+
+  private generateSDK(contracts: ExtractedContract[], extractedTypes: any[]): GeneratedSDK {
+    const typeExtractor = new TypeExtractorService();
+
     return {
-      types: this.generateTypes(contracts),
+      types: typeExtractor.generateTypesFile(extractedTypes),
       client: this.generateClient(contracts),
       errors: this.generateErrors(),
       index: this.generateIndex(contracts),
@@ -45,7 +70,7 @@ export class SDKGenerator {
 
   private generateTypes(contracts: ExtractedContract[]): string {
     return `// Generated TypeScript types for GateKit SDK
-// DO NOT EDIT - This file is auto-generated from backend contracts
+// DO NOT EDIT - This file is auto-generated from backend DTOs
 
 export interface GateKitConfig {
   apiUrl: string;
@@ -55,6 +80,7 @@ export interface GateKitConfig {
   retries?: number;
 }
 
+// Project types
 export interface Project {
   id: string;
   name: string;
@@ -66,9 +92,48 @@ export interface Project {
   updatedAt: string;
 }
 
-export interface CreateProjectData {
+export interface CreateProjectDto {
   name: string;
   environment?: 'development' | 'staging' | 'production';
+}
+
+// Platform types
+export interface Platform {
+  id: string;
+  platform: 'discord' | 'telegram';
+  credentials: Record<string, unknown>;
+  isActive: boolean;
+  testMode: boolean;
+  webhookToken?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePlatformDto {
+  platform: 'discord' | 'telegram';
+  token: string;
+  testMode?: boolean;
+}
+
+// Message types
+export interface MessageTarget {
+  platformId: string;
+  type: 'user' | 'channel' | 'group';
+  id: string;
+}
+
+export interface MessageContent {
+  text?: string;
+  attachments?: any[];
+  buttons?: any[];
+  embeds?: any[];
+}
+
+export interface SendMessageDto {
+  targets: MessageTarget[];
+  content: MessageContent;
+  options?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface MessageJob {
@@ -90,12 +155,60 @@ export interface MessageStatus {
   processedOn?: number;
   finishedOn?: number;
 }
+
+// API Key types
+export interface ApiKey {
+  id: string;
+  name: string;
+  keyId: string;
+  scopes: string[];
+  expiresAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateApiKeyDto {
+  name: string;
+  scopes: string[];
+  expiresInDays?: number;
+}
+
+export interface ApiKeyResult {
+  id: string;
+  name: string;
+  keyId: string;
+  key: string;
+  scopes: string[];
+  expiresAt?: string;
+  createdAt: string;
+}
 `;
   }
 
   private generateClient(contracts: ExtractedContract[]): string {
     // Group contracts by controller/category
     const groups = this.groupContractsByCategory(contracts);
+
+    // Dynamically collect all used types from contracts
+    const usedTypes = new Set<string>(['GateKitConfig']); // Always need config
+
+    contracts.forEach(contract => {
+      if (contract.contractMetadata.inputType) {
+        usedTypes.add(contract.contractMetadata.inputType);
+      }
+      if (contract.contractMetadata.outputType) {
+        const outputType = contract.contractMetadata.outputType;
+        // For array types, only import the base type
+        if (outputType.endsWith('[]')) {
+          usedTypes.add(outputType.slice(0, -2));
+        } else {
+          usedTypes.add(outputType);
+        }
+      }
+    });
+
+    // Generate dynamic import list
+    const typeImports = Array.from(usedTypes).sort().join(',\n  ');
 
     const apiGroups = Object.entries(groups).map(([category, contracts]) => {
       const className = `${category}API`;
@@ -112,7 +225,9 @@ export interface MessageStatus {
 // DO NOT EDIT - This file is auto-generated from backend contracts
 
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import { GateKitConfig, Project, CreateProjectData } from './types';
+import {
+  ${typeImports}
+} from './types';
 import { GateKitError, AuthenticationError, RateLimitError } from './errors';
 
 ${apiGroups}
@@ -180,24 +295,27 @@ ${Object.keys(groups).map(category =>
   private generateAPIMethod(contract: ExtractedContract): string {
     const { contractMetadata, path, httpMethod } = contract;
     const methodName = this.getMethodName(contractMetadata.command);
-    const hasBody = ['POST', 'PUT', 'PATCH'].includes(httpMethod);
 
-    if (methodName === 'create') {
-      return `async create(data: CreateProjectData): Promise<Project> {
-    const response = await this.client.post<Project>('${path}', data);
+    // Get types from contract metadata
+    const inputType = contractMetadata.inputType;
+    const outputType = contractMetadata.outputType || 'any';
+
+    // Determine if method needs input data based on inputType presence (not HTTP method)
+    const needsInput = inputType && inputType !== 'any';
+
+    // Choose HTTP method - prefer POST for methods with input, GET for methods without
+    const actualHttpMethod = needsInput ? 'post' : 'get';
+
+    if (needsInput) {
+      return `async ${methodName}(data: ${inputType}): Promise<${outputType}> {
+    const response = await this.client.${actualHttpMethod}<${outputType}>('${path}', data);
     return response.data;
   }`;
     }
 
-    if (methodName === 'list') {
-      return `async list(): Promise<Project[]> {
-    const response = await this.client.get<Project[]>('${path}');
-    return response.data;
-  }`;
-    }
-
-    return `async ${methodName}(): Promise<any> {
-    const response = await this.client.${httpMethod.toLowerCase()}<any>('${path}');
+    // Methods without input data
+    return `async ${methodName}(): Promise<${outputType}> {
+    const response = await this.client.get<${outputType}>('${path}');
     return response.data;
   }`;
   }
