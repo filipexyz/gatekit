@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlatformDto } from './dto/create-platform.dto';
 import { UpdatePlatformDto } from './dto/update-platform.dto';
@@ -256,31 +256,45 @@ export class PlatformsService {
   }
 
   async validatePlatformConfigById(platformId: string) {
+    const logger = new Logger('PlatformsService');
+
     try {
+      logger.log(`[VALIDATION START] Checking platformId: ${platformId}`);
+
       // Add timeout to prevent hanging queries
+      logger.log(`[VALIDATION QUERY] Starting database query for platformId: ${platformId}`);
       const platform = await Promise.race([
         this.prisma.projectPlatform.findUnique({
           where: { id: platformId },
         }),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Database query timeout')), 5000)
+          setTimeout(() => {
+            logger.error(`[VALIDATION TIMEOUT] Database query timed out for platformId: ${platformId}`);
+            reject(new Error('Database query timeout'));
+          }, 5000)
         )
       ]) as any;
 
+      logger.log(`[VALIDATION QUERY COMPLETE] Query result for ${platformId}: ${platform ? 'FOUND' : 'NOT_FOUND'}`);
+
       if (!platform) {
+        logger.warn(`[VALIDATION FAILED] Platform not found: ${platformId}`);
         throw new NotFoundException(
           `Platform configuration with ID '${platformId}' not found`,
         );
       }
 
       if (!platform.isActive) {
+        logger.warn(`[VALIDATION FAILED] Platform inactive: ${platformId}`);
         throw new BadRequestException(
           `Platform configuration '${platformId}' is currently disabled`,
         );
       }
 
+      logger.log(`[VALIDATION SUCCESS] Platform validated: ${platformId}`);
       return platform;
     } catch (error) {
+      logger.error(`[VALIDATION ERROR] Failed to validate platformId ${platformId}: ${error.message}`);
       if (error.message === 'Database query timeout') {
         throw new BadRequestException('Platform validation timed out');
       }

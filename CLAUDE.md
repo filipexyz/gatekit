@@ -144,6 +144,12 @@ npm test:e2e     # Run integration tests
 
 For detailed testing guidelines, see: **[test/CLAUDE.md](test/CLAUDE.md)**
 
+## GateKit CLI
+
+The **GateKit CLI** (`@gatekit/cli`) is the official command-line interface for interacting with the GateKit API. It provides a complete interface for AI agents and developers to manage projects, configure platforms, send messages, and monitor queue operations.
+
+**Complete CLI Documentation:** **[CLI_GUIDE.md](CLI_GUIDE.md)**
+
 ## Deployment
 
 ```bash

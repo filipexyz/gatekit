@@ -61,14 +61,8 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     // Parse connectionKey to get projectId and platformId
     const [projectId, platformId] = connectionKey.split(':');
 
-    // Create Telegram bot without auto-webhook (prevents hanging)
-    const bot = new TelegramBot(credentials.token, {
-      webHook: false,  // Don't auto-setup webhook
-      polling: false   // Don't use polling
-    });
-
-    // Note: Webhook is configured separately via webhookToken in platform config
-    // The webhook URL is: /api/v1/webhooks/telegram/:webhookToken
+    // Create Telegram bot (webhook mode)
+    const bot = new TelegramBot(credentials.token, { webHook: true });
 
     const connection: TelegramConnection = {
       connectionKey,
