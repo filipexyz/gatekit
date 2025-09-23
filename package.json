@@ -17,7 +17,11 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "extract:contracts": "ts-node -r tsconfig-paths/register tools/extract-contracts.ts",
+    "generate:all": "npm run extract:contracts && npm run generate:sdk && npm run generate:cli",
+    "generate:sdk": "echo 'SDK generation coming soon...'",
+    "generate:cli": "echo 'CLI generation coming soon...'"
   },
   "dependencies": {
     "@nestjs/bull": "^11.0.3",

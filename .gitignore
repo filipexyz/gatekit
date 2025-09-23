@@ -45,3 +45,6 @@ lerna-debug.log*
 # Docker volumes
 postgres_data/
 redis_data/
+
+# Generated packages (build artifacts)
+/generated

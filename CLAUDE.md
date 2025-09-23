@@ -144,11 +144,42 @@ npm test:e2e     # Run integration tests
 
 For detailed testing guidelines, see: **[test/CLAUDE.md](test/CLAUDE.md)**
 
-## GateKit CLI
+## GateKit Client Architecture
 
-The **GateKit CLI** (`@gatekit/cli`) is the official command-line interface for interacting with the GateKit API. It provides a complete interface for AI agents and developers to manage projects, configure platforms, send messages, and monitor queue operations.
+### **Revolutionary Contract-Driven System**
+GateKit implements a next-generation architecture where **SDK** and **CLI** are auto-generated from backend API contracts, ensuring perfect sync and zero duplication.
 
-**Complete CLI Documentation:** **[CLI_GUIDE.md](CLI_GUIDE.md)**
+### **Core Architecture Specifications**
+- **[SDK_SPECIFICATION.md](SDK_SPECIFICATION.md)** - Pure TypeScript API client architecture
+- **[CLI_SPECIFICATION.md](CLI_SPECIFICATION.md)** - Permission-aware CLI design
+- **[PERMISSION_AWARE_CLI.md](PERMISSION_AWARE_CLI.md)** - Dynamic command system based on user permissions
+- **[DEVELOPMENT_PRIORITIZATION.md](DEVELOPMENT_PRIORITIZATION.md)** - Implementation roadmap and effort matrix
+- **[DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md)** - Multi-agent collaboration system
+
+### **Key Innovation: Single Source → Multiple Outputs**
+```
+Backend Controllers (@CliContract decorators)
+    ↓
+┌─────────────┬─────────────┬─────────────┬─────────────┐
+│ @gatekit/sdk│ @gatekit/cli│   Docs      │   Tests     │
+│ (generated) │ (generated) │ (generated) │ (generated) │
+└─────────────┴─────────────┴─────────────┴─────────────┘
+```
+
+### **Strategic Advantages**
+- **Perfect Sync** - API changes automatically update SDK & CLI
+- **Source Protection** - Only compiled packages published, backend source stays private
+- **Permission Intelligence** - CLI shows only commands user can execute
+- **Zero Duplication** - Single contract definition generates everything
+
+### **Current Implementation Status**
+- ✅ Backend API fully functional with Discord/Telegram support
+- ✅ Prototype CLI working with Telegram integration tested
+- ✅ Complete architecture specifications documented
+- 📋 Ready for contract-driven implementation (see prioritization matrix)
+
+### **Next Steps**
+Follow **[DEVELOPMENT_PRIORITIZATION.md](DEVELOPMENT_PRIORITIZATION.md)** for implementation roadmap starting with Permission Discovery API and Contract Extraction System.
 
 ## Deployment
 
