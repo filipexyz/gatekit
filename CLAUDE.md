@@ -174,12 +174,23 @@ Backend Controllers (@CliContract decorators)
 
 ### **Current Implementation Status**
 - ✅ Backend API fully functional with Discord/Telegram support
-- ✅ Prototype CLI working with Telegram integration tested
-- ✅ Complete architecture specifications documented
-- 📋 Ready for contract-driven implementation (see prioritization matrix)
+- ✅ Contract-driven architecture fully implemented and working
+- ✅ Permission Discovery API (`/auth/whoami`) operational
+- ✅ SDK and CLI generation pipeline complete
+- ✅ Both packages compile and ready for npm publishing
 
-### **Next Steps**
-Follow **[DEVELOPMENT_PRIORITIZATION.md](DEVELOPMENT_PRIORITIZATION.md)** for implementation roadmap starting with Permission Discovery API and Contract Extraction System.
+### **Contract-Driven Development**
+**Complete Implementation Guide:** **[CONTRACT_DRIVEN_DEVELOPMENT.md](CONTRACT_DRIVEN_DEVELOPMENT.md)**
+
+**Daily Workflow:**
+```bash
+# 1. Add @SdkContract decorators to controllers
+# 2. Regenerate packages
+npm run generate:all
+# 3. Test and publish
+cd generated/sdk && npm publish
+cd ../cli && npm publish
+```
 
 ## Deployment
 
