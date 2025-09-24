@@ -37,7 +37,8 @@ export class TypeExtractorService {
           }
         });
       } else {
-        console.warn(`⚠️  Type not found: ${typeName}`);
+        console.error(`❌ CRITICAL: Type not found: ${typeName}`);
+        throw new Error(`Required type '${typeName}' not found in backend source. Check type definitions.`);
       }
     }
 

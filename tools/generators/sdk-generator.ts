@@ -3,7 +3,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ExtractedContract } from '../extractors/contract-extractor.service';
-import { TypeExtractorService } from '../extractors/type-extractor.service';
 
 interface GeneratedSDK {
   types: string;
@@ -17,19 +16,18 @@ export class SDKGenerator {
   async generateFromContracts(contractsPath: string, outputDir: string): Promise<void> {
     console.log('🔧 Generating type-safe SDK from contracts...');
 
-    // Load contracts
+    // Load contracts (now containing all type definitions)
     const contractsContent = await fs.readFile(contractsPath, 'utf-8');
     const contracts: ExtractedContract[] = JSON.parse(contractsContent);
 
-    // Extract all referenced types
-    const typeNames = this.extractTypeNames(contracts);
-    const typeExtractor = new TypeExtractorService();
-    const extractedTypes = await typeExtractor.extractTypes(typeNames);
+    // Get type definitions from contracts (single source of truth)
+    const typeDefinitions = contracts[0]?.typeDefinitions || {};
+    const typeCount = Object.keys(typeDefinitions).length;
 
-    console.log(`📝 Extracted ${extractedTypes.length} TypeScript types from backend`);
+    console.log(`📝 Using ${typeCount} TypeScript types from contract file`);
 
     // Generate SDK components
-    const sdk = this.generateSDK(contracts, extractedTypes);
+    const sdk = this.generateSDK(contracts, typeDefinitions);
 
     // Create output directory
     await fs.mkdir(outputDir, { recursive: true });
@@ -56,16 +54,33 @@ export class SDKGenerator {
     return Array.from(typeNames);
   }
 
-  private generateSDK(contracts: ExtractedContract[], extractedTypes: any[]): GeneratedSDK {
-    const typeExtractor = new TypeExtractorService();
-
+  private generateSDK(contracts: ExtractedContract[], typeDefinitions: Record<string, string>): GeneratedSDK {
     return {
-      types: typeExtractor.generateTypesFile(extractedTypes),
+      types: this.generateTypesFromDefinitions(typeDefinitions),
       client: this.generateClient(contracts),
       errors: this.generateErrors(),
       index: this.generateIndex(contracts),
       packageJson: this.generatePackageJson(),
     };
+  }
+
+  private generateTypesFromDefinitions(typeDefinitions: Record<string, string>): string {
+    const typeDefinitionsList = Object.values(typeDefinitions).join('\n\n');
+
+    return `// Generated TypeScript types for GateKit SDK
+// DO NOT EDIT - This file is auto-generated from backend contracts
+
+${typeDefinitionsList}
+
+// SDK configuration
+export interface GateKitConfig {
+  apiUrl: string;
+  apiKey?: string;
+  jwtToken?: string;
+  timeout?: number;
+  retries?: number;
+}
+`;
   }
 
   private generateTypes(contracts: ExtractedContract[]): string {
@@ -296,28 +311,58 @@ ${Object.keys(groups).map(category =>
     const { contractMetadata, path, httpMethod } = contract;
     const methodName = this.getMethodName(contractMetadata.command);
 
+    // Extract path parameters (e.g., ":projectSlug", ":id", ":keyId")
+    const pathParams = this.extractPathParameters(path);
+
     // Get types from contract metadata
     const inputType = contractMetadata.inputType;
     const outputType = contractMetadata.outputType || 'any';
 
-    // Determine if method needs input data based on inputType presence (not HTTP method)
+    // Determine if method needs input data based on inputType presence
     const needsInput = inputType && inputType !== 'any';
 
-    // Choose HTTP method - prefer POST for methods with input, GET for methods without
-    const actualHttpMethod = needsInput ? 'post' : 'get';
+    // Build method parameters: path params + optional data param
+    const methodParams = this.buildMethodParameters(pathParams, needsInput ? inputType : null);
+
+    // Build URL with parameter substitution
+    const urlWithParams = this.buildUrlWithParameters(path, pathParams);
+
+    // Use actual HTTP method from contract
+    const actualHttpMethod = httpMethod.toLowerCase();
 
     if (needsInput) {
-      return `async ${methodName}(data: ${inputType}): Promise<${outputType}> {
-    const response = await this.client.${actualHttpMethod}<${outputType}>('${path}', data);
+      return `async ${methodName}(${methodParams}): Promise<${outputType}> {
+    const response = await this.client.${actualHttpMethod}<${outputType}>(${urlWithParams}, data);
     return response.data;
   }`;
     }
 
     // Methods without input data
-    return `async ${methodName}(): Promise<${outputType}> {
-    const response = await this.client.get<${outputType}>('${path}');
+    return `async ${methodName}(${methodParams}): Promise<${outputType}> {
+    const response = await this.client.get<${outputType}>(${urlWithParams});
     return response.data;
   }`;
+  }
+
+  private extractPathParameters(path: string): string[] {
+    const matches = path.match(/:([a-zA-Z][a-zA-Z0-9]*)/g);
+    return matches ? matches.map(match => match.substring(1)) : [];
+  }
+
+  private buildMethodParameters(pathParams: string[], inputType: string | null): string {
+    const params = pathParams.map(param => `${param}: string`);
+    if (inputType) {
+      params.push(`data: ${inputType}`);
+    }
+    return params.join(', ');
+  }
+
+  private buildUrlWithParameters(path: string, pathParams: string[]): string {
+    let url = `'${path}'`;
+    pathParams.forEach(param => {
+      url = url.replace(`:${param}`, `\${${param}}`);
+    });
+    return '`' + url.slice(1, -1) + '`'; // Convert to template literal
   }
 
   private getMethodName(command: string): string {

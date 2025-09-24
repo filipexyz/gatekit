@@ -44,7 +44,7 @@ async function extractContracts() {
     const extractor = app.get(ContractExtractorService);
 
     // Extract all contracts
-    const contracts = extractor.extractContracts();
+    const contracts = await extractor.extractContracts();
 
     console.log(`✅ Found ${contracts.length} contracts with @SdkContract decorators`);
 

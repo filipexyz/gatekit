@@ -72,22 +72,32 @@ ${this.generateCommandHelpers()}
   }
 
   private generateCommand(contract: ExtractedContract): string {
-    const { contractMetadata } = contract;
+    const { contractMetadata, path } = contract;
     const commandParts = contractMetadata.command.split(' ');
     const subCommand = commandParts[commandParts.length - 1]; // 'projects create' -> 'create'
     const category = contractMetadata.category || 'general';
+
+    // Extract path parameters for SDK method call
+    const pathParams = this.extractPathParameters(path);
 
     const options = Object.entries(contractMetadata.options || {}).map(([name, opt]) => {
       const optionDef = `    .option('--${name} <value>', '${opt.description}'${opt.default ? `, '${opt.default}'` : ''})`;
       return optionDef;
     }).join('\n');
 
+    // Add path parameter options
+    const pathParamOptions = pathParams.map(param =>
+      `    .option('--${param} <value>', '${param} parameter', ${param === 'projectSlug' ? "'default'" : 'undefined'})`
+    ).join('\n');
+
+    const allOptions = [options, pathParamOptions].filter(Boolean).join('\n');
+
     const methodCall = subCommand === 'create' ? 'create' : subCommand === 'list' ? 'list' : subCommand;
 
     return `  ${category.toLowerCase()}
     .command('${subCommand}')
     .description('${contractMetadata.description}')
-${options}
+${allOptions}
     .option('--json', 'Output as JSON')
     .action(async (options) => {
       try {
@@ -102,7 +112,7 @@ ${options}
 
         const gk = new GateKit(config);
 
-        ${this.generateMethodCall(subCommand, methodCall, category, contractMetadata)}
+        ${this.generateMethodCall(subCommand, methodCall, category, contractMetadata, pathParams)}
 
         formatOutput(result, options.json);
       } catch (error) {
@@ -111,18 +121,29 @@ ${options}
     });`;
   }
 
-  private generateMethodCall(subCommand: string, methodCall: string, category: string, contractMetadata: any): string {
+  private generateMethodCall(subCommand: string, methodCall: string, category: string, contractMetadata: any, pathParams: string[]): string {
     const namespace = category.toLowerCase() === 'apikeys' ? 'apikeys' : category.toLowerCase();
 
-    // If no input type specified, method takes no parameters
+    // Build path parameter arguments
+    const pathArgs = pathParams.map(param => `options.${param} || 'default'`).join(', ');
+
+    // If no input type specified, method takes only path parameters
     if (!contractMetadata.inputType) {
-      return `const result = await gk.${namespace}.${methodCall}();`;
+      const args = pathParams.length > 0 ? pathArgs : '';
+      return `const result = await gk.${namespace}.${methodCall}(${args});`;
     }
 
     // Build data object by mapping CLI options to DTO properties using contract metadata
     const dtoObject = this.buildDtoObjectFromContract(contractMetadata.options || {});
 
-    return `const result = await gk.${namespace}.${methodCall}(${dtoObject});`;
+    // Combine path parameters and data object
+    const allArgs = pathParams.length > 0 ? `${pathArgs}, ${dtoObject}` : dtoObject;
+    return `const result = await gk.${namespace}.${methodCall}(${allArgs});`;
+  }
+
+  private extractPathParameters(path: string): string[] {
+    const matches = path.match(/:([a-zA-Z][a-zA-Z0-9]*)/g);
+    return matches ? matches.map(match => match.substring(1)) : [];
   }
 
   private buildDtoObjectFromContract(options: Record<string, any>): string {

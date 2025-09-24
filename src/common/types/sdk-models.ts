@@ -72,3 +72,29 @@ export interface UpdatePlatformDto {
   testMode?: boolean;
   credentials?: Record<string, unknown>;
 }
+
+// Message nested types (from SendMessageDto)
+export interface TargetDto {
+  platformId: string;
+  type: 'user' | 'channel' | 'group';
+  id: string;
+}
+
+export interface ContentDto {
+  text?: string;
+  attachments?: any[];
+  buttons?: any[];
+  embeds?: any[];
+}
+
+export interface OptionsDto {
+  replyTo?: string;
+  silent?: boolean;
+  scheduled?: string;
+}
+
+export interface MetadataDto {
+  trackingId?: string;
+  tags?: string[];
+  priority?: 'low' | 'normal' | 'high';
+}

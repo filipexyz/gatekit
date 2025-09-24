@@ -19,7 +19,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "extract:contracts": "ts-node -r tsconfig-paths/register tools/extract-contracts.ts",
-    "generate:all": "npm run extract:contracts && npm run generate:sdk && npm run generate:cli",
+    "generate:all": "npm run extract:contracts && npm run generate:sdk && npm run generate:cli && npm run validate:generated",
+    "validate:generated": "cd generated/sdk && npm run build && cd ../cli && npm install && npm run build && echo '✅ All generated packages compiled successfully'",
     "generate:sdk": "ts-node -r tsconfig-paths/register tools/generators/sdk-generator.ts",
     "generate:cli": "ts-node -r tsconfig-paths/register tools/generators/cli-generator.ts"
   },
