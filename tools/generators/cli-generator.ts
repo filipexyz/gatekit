@@ -307,7 +307,7 @@ export function handleError(error: any): void {
         prepublishOnly: 'npm run build'
       },
       dependencies: {
-        '@gatekit/sdk': '^1.0.0',
+        '@gatekit/sdk': 'file:../sdk',
         'commander': '^11.0.0',
         'axios': '^1.6.0'
       },
