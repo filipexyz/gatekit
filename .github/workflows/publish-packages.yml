@@ -67,7 +67,16 @@ jobs:
       - name: Bump SDK version
         if: ${{ inputs.publish_sdk }}
         working-directory: ./generated/sdk
-        run: npm version ${{ inputs.version_bump }}
+        run: |
+          # Get current published version or default to 1.0.0
+          CURRENT_VERSION=$(npm view @gatekit/sdk version 2>/dev/null || echo "1.0.0")
+          echo "Current published version: $CURRENT_VERSION"
+
+          # Set the current version in package.json before bumping
+          npm version $CURRENT_VERSION --no-git-tag-version
+
+          # Now bump to next version
+          npm version ${{ inputs.version_bump }}
 
       - name: Publish SDK
         if: ${{ inputs.publish_sdk }}
@@ -81,7 +90,16 @@ jobs:
       - name: Bump CLI version
         if: ${{ inputs.publish_cli }}
         working-directory: ./generated/cli
-        run: npm version ${{ inputs.version_bump }}
+        run: |
+          # Get current published version or default to 1.0.0
+          CURRENT_VERSION=$(npm view @gatekit/cli version 2>/dev/null || echo "1.0.0")
+          echo "Current published version: $CURRENT_VERSION"
+
+          # Set the current version in package.json before bumping
+          npm version $CURRENT_VERSION --no-git-tag-version
+
+          # Now bump to next version
+          npm version ${{ inputs.version_bump }}
 
       - name: Update CLI SDK dependency
         if: ${{ inputs.publish_cli && inputs.publish_sdk }}
@@ -102,7 +120,16 @@ jobs:
       - name: Bump n8n node version
         if: ${{ inputs.publish_n8n }}
         working-directory: ./generated/n8n
-        run: npm version ${{ inputs.version_bump }}
+        run: |
+          # Get current published version or default to 1.0.0
+          CURRENT_VERSION=$(npm view n8n-nodes-gatekit version 2>/dev/null || echo "1.0.0")
+          echo "Current published version: $CURRENT_VERSION"
+
+          # Set the current version in package.json before bumping
+          npm version $CURRENT_VERSION --no-git-tag-version
+
+          # Now bump to next version
+          npm version ${{ inputs.version_bump }}
 
       - name: Publish n8n node
         if: ${{ inputs.publish_n8n }}
