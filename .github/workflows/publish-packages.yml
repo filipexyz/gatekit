@@ -13,6 +13,11 @@ on:
         required: true
         default: 'true'
         type: boolean
+      publish_n8n:
+        description: 'Publish n8n-nodes-gatekit'
+        required: true
+        default: 'true'
+        type: boolean
       version_bump:
         description: 'Version bump type'
         required: true
@@ -42,7 +47,7 @@ jobs:
 
       - name: Generate contracts and packages
         run: |
-          echo "🔧 Generating SDK and CLI from contracts using standalone extractor..."
+          echo "🔧 Generating SDK, CLI, and n8n node from contracts using standalone extractor..."
           npm run generate:all:standalone
 
       - name: Verify generation success
@@ -52,6 +57,8 @@ jobs:
           ls -la generated/
           echo "📄 Contract summary:"
           cat generated/contracts/extraction-summary.json
+          echo "📊 Package sizes:"
+          du -sh generated/*/dist/ 2>/dev/null || echo "Dist folders not yet built"
 
       - name: Bump SDK version
         if: ${{ inputs.publish_sdk }}
@@ -88,8 +95,22 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Bump n8n node version
+        if: ${{ inputs.publish_n8n }}
+        working-directory: ./generated/n8n
+        run: npm version ${{ inputs.version_bump }}
+
+      - name: Publish n8n node
+        if: ${{ inputs.publish_n8n }}
+        working-directory: ./generated/n8n
+        run: |
+          echo "📦 Publishing n8n-nodes-gatekit..."
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Create GitHub Release
-        if: ${{ inputs.publish_sdk || inputs.publish_cli }}
+        if: ${{ inputs.publish_sdk || inputs.publish_cli || inputs.publish_n8n }}
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -102,6 +123,7 @@ jobs:
             ### Generated Packages
             ${{ inputs.publish_sdk && '✅ @gatekit/sdk - TypeScript SDK with perfect type safety' || '' }}
             ${{ inputs.publish_cli && '✅ @gatekit/cli - Permission-aware CLI with dynamic commands' || '' }}
+            ${{ inputs.publish_n8n && '✅ n8n-nodes-gatekit - Visual automation node for n8n workflows' || '' }}
 
             ### Architecture Highlights
             - 🔥 **22 types auto-extracted** with recursive dependency discovery
@@ -118,6 +140,9 @@ jobs:
             # Install CLI
             npm install -g @gatekit/cli
 
+            # Install n8n node
+            npm install n8n-nodes-gatekit
+
             # Use SDK
             const gk = new GateKit({ apiKey: 'your-key' });
             await gk.projects.create({ name: 'My Project' });
@@ -125,6 +150,9 @@ jobs:
             # Use CLI
             gatekit projects list --json
             gatekit platforms create --platform discord --credentials "{\"token\":\"bot-token\"}"
+
+            # Use in n8n workflows
+            Add GateKit node to n8n workflows for visual automation
             ```
 
             Generated from backend contracts with **revolutionary contract-driven architecture**!
@@ -137,7 +165,9 @@ jobs:
           echo "📊 Summary:"
           echo "   SDK Published: ${{ inputs.publish_sdk }}"
           echo "   CLI Published: ${{ inputs.publish_cli }}"
+          echo "   n8n Node Published: ${{ inputs.publish_n8n }}"
           echo "   Version: ${{ inputs.version_bump }}"
           echo "   Contracts: 14 across 4 controllers"
           echo "   Types: 22 with recursive auto-discovery"
+          echo "   Generated Packages: 3 (SDK + CLI + n8n)"
           echo "   Source Protection: ✅ Zero backend code leaked"
