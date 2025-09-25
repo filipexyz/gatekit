@@ -195,29 +195,29 @@ export class GateKit implements INodeType {
         });
       }
 
-      // Add path parameters
+      // Add path parameters (including projectSlug as parameter, not credential)
       const pathParams = this.extractPathParameters(contract.path);
       pathParams.forEach(param => {
-        if (param !== 'projectSlug') { // Project slug will be handled in credentials
-          parameters.push(`{
-            displayName: '${param.charAt(0).toUpperCase() + param.slice(1)}',
-            name: '${param}',
-            type: 'string',
-            required: true,
-            default: '',
-            displayOptions: {
-              show: {
-                resource: ['${category}'],
-                operation: ['${operation}'],
-              },
+        const displayName = param === 'projectSlug' ? 'Project Slug' :
+                           param.charAt(0).toUpperCase() + param.slice(1);
+        const description = param === 'projectSlug' ? 'Project identifier to operate on' :
+                           `${param} parameter`;
+        const defaultValue = param === 'projectSlug' ? 'default' : '';
+
+        parameters.push(`{
+          displayName: '${displayName}',
+          name: '${param}',
+          type: 'string',
+          required: true,
+          default: '${defaultValue}',
+          description: '${description}',
+          displayOptions: {
+            show: {
+              resource: ['${category}'],
+              operation: ['${operation}'],
             },
-            routing: {
-              request: {
-                url: '${this.convertPathForN8N(contract.path)}',
-              },
-            },
-          }`);
-        }
+          },
+        }`);
       });
     });
 
@@ -252,13 +252,6 @@ export class GateKitApi implements ICredentialType {
       },
       default: '',
       description: 'GateKit API key from your project dashboard',
-    },
-    {
-      displayName: 'Project Slug',
-      name: 'projectSlug',
-      type: 'string',
-      default: 'default',
-      description: 'Project slug to operate on (default: "default")',
     },
   ];
 
@@ -418,8 +411,8 @@ Generated from GateKit's contract-driven architecture - the future of API toolin
 
   private convertPathForN8N(path: string): string {
     // Convert GateKit API paths to n8n format using proper n8n expression syntax
-    // /api/v1/projects/:projectSlug/messages/send -> =/api/v1/projects/{{ $credentials.projectSlug }}/messages/send
-    return '=' + path.replace(':projectSlug', '{{ $credentials.projectSlug }}')
+    // /api/v1/projects/:projectSlug/messages/send -> =/api/v1/projects/{{ $parameter["projectSlug"] }}/messages/send
+    return '=' + path.replace(':projectSlug', '{{ $parameter["projectSlug"] }}')
                     .replace(':id', '{{ $parameter["id"] }}')
                     .replace(':keyId', '{{ $parameter["keyId"] }}')
                     .replace(':jobId', '{{ $parameter["jobId"] }}');
