@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**GateKit** is a universal messaging gateway that provides a single API to send messages across 100+ platforms (Discord, Telegram, Slack, WhatsApp, etc.). It solves the problem of developers wasting 70% of their time on platform-specific integrations.
+**GateKit** is a universal messaging gateway that provides a single API to send messages across multiple platforms (Discord, Telegram, Slack, WhatsApp, etc.). It solves the problem of developers wasting 70% of their time on platform-specific integrations.
 
 ## Technology Stack
 

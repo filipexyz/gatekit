@@ -60,7 +60,7 @@ export class GateKit implements INodeType {
     group: ['transform'],
     version: 1,
     subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-    description: 'Universal messaging gateway - send messages across 100+ platforms',
+    description: 'Universal messaging gateway - send messages across multiple platforms',
     defaults: {
       name: 'GateKit',
     },
@@ -340,7 +340,7 @@ export * from './dist/credentials/GateKitApi.credentials';
 
     return `# n8n-nodes-gatekit
 
-n8n community node for [GateKit](https://gatekit.dev) - Universal messaging gateway that provides a single API to send messages across 100+ platforms.
+n8n community node for [GateKit](https://gatekit.dev) - Universal messaging gateway that provides a single API to send messages across multiple platforms.
 
 ## Installation
 

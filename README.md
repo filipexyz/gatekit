@@ -1,6 +1,6 @@
 # GateKit Backend API
 
-Universal messaging gateway that provides a unified API to send messages across 100+ platforms.
+Universal messaging gateway that provides a unified API to send messages across multiple platforms.
 
 ## Overview
 
@@ -9,7 +9,7 @@ GateKit solves the problem of platform-specific integrations by providing a sing
 ## Features
 
 - 🔐 **Dual Authentication**: JWT (Auth0) and API Keys
-- 🚀 **Multi-Platform Support**: Single API for 100+ messaging platforms
+- 🚀 **Multi-Platform Support**: Single API for multiple messaging platforms
 - 🛡️ **Enterprise Security**: Rate limiting, CORS, encryption, scope-based permissions
 - 📊 **Usage Analytics**: Track API usage across projects and platforms
 - 🔑 **API Key Management**: Create, revoke, and roll keys with granular permissions
