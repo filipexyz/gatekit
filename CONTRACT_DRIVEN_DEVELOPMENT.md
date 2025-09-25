@@ -8,14 +8,16 @@ GateKit implements a revolutionary **contract-driven architecture** where SDK an
 
 ```
 Backend Controllers (@SdkContract decorators)
-    ↓ npm run extract:contracts
-Generated Contracts (JSON)
-    ↓ npm run generate:sdk
-@gatekit/sdk Package (TypeScript API Client)
-    ↓ npm run generate:cli
-@gatekit/cli Package (Permission-Aware CLI)
-    ↓ npm publish
-Published NPM Packages
+    ↓ npm run extract:contracts:standalone
+Generated Contracts (JSON with 20 types)
+    ↓ Quintuple Generation
+┌─────────────┬─────────────┬─────────────┬─────────────┬─────────────┐
+│ @gatekit/sdk│ @gatekit/cli│ n8n-nodes-  │  OpenAPI    │ Live Docs   │
+│ TypeScript  │ Commands    │ gatekit     │ Spec        │ /docs/*     │
+│ API Client  │ DevOps/AI   │ Visual UI   │ Standard    │ Runtime     │
+└─────────────┴─────────────┴─────────────┴─────────────┴─────────────┘
+    ↓ npm publish / API endpoints
+Complete Ecosystem Deployment
 ```
 
 ## Development Workflow
@@ -248,10 +250,12 @@ gatekit send --project prod --platform discord-123 --target channel:456 --text "
 
 | Command | Purpose | Output |
 |---------|---------|---------|
-| `npm run extract:contracts` | Parse controllers for `@SdkContract` | `generated/contracts/contracts.json` |
+| `npm run extract:contracts:standalone` | Parse controllers for `@SdkContract` | `generated/contracts/contracts.json` |
 | `npm run generate:sdk` | Create TypeScript SDK package | `generated/sdk/` |
 | `npm run generate:cli` | Create permission-aware CLI | `generated/cli/` |
-| `npm run generate:all` | Full pipeline execution | Both packages |
+| `npm run generate:n8n` | Create n8n community node | `generated/n8n/` |
+| `npm run generate:openapi` | Create OpenAPI specification | `generated/openapi/` |
+| `npm run generate:all:standalone` | Complete quintuple pipeline | All packages + docs |
 
 ## Maintenance Guidelines
 
@@ -314,11 +318,12 @@ This architecture makes GateKit the most advanced API tooling system in the mess
 ## Success Metrics
 
 ### **Technical Achievements**
-- ✅ **18 types extracted** with recursive auto-discovery
+- ✅ **20 types extracted** with recursive auto-discovery
 - ✅ **Zero `any` types** throughout entire system
 - ✅ **100% dynamic generation** - no hardcoding anywhere
 - ✅ **Perfect type safety** - CLI validates against real DTO types
 - ✅ **14 contracts** across 4 controllers with complete coverage
+- ✅ **Quintuple-generation pipeline** - SDK + CLI + n8n + OpenAPI + Live Docs
 
 ### **Revolutionary Features**
 - **Perfect Sync**: Backend changes automatically reflected in all clients
@@ -335,3 +340,6 @@ This architecture makes GateKit the most advanced API tooling system in the mess
 - ✅ **Permission system working**: CLI checks `/auth/whoami` before every command
 - ✅ **Type safety proven**: Contract-DTO mismatches caught at compile time
 - ✅ **Source protection verified**: Generated packages contain zero backend source
+- ✅ **n8n integration validated**: Visual automation nodes working with parameter fields
+- ✅ **OpenAPI compliance**: Live API documentation with complete specification
+- ✅ **Deployment automated**: GitHub Actions with intelligent version management

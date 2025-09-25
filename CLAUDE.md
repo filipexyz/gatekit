@@ -156,14 +156,15 @@ GateKit implements a next-generation architecture where **SDK** and **CLI** are 
 - **[DEVELOPMENT_PRIORITIZATION.md](DEVELOPMENT_PRIORITIZATION.md)** - Implementation roadmap and effort matrix
 - **[DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md)** - Multi-agent collaboration system
 
-### **Key Innovation: Single Source → Multiple Outputs**
+### **Key Innovation: Single Source → Quintuple Outputs**
 ```
-Backend Controllers (@CliContract decorators)
+Backend Controllers (@SdkContract decorators)
     ↓
-┌─────────────┬─────────────┬─────────────┬─────────────┐
-│ @gatekit/sdk│ @gatekit/cli│   Docs      │   Tests     │
-│ (generated) │ (generated) │ (generated) │ (generated) │
-└─────────────┴─────────────┴─────────────┴─────────────┘
+┌─────────────┬─────────────┬─────────────┬─────────────┬─────────────┐
+│ @gatekit/sdk│ @gatekit/cli│ n8n-nodes-  │  OpenAPI    │ Live Docs   │
+│ (TypeScript)│ (Commands)  │ gatekit     │ Spec        │ (/docs/*)   │
+│             │             │ (Visual UI) │ (Standard)  │ (Runtime)   │
+└─────────────┴─────────────┴─────────────┴─────────────┴─────────────┘
 ```
 
 ### **Strategic Advantages**
@@ -176,11 +177,13 @@ Backend Controllers (@CliContract decorators)
 - ✅ Backend API fully functional with Discord/Telegram support
 - ✅ Revolutionary contract-driven architecture complete and production-ready
 - ✅ Permission Discovery API (`/auth/whoami`) operational
-- ✅ Recursive type auto-discovery system (18 types extracted automatically)
+- ✅ Recursive type auto-discovery system (20 types extracted automatically)
 - ✅ Zero `any` types throughout entire system with perfect type safety
 - ✅ 14 contracts across 4 controllers with complete API coverage
-- ✅ SDK and CLI generation pipeline complete with end-to-end validation
-- ✅ Production tested: CLI successfully creates real projects via generated SDK
+- ✅ Quintuple-generation pipeline: SDK + CLI + n8n + OpenAPI + Docs
+- ✅ Self-documenting API with live OpenAPI endpoints (/docs/openapi.json)
+- ✅ n8n community node for visual automation (300k+ potential users)
+- ✅ Production tested: All generated packages compile and deploy successfully
 
 ### **Contract-Driven Development**
 **Complete Implementation Guide:** **[CONTRACT_DRIVEN_DEVELOPMENT.md](CONTRACT_DRIVEN_DEVELOPMENT.md)**
@@ -188,11 +191,13 @@ Backend Controllers (@CliContract decorators)
 **Daily Workflow:**
 ```bash
 # 1. Add @SdkContract decorators to controllers
-# 2. Regenerate packages
-npm run generate:all
-# 3. Test and publish
+# 2. Regenerate all packages (quintuple generation)
+npm run generate:all:standalone
+# 3. Test and publish all packages
 cd generated/sdk && npm publish
 cd ../cli && npm publish
+cd ../n8n && npm publish
+# 4. OpenAPI available at /docs/openapi.json
 ```
 
 ## Deployment
