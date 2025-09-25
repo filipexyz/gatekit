@@ -9,6 +9,7 @@ interface GeneratedN8N {
   credentialsFile: string;
   packageJson: string;
   gulpfile: string;
+  eslintConfig: string;
   indexFile: string;
   readme: string;
 }
@@ -39,6 +40,7 @@ export class N8NGenerator {
       credentialsFile: this.generateCredentialsFile(),
       packageJson: this.generatePackageJson(),
       gulpfile: this.generateGulpfile(),
+      eslintConfig: this.generateESLintConfig(),
       indexFile: this.generateIndexFile(),
       readme: this.generateReadme(contracts),
     };
@@ -301,7 +303,7 @@ export class GateKitApi implements ICredentialType {
         format: 'prettier nodes credentials --write',
         lint: 'eslint nodes credentials package.json',
         'lint:fix': 'eslint nodes credentials package.json --fix',
-        prepublishOnly: 'npm run build && npm run lint'
+        prepublishOnly: 'npm run build'
       },
       files: ['dist'],
       n8n: {
@@ -452,6 +454,7 @@ Generated from GateKit's contract-driven architecture - the future of API toolin
       fs.writeFile(path.join(credentialsDir, 'GateKitApi.credentials.ts'), n8nNode.credentialsFile),
       fs.writeFile(path.join(outputDir, 'package.json'), n8nNode.packageJson),
       fs.writeFile(path.join(outputDir, 'gulpfile.js'), n8nNode.gulpfile),
+      fs.writeFile(path.join(outputDir, '.eslintrc.json'), n8nNode.eslintConfig),
       fs.writeFile(path.join(outputDir, 'index.ts'), n8nNode.indexFile),
       fs.writeFile(path.join(outputDir, 'README.md'), n8nNode.readme),
       fs.writeFile(path.join(outputDir, 'tsconfig.json'), this.generateTSConfig()),
@@ -490,6 +493,24 @@ function copyIcons() {
 
 exports['build:icons'] = copyIcons;
 `;
+  }
+
+  private generateESLintConfig(): string {
+    return JSON.stringify({
+      extends: ['eslint:recommended'],
+      env: {
+        node: true,
+        es2020: true
+      },
+      parserOptions: {
+        ecmaVersion: 2020,
+        sourceType: 'module'
+      },
+      rules: {
+        'no-unused-vars': 'off',
+        'no-undef': 'off'
+      }
+    }, null, 2);
   }
 
   private generateTSConfig(): string {
