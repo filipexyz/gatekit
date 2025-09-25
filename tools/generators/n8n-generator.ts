@@ -73,7 +73,7 @@ export class GateKit implements INodeType {
       },
     ],
     requestDefaults: {
-      baseURL: 'https://api.gatekit.dev',
+      baseURL: '={{$credentials.apiUrl}}',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
