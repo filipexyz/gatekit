@@ -21,11 +21,12 @@
     "extract:contracts": "ts-node -r tsconfig-paths/register tools/extract-contracts.ts",
     "extract:contracts:standalone": "ts-node -r tsconfig-paths/register tools/extract-contracts-standalone.ts",
     "generate:all": "npm run extract:contracts && npm run generate:sdk && npm run generate:cli && npm run validate:generated",
-    "generate:all:standalone": "npm run extract:contracts:standalone && npm run generate:sdk && npm run generate:cli && (npm run generate:n8n || echo '⚠️ n8n generation failed - continuing with SDK and CLI') && npm run validate:generated",
+    "generate:all:standalone": "npm run extract:contracts:standalone && npm run generate:sdk && npm run generate:cli && (npm run generate:n8n || echo '⚠️ n8n generation failed - continuing') && npm run generate:openapi && npm run validate:generated",
     "validate:generated": "cd generated/sdk && npm install && npm run build && cd ../cli && npm install && npm run build && (cd ../n8n && npm install && npm run build || echo '⚠️ n8n package validation skipped') && echo '✅ Generated packages validation completed'",
     "generate:sdk": "ts-node -r tsconfig-paths/register tools/generators/sdk-generator.ts",
     "generate:cli": "ts-node -r tsconfig-paths/register tools/generators/cli-generator.ts",
-    "generate:n8n": "ts-node -r tsconfig-paths/register tools/generators/n8n-generator.ts"
+    "generate:n8n": "ts-node -r tsconfig-paths/register tools/generators/n8n-generator.ts",
+    "generate:openapi": "ts-node -r tsconfig-paths/register tools/generators/openapi-generator.ts"
   },
   "dependencies": {
     "@nestjs/bull": "^11.0.3",

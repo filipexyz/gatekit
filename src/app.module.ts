@@ -14,6 +14,7 @@ import { AppAuthGuard } from './common/guards/app-auth.guard';
 import { appConfig, configValidationSchema } from './config/app.config';
 import { PlatformsModule } from './platforms/platforms.module';
 import { QueuesModule } from './queues/queues.module';
+import { DocsModule } from './docs/docs.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { QueuesModule } from './queues/queues.module';
     ApiKeysModule,
     PlatformsModule,
     QueuesModule,
+    DocsModule,
   ],
   controllers: [AppController],
   providers: [

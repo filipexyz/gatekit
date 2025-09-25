@@ -25,6 +25,10 @@ COPY . .
 
 RUN npm run build
 
+# Generate contracts and OpenAPI specification for runtime access
+RUN npm run extract:contracts:standalone
+RUN npm run generate:openapi
+
 RUN npm ci --only=production && npm cache clean --force
 
 RUN npx prisma generate
@@ -36,9 +40,10 @@ WORKDIR /usr/src/app
 
 COPY --from=build /usr/src/app/node_modules ./node_modules
 COPY --from=build /usr/src/app/dist ./dist
+COPY --from=build /usr/src/app/generated ./generated
 COPY package*.json ./
 COPY prisma ./prisma/
 
 EXPOSE 3000
 
-CMD ["node", "dist/main"]
+CMD ["node", "dist/src/main"]
