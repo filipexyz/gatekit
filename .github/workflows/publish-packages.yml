@@ -160,8 +160,6 @@ jobs:
             ```
 
             Generated from backend contracts with **revolutionary contract-driven architecture**!
-          draft: false
-          prerelease: false
 
       - name: Deployment Summary
         run: |
