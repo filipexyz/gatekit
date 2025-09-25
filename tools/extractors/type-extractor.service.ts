@@ -50,14 +50,14 @@ export class TypeExtractorService {
     const isArray = typeName.endsWith('[]');
     const baseTypeName = isArray ? typeName.slice(0, -2) : typeName;
 
-    // Search for the type in backend source files
+    // Search for the type in backend source files - prioritize clean SDK models
     const searchPaths = [
-      'src/**/*.dto.ts',
+      'src/**/sdk-models.ts',      // First priority: clean SDK model interfaces
+      'src/**/api-responses.ts',   // Second priority: response types
+      'src/**/*.dto.ts',           // Last resort: complex backend DTOs
       'src/**/*.entity.ts',
       'src/**/*.interface.ts',
-      'src/**/*.types.ts',
-      'src/**/api-responses.ts',
-      'src/**/sdk-models.ts'  // Include our clean SDK model interfaces
+      'src/**/*.types.ts'
     ];
 
     for (const pattern of searchPaths) {

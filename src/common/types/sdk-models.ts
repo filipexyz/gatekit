@@ -73,7 +73,15 @@ export interface UpdatePlatformDto {
   credentials?: Record<string, unknown>;
 }
 
-// Message nested types (from SendMessageDto)
+// Message DTOs (clean versions for SDK)
+export interface SendMessageDto {
+  targets: TargetDto[];
+  content: ContentDto;
+  options?: OptionsDto;
+  metadata?: MetadataDto;
+}
+
+// Message nested types
 export interface TargetDto {
   platformId: string;
   type: 'user' | 'channel' | 'group';
