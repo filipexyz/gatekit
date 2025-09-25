@@ -375,17 +375,9 @@ ${operations}
 ## Features
 
 - **Universal messaging** - Send to Discord, Telegram, Slack, WhatsApp, and more
-- **Type-safe operations** - All API calls fully validated
-- **Permission-aware** - Operations respect your API key permissions
-- **Auto-generated** - Always up-to-date with latest GateKit API
-
-## Generated Architecture
-
-This n8n node is **auto-generated** from GateKit's revolutionary contract-driven architecture, ensuring:
-- ✅ **Perfect sync** with GateKit API
-- ✅ **Complete type safety**
-- ✅ **All operations supported**
-- ✅ **Zero maintenance overhead**
+- **Complete API coverage** - All GateKit operations available in n8n
+- **Always up-to-date** - Automatically synced with latest GateKit API
+- **Enterprise-ready** - Full authentication and permission support
 
 ## Support
 
@@ -395,7 +387,7 @@ This n8n node is **auto-generated** from GateKit's revolutionary contract-driven
 
 ---
 
-Generated from GateKit's contract-driven architecture - the future of API tooling!
+**GateKit** - Universal messaging gateway for modern applications.
 `;
   }
 
