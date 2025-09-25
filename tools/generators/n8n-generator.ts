@@ -213,7 +213,7 @@ export class GateKit implements INodeType {
             },
             routing: {
               request: {
-                url: '=${this.convertPathForN8N(contract.path)}',
+                url: '${this.convertPathForN8N(contract.path)}',
               },
             },
           }`);
@@ -417,12 +417,12 @@ Generated from GateKit's contract-driven architecture - the future of API toolin
   }
 
   private convertPathForN8N(path: string): string {
-    // Convert GateKit API paths to n8n format
-    // /api/v1/projects/:projectSlug/messages/send -> /api/v1/projects/{{$credentials.projectSlug}}/messages/send
-    return path.replace(':projectSlug', '{{$credentials.projectSlug}}')
-               .replace(':id', '{{$parameter["id"]}}')
-               .replace(':keyId', '{{$parameter["keyId"]}}')
-               .replace(':jobId', '{{$parameter["jobId"]}}');
+    // Convert GateKit API paths to n8n format using proper n8n expression syntax
+    // /api/v1/projects/:projectSlug/messages/send -> =/api/v1/projects/{{ $credentials.projectSlug }}/messages/send
+    return '=' + path.replace(':projectSlug', '{{ $credentials.projectSlug }}')
+                    .replace(':id', '{{ $parameter["id"] }}')
+                    .replace(':keyId', '{{ $parameter["keyId"] }}')
+                    .replace(':jobId', '{{ $parameter["jobId"] }}');
   }
 
   private extractPathParameters(path: string): string[] {
