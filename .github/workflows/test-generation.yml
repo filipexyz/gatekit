@@ -80,7 +80,7 @@ jobs:
 
           # Measure generation time
           TIME_START=$(date +%s)
-          npm run generate:all > /dev/null 2>&1
+          npm run generate:all:standalone > /dev/null 2>&1
           TIME_END=$(date +%s)
           GENERATION_TIME=$((TIME_END - TIME_START))
 
