@@ -1,3 +1,7 @@
+// IMPORTANT: Make sure to import `instrument.ts` at the top of your file.
+import './instrument';
+
+// All other imports below
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
@@ -5,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { CryptoUtil } from './common/utils/crypto.util';
 
 async function bootstrap() {
+
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
@@ -19,6 +24,8 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+
+  // Sentry is integrated via the interceptor instead of middleware for NestJS
 
   // Configure CORS with specific origins
   const corsOrigins = configService.get<string[]>('app.corsOrigins') || ['http://localhost:3000'];

@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { SentryModule } from '@sentry/nestjs/setup';
+import { SentryGlobalFilter } from '@sentry/nestjs/setup';
 import { BullModule } from '@nestjs/bull';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -16,12 +18,14 @@ import { PlatformsModule } from './platforms/platforms.module';
 import { QueuesModule } from './queues/queues.module';
 import { DocsModule } from './docs/docs.module';
 import { MessagesModule } from './messages/messages.module';
+import { sentryConfig } from './config/sentry.config';
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig],
+      load: [appConfig, sentryConfig],
       validationSchema: configValidationSchema,
       validationOptions: {
         allowUnknown: true,
@@ -81,6 +85,11 @@ import { MessagesModule } from './messages/messages.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    // Global Sentry Error Filter
+    {
+      provide: APP_FILTER,
+      useClass: SentryGlobalFilter,
     },
   ],
 })
