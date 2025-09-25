@@ -79,7 +79,12 @@ export class DynamicMessageProcessor implements OnModuleDestroy {
 
         if (!adapter) {
           // Create adapter through the provider with platform-specific credentials
-          adapter = await provider.createAdapter(connectionKey, platformConfig.decryptedCredentials);
+          // Include webhookToken for platforms that need webhook registration
+          const credentials = {
+            ...platformConfig.decryptedCredentials,
+            webhookToken: platformConfig.webhookToken,
+          };
+          adapter = await provider.createAdapter(connectionKey, credentials);
         }
 
         // Create message envelope

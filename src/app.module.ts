@@ -15,6 +15,7 @@ import { appConfig, configValidationSchema } from './config/app.config';
 import { PlatformsModule } from './platforms/platforms.module';
 import { QueuesModule } from './queues/queues.module';
 import { DocsModule } from './docs/docs.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { DocsModule } from './docs/docs.module';
     PlatformsModule,
     QueuesModule,
     DocsModule,
+    MessagesModule,
   ],
   controllers: [AppController],
   providers: [

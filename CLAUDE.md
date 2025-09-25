@@ -65,15 +65,21 @@ Dual authentication support:
 ### Platform Configuration
 - `GET /api/v1/projects/:slug/platforms` - List configured platforms
 - `POST /api/v1/projects/:slug/platforms` - Configure platform
-- `PATCH /api/v1/projects/:slug/platforms/:platform` - Update platform
-- `DELETE /api/v1/projects/:slug/platforms/:platform` - Delete platform
-- `GET /api/v1/projects/:slug/platforms/:platform/webhook` - Get webhook URL
+- `PATCH /api/v1/projects/:slug/platforms/:id` - Update platform
+- `DELETE /api/v1/projects/:slug/platforms/:id` - Delete platform
+- `POST /api/v1/projects/:slug/platforms/:id/register-webhook` - Register webhook with provider (Telegram)
 
 ### Messaging (Queue-based)
 - `POST /api/v1/projects/:slug/messages/send` - Queue message for delivery
 - `GET /api/v1/projects/:slug/messages/status/:jobId` - Check message status
 - `GET /api/v1/projects/:slug/messages/queue/metrics` - Queue metrics
 - `POST /api/v1/projects/:slug/messages/retry/:jobId` - Retry failed message
+
+### Message Reception & Storage
+- `GET /api/v1/projects/:slug/messages` - List received messages with filtering
+- `GET /api/v1/projects/:slug/messages/stats` - Get message statistics
+- `GET /api/v1/projects/:slug/messages/:messageId` - Get specific message
+- `DELETE /api/v1/projects/:slug/messages/cleanup` - Delete old messages
 
 ### Webhooks (Dynamic & UUID-secured)
 - `POST /api/v1/webhooks/:platform/:webhookToken` - Dynamic webhook handler for any platform
@@ -103,12 +109,15 @@ Dual authentication support:
 - **Platform isolation** - Each project gets dedicated platform connections
 - **Thread-safe message routing** - No race conditions between projects
 - **Scope-based authorization** - Granular API key permissions
+- **Message deduplication** - Unique constraints prevent duplicate storage
 
 ### Platform Provider Features
 - **One connection per project** - Discord: dedicated WebSocket per project
 - **Resource management** - Connection limits, cleanup, health monitoring
 - **Error resilience** - Graceful degradation when platforms unavailable
 - **Hot-swappable** - Providers can be added/removed without restarting
+- **Webhook auto-registration** - Telegram webhooks registered automatically
+- **Message persistence** - All incoming messages stored with full raw data
 
 ## Development Setup
 

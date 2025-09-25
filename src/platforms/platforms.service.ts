@@ -3,9 +3,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlatformDto } from './dto/create-platform.dto';
 import { UpdatePlatformDto } from './dto/update-platform.dto';
 import { CryptoUtil } from '../common/utils/crypto.util';
+import TelegramBot = require('node-telegram-bot-api');
 
 @Injectable()
 export class PlatformsService {
+  private readonly logger = new Logger(PlatformsService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   private getWebhookUrl(platform: string, webhookToken: string): string {
@@ -299,6 +302,77 @@ export class PlatformsService {
         throw new BadRequestException('Platform validation timed out');
       }
       throw error;
+    }
+  }
+
+  async registerWebhook(projectSlug: string, platformId: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { slug: projectSlug },
+    });
+
+    if (!project) {
+      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
+    }
+
+    const platform = await this.prisma.projectPlatform.findFirst({
+      where: {
+        id: platformId,
+        projectId: project.id,
+      },
+    });
+
+    if (!platform) {
+      throw new NotFoundException(`Platform with id '${platformId}' not found`);
+    }
+
+    if (!platform.isActive) {
+      throw new BadRequestException('Platform must be active to register webhook');
+    }
+
+    // Decrypt credentials
+    const credentials = JSON.parse(CryptoUtil.decrypt(platform.credentialsEncrypted));
+
+    if (platform.platform === 'telegram') {
+      try {
+        // Create temporary bot instance to register webhook
+        const bot = new TelegramBot(credentials.token, { webHook: true });
+
+        const baseUrl = process.env.API_BASE_URL || 'https://api.gatekit.dev';
+        const webhookUrl = `${baseUrl}/api/v1/webhooks/telegram/${platform.webhookToken}`;
+
+        // Set the webhook
+        const result = await bot.setWebHook(webhookUrl, {
+          max_connections: 100,
+          allowed_updates: ['message', 'callback_query', 'inline_query'],
+        });
+
+        this.logger.log(`Telegram webhook registered for platform ${platformId}: ${webhookUrl}`);
+
+        // Get webhook info to confirm
+        const webhookInfo = await bot.getWebHookInfo();
+
+        return {
+          message: 'Webhook registered successfully',
+          webhookUrl,
+          webhookInfo: {
+            url: webhookInfo.url,
+            has_custom_certificate: webhookInfo.has_custom_certificate,
+            pending_update_count: webhookInfo.pending_update_count,
+            max_connections: webhookInfo.max_connections,
+          },
+        };
+      } catch (error) {
+        this.logger.error(`Failed to register Telegram webhook: ${error.message}`);
+        throw new BadRequestException(`Failed to register webhook: ${error.message}`);
+      }
+    } else if (platform.platform === 'discord') {
+      // Discord doesn't need webhook registration - it uses WebSocket
+      return {
+        message: 'Discord uses WebSocket connection, no webhook registration needed',
+        connectionType: 'websocket',
+      };
+    } else {
+      throw new BadRequestException(`Platform '${platform.platform}' does not support webhook registration`);
     }
   }
 }

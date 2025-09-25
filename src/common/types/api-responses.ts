@@ -75,3 +75,43 @@ export interface ApiKeyRollResponse {
 export interface MessageResponse {
   message: string;
 }
+
+export interface ReceivedMessage {
+  id: string;
+  platform: string;
+  providerMessageId: string;
+  providerChatId: string;
+  providerUserId: string;
+  userDisplay: string | null;
+  messageText: string | null;
+  messageType: string;
+  receivedAt: Date;
+  rawData: any;
+  platformConfig?: {
+    id: string;
+    platform: string;
+    isActive: boolean;
+    testMode: boolean;
+  };
+}
+
+export interface MessageListResponse {
+  messages: ReceivedMessage[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
+
+export interface MessageStatsResponse {
+  totalMessages: number;
+  recentMessages: number;
+  uniqueUsers: number;
+  uniqueChats: number;
+  byPlatform: Array<{
+    platform: string;
+    count: number;
+  }>;
+}

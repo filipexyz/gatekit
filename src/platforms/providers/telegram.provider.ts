@@ -76,6 +76,11 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     this.connections.set(connectionKey, connection);
 
     try {
+      // Register webhook with Telegram if we have a webhook token
+      if (credentials.webhookToken) {
+        await this.registerWebhook(bot, credentials.token, credentials.webhookToken);
+      }
+
       connection.isActive = true;
 
       this.logger.log(`Telegram connection created for ${connectionKey}`);
@@ -150,8 +155,8 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
           return { ok: false, error: 'Platform disabled' };
         }
 
-        // Process the webhook update directly
-        await this.processWebhookUpdate(platformConfig.projectId, body as TelegramBot.Update);
+        // Process the webhook update directly with platform ID
+        await this.processWebhookUpdate(platformConfig.projectId, body as TelegramBot.Update, platformConfig.id);
 
         this.logger.log(`Processed Telegram webhook for project: ${platformConfig.project.slug}`);
 
@@ -190,7 +195,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
   }
 
   // Process webhook update for a specific project
-  async processWebhookUpdate(projectId: string, update: TelegramBot.Update) {
+  async processWebhookUpdate(projectId: string, update: TelegramBot.Update, platformId?: string) {
     const connection = this.connections.get(projectId);
 
     if (!connection) {
@@ -200,21 +205,75 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
 
     // Process the update directly
     if (update.message) {
-      await this.handleMessage(update.message, projectId);
+      await this.handleMessage(update.message, projectId, platformId);
     } else if (update.callback_query) {
-      await this.handleCallbackQuery(update.callback_query, projectId);
+      await this.handleCallbackQuery(update.callback_query, projectId, platformId);
     }
 
     return true;
   }
 
-  private async handleMessage(msg: TelegramBot.Message, projectId: string) {
+  private async handleMessage(msg: TelegramBot.Message, projectId: string, platformId?: string) {
     if (msg.from?.is_bot) return;
+
+    // Store the message in database
+    if (platformId) {
+      try {
+        await this.prisma.receivedMessage.create({
+          data: {
+            projectId,
+            platformId,
+            platform: 'telegram',
+            providerMessageId: msg.message_id.toString(),
+            providerChatId: msg.chat.id.toString(),
+            providerUserId: msg.from?.id?.toString() || 'unknown',
+            userDisplay: msg.from?.username || msg.from?.first_name || 'Unknown',
+            messageText: msg.text || null,
+            messageType: msg.text ? 'text' : 'other',
+            rawData: msg as any,
+          },
+        });
+        this.logger.debug(`Stored Telegram message ${msg.message_id} for project ${projectId}`);
+      } catch (error) {
+        // Check if it's a duplicate message
+        if (error.code === 'P2002') {
+          this.logger.debug(`Message ${msg.message_id} already stored for platform ${platformId}`);
+        } else {
+          this.logger.error(`Failed to store message: ${error.message}`);
+        }
+      }
+    }
+
     const env = this.toEnvelopeWithProject(msg, projectId);
     await this.eventBus.publish(env);
   }
 
-  private async handleCallbackQuery(query: TelegramBot.CallbackQuery, projectId: string) {
+  private async handleCallbackQuery(query: TelegramBot.CallbackQuery, projectId: string, platformId?: string) {
+    // Store the callback query as a message
+    if (platformId && query.message) {
+      try {
+        await this.prisma.receivedMessage.create({
+          data: {
+            projectId,
+            platformId,
+            platform: 'telegram',
+            providerMessageId: `callback_${query.id}`,
+            providerChatId: query.message.chat.id.toString(),
+            providerUserId: query.from.id.toString(),
+            userDisplay: query.from.username || query.from.first_name || 'Unknown',
+            messageText: query.data || null,
+            messageType: 'callback',
+            rawData: query as any,
+          },
+        });
+        this.logger.debug(`Stored Telegram callback ${query.id} for project ${projectId}`);
+      } catch (error) {
+        if (error.code !== 'P2002') {
+          this.logger.error(`Failed to store callback: ${error.message}`);
+        }
+      }
+    }
+
     const env = this.toEnvelopeWithProject(query, projectId);
     await this.eventBus.publish(env);
 
@@ -278,6 +337,28 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
 
   toEnvelope(msg: TelegramBot.Message | TelegramBot.CallbackQuery, projectId: string): MessageEnvelopeV1 {
     return this.toEnvelopeWithProject(msg, projectId);
+  }
+
+  private async registerWebhook(bot: TelegramBot, token: string, webhookToken: string): Promise<void> {
+    try {
+      const baseUrl = process.env.API_BASE_URL || 'https://api.gatekit.dev';
+      const webhookUrl = `${baseUrl}/api/v1/webhooks/telegram/${webhookToken}`;
+
+      // Set the webhook URL
+      const result = await bot.setWebHook(webhookUrl, {
+        max_connections: 100,
+        allowed_updates: ['message', 'callback_query', 'inline_query'],
+      });
+
+      this.logger.log(`Telegram webhook registered: ${webhookUrl} - Result: ${result}`);
+
+      // Verify webhook was set
+      const webhookInfo = await bot.getWebHookInfo();
+      this.logger.log(`Webhook info - URL: ${webhookInfo.url}, Pending: ${webhookInfo.pending_update_count}`);
+    } catch (error) {
+      this.logger.error(`Failed to register Telegram webhook: ${error.message}`);
+      throw error;
+    }
   }
 
   async sendMessage(

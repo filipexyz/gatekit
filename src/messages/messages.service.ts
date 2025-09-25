@@ -1,0 +1,200 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { QueryMessagesDto } from './dto/query-messages.dto';
+
+@Injectable()
+export class MessagesService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getMessages(projectSlug: string, query: QueryMessagesDto) {
+    // Get project
+    const project = await this.prisma.project.findUnique({
+      where: { slug: projectSlug },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    // Build where clause
+    const where: any = {
+      projectId: project.id,
+    };
+
+    if (query.platform) {
+      where.platform = query.platform;
+    }
+
+    if (query.platformId) {
+      where.platformId = query.platformId;
+    }
+
+    if (query.chatId) {
+      where.providerChatId = query.chatId;
+    }
+
+    if (query.userId) {
+      where.providerUserId = query.userId;
+    }
+
+    if (query.startDate || query.endDate) {
+      where.receivedAt = {};
+      if (query.startDate) {
+        where.receivedAt.gte = new Date(query.startDate);
+      }
+      if (query.endDate) {
+        where.receivedAt.lte = new Date(query.endDate);
+      }
+    }
+
+    // Get messages
+    const [messages, total] = await Promise.all([
+      this.prisma.receivedMessage.findMany({
+        where,
+        orderBy: { receivedAt: query.order },
+        take: query.limit,
+        skip: query.offset,
+        select: {
+          id: true,
+          platform: true,
+          providerMessageId: true,
+          providerChatId: true,
+          providerUserId: true,
+          userDisplay: true,
+          messageText: true,
+          messageType: true,
+          receivedAt: true,
+          rawData: true,
+        },
+      }),
+      this.prisma.receivedMessage.count({ where }),
+    ]);
+
+    return {
+      messages,
+      pagination: {
+        total,
+        limit: query.limit!,
+        offset: query.offset!,
+        hasMore: query.offset! + query.limit! < total,
+      },
+    };
+  }
+
+  async getMessage(projectSlug: string, messageId: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { slug: projectSlug },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const message = await this.prisma.receivedMessage.findFirst({
+      where: {
+        id: messageId,
+        projectId: project.id,
+      },
+      include: {
+        platformConfig: {
+          select: {
+            id: true,
+            platform: true,
+            isActive: true,
+            testMode: true,
+          },
+        },
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    return message;
+  }
+
+  async getMessageStats(projectSlug: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { slug: projectSlug },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const [totalMessages, platformStats, recentMessages] = await Promise.all([
+      // Total message count
+      this.prisma.receivedMessage.count({
+        where: { projectId: project.id },
+      }),
+      // Messages per platform
+      this.prisma.receivedMessage.groupBy({
+        by: ['platform'],
+        where: { projectId: project.id },
+        _count: true,
+      }),
+      // Recent messages (last 24 hours)
+      this.prisma.receivedMessage.count({
+        where: {
+          projectId: project.id,
+          receivedAt: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          },
+        },
+      }),
+    ]);
+
+    // Get unique users and chats
+    const [uniqueUsers, uniqueChats] = await Promise.all([
+      this.prisma.receivedMessage.findMany({
+        where: { projectId: project.id },
+        select: { providerUserId: true },
+        distinct: ['providerUserId'],
+      }),
+      this.prisma.receivedMessage.findMany({
+        where: { projectId: project.id },
+        select: { providerChatId: true },
+        distinct: ['providerChatId'],
+      }),
+    ]);
+
+    return {
+      totalMessages,
+      recentMessages,
+      uniqueUsers: uniqueUsers.length,
+      uniqueChats: uniqueChats.length,
+      byPlatform: platformStats.map((stat) => ({
+        platform: stat.platform,
+        count: stat._count,
+      })),
+    };
+  }
+
+  async deleteOldMessages(projectSlug: string, daysBefore: number) {
+    const project = await this.prisma.project.findUnique({
+      where: { slug: projectSlug },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysBefore);
+
+    const deleted = await this.prisma.receivedMessage.deleteMany({
+      where: {
+        projectId: project.id,
+        receivedAt: {
+          lt: cutoffDate,
+        },
+      },
+    });
+
+    return {
+      message: `Deleted ${deleted.count} messages older than ${daysBefore} days`,
+      deletedCount: deleted.count,
+    };
+  }
+}

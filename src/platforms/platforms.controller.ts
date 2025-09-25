@@ -153,4 +153,29 @@ export class PlatformsController {
   remove(@Param('projectSlug') projectSlug: string, @Param('id') id: string) {
     return this.platformsService.remove(projectSlug, id);
   }
+
+  @Post(':id/register-webhook')
+  @RequireScopes('platforms:write')
+  @SdkContract({
+    command: 'platforms register-webhook',
+    description: 'Register webhook URL with platform provider',
+    category: 'Platforms',
+    requiredScopes: ['platforms:write'],
+    outputType: 'MessageResponse',
+    options: {
+      id: { required: true, description: 'Platform ID', type: 'string' }
+    },
+    examples: [
+      {
+        description: 'Register Telegram webhook',
+        command: 'gatekit platforms register-webhook --id "platform-123"'
+      }
+    ]
+  })
+  async registerWebhook(
+    @Param('projectSlug') projectSlug: string,
+    @Param('id') id: string,
+  ) {
+    return this.platformsService.registerWebhook(projectSlug, id);
+  }
 }
