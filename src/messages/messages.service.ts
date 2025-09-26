@@ -159,15 +159,37 @@ export class MessagesService {
       }),
     ]);
 
+    // Get sent message stats
+    const [totalSentMessages, sentPlatformStats] = await Promise.all([
+      this.prisma.sentMessage.count({
+        where: { projectId: project.id },
+      }),
+      this.prisma.sentMessage.groupBy({
+        by: ['platform', 'status'],
+        where: { projectId: project.id },
+        _count: true,
+      }),
+    ]);
+
     return {
-      totalMessages,
-      recentMessages,
-      uniqueUsers: uniqueUsers.length,
-      uniqueChats: uniqueChats.length,
-      byPlatform: platformStats.map((stat) => ({
-        platform: stat.platform,
-        count: stat._count,
-      })),
+      received: {
+        totalMessages,
+        recentMessages,
+        uniqueUsers: uniqueUsers.length,
+        uniqueChats: uniqueChats.length,
+        byPlatform: platformStats.map((stat) => ({
+          platform: stat.platform,
+          count: stat._count,
+        })),
+      },
+      sent: {
+        totalMessages: totalSentMessages,
+        byPlatformAndStatus: sentPlatformStats.map((stat) => ({
+          platform: stat.platform,
+          status: stat.status,
+          count: stat._count,
+        })),
+      },
     };
   }
 

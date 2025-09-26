@@ -27,6 +27,7 @@ model Project {
   apiKeys           ApiKey[]
   projectPlatforms  ProjectPlatform[]
   receivedMessages  ReceivedMessage[]
+  sentMessages      SentMessage[]
 
   @@map("projects")
 }
@@ -76,6 +77,7 @@ model ProjectPlatform {
 
   project              Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   receivedMessages     ReceivedMessage[]
+  sentMessages         SentMessage[]
 
   @@index([projectId])
   @@index([webhookToken])
@@ -124,4 +126,34 @@ model ReceivedMessage {
   @@index([providerChatId])
   @@index([providerUserId])
   @@map("received_messages")
+}
+
+model SentMessage {
+  id                String           @id @default(uuid())
+  projectId         String           @map("project_id")
+  platformId        String           @map("platform_id")
+  platform          String
+  jobId             String?          @map("job_id")
+  providerMessageId String?          @map("provider_message_id")
+  targetChatId      String           @map("target_chat_id")
+  targetUserId      String?          @map("target_user_id")
+  targetType        String           @map("target_type") // user, channel, group
+  messageText       String?          @map("message_text") @db.Text
+  messageContent    Json?            @map("message_content")
+  status            String           @default("pending") // pending, sent, failed
+  errorMessage      String?          @map("error_message") @db.Text
+  sentAt            DateTime?        @map("sent_at")
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  project           Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  platformConfig    ProjectPlatform  @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId])
+  @@index([projectId])
+  @@index([platformId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([targetChatId])
+  @@index([targetUserId])
+  @@map("sent_messages")
 }

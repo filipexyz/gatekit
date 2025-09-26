@@ -5,6 +5,7 @@ import { PlatformsService } from '../../platforms/platforms.service';
 import { PlatformRegistry } from '../../platforms/services/platform-registry.service';
 import { makeEnvelope } from '../../platforms/utils/envelope.factory';
 import { PlatformAdapter } from '../../platforms/interfaces/platform-adapter.interface';
+import { PrismaService } from '../../prisma/prisma.service';
 
 interface MessageJob {
   projectSlug: string;
@@ -43,6 +44,7 @@ export class DynamicMessageProcessor extends WorkerHost implements OnModuleInit,
     private readonly platformsService: PlatformsService,
     private readonly platformRegistry: PlatformRegistry,
     @InjectQueue('messages') private readonly messageQueue: Queue,
+    private readonly prisma: PrismaService,
   ) {
     super(); // Required for WorkerHost
     this.logger.log('Queue processor initialized');
@@ -57,6 +59,30 @@ export class DynamicMessageProcessor extends WorkerHost implements OnModuleInit,
     const { projectSlug, projectId, message } = job.data;
 
     this.logger.log(`Processing job ${job.id} - ${message.targets.length} targets`);
+
+    // Store sent message records for each target
+    const sentMessageIds: string[] = [];
+    for (const target of message.targets) {
+      try {
+        const sentMessage = await this.prisma.sentMessage.create({
+          data: {
+            projectId,
+            platformId: target.platformId,
+            platform: 'telegram', // Will be dynamic based on target platform
+            jobId: job.id?.toString(),
+            targetChatId: target.id,
+            targetUserId: target.type === 'user' ? target.id : null,
+            targetType: target.type,
+            messageText: message.content.text || null,
+            messageContent: message.content,
+            status: 'pending',
+          },
+        });
+        sentMessageIds.push(sentMessage.id);
+      } catch (error) {
+        this.logger.error(`Failed to store sent message record: ${error.message}`);
+      }
+    }
 
     const results: any[] = [];
     const errors: any[] = [];
@@ -130,6 +156,24 @@ export class DynamicMessageProcessor extends WorkerHost implements OnModuleInit,
           `Message sent successfully to ${platformConfig.platform}:${target.type}:${target.id} (platformId: ${target.platformId}) - Provider Message ID: ${result.providerMessageId}`,
         );
 
+        // Update sent message status to 'sent'
+        try {
+          await this.prisma.sentMessage.updateMany({
+            where: {
+              jobId: job.id?.toString(),
+              platformId: target.platformId,
+              targetChatId: target.id,
+            },
+            data: {
+              status: 'sent',
+              providerMessageId: result.providerMessageId,
+              sentAt: new Date(),
+            },
+          });
+        } catch (error) {
+          this.logger.error(`Failed to update sent message status: ${error.message}`);
+        }
+
         results.push({
           success: true,
           target: {
@@ -161,6 +205,23 @@ export class DynamicMessageProcessor extends WorkerHost implements OnModuleInit,
         this.logger.error(
           `Failed to send message to platformId ${target.platformId}:${target.type}:${target.id}: ${error.message} - will retry`,
         );
+
+        // Update sent message status to 'failed'
+        try {
+          await this.prisma.sentMessage.updateMany({
+            where: {
+              jobId: job.id?.toString(),
+              platformId: target.platformId,
+              targetChatId: target.id,
+            },
+            data: {
+              status: 'failed',
+              errorMessage: error.message,
+            },
+          });
+        } catch (updateError) {
+          this.logger.error(`Failed to update sent message failure status: ${updateError.message}`);
+        }
 
         errors.push({
           target,
