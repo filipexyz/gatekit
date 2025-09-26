@@ -77,6 +77,8 @@ import { sentryConfig } from './config/sentry.config';
               type: 'exponential',
               delay: 2000,
             },
+            removeOnComplete: 100, // Keep last 100 completed jobs
+            removeOnFail: false,   // Keep failed jobs for debugging
           },
         };
       },

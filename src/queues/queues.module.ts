@@ -9,15 +9,7 @@ import { PrismaModule } from '../prisma/prisma.module';
   imports: [
     BullModule.registerQueue({
       name: 'messages',
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 2000,
-        },
-        removeOnComplete: true,
-        removeOnFail: false,
-      },
+      // Don't override global Redis config - use the one from app.module.ts
     }),
     PlatformsModule,
     PrismaModule,

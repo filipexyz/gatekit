@@ -1,5 +1,6 @@
-import { Process, Processor } from '@nestjs/bull';
+import { Process, Processor, InjectQueue } from '@nestjs/bull';
 import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import type { Queue } from 'bull';
 import type { Job } from 'bull';
 import { PlatformsService } from '../../platforms/platforms.service';
 import { PlatformRegistry } from '../../platforms/services/platform-registry.service';
@@ -41,8 +42,10 @@ export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly platformsService: PlatformsService,
     private readonly platformRegistry: PlatformRegistry,
+    @InjectQueue('messages') private readonly messageQueue: Queue,
   ) {
     this.logger.log('🚀 DynamicMessageProcessor constructor called - processor created');
+    this.logger.log('🔗 Injected queue instance for processor');
   }
 
   async onModuleInit() {
@@ -53,8 +56,32 @@ export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
     setTimeout(async () => {
       try {
         this.logger.log('🕐 Checking for jobs in queue after 2 seconds...');
-        // We can't access the queue directly from processor, but we can log that we're ready
-        this.logger.log('📡 Processor is ready to receive jobs from Bull queue system');
+
+        // Check if processor can see the same queue as producer
+        const client = this.messageQueue.client;
+        this.logger.log(`🔗 Processor Redis Status:`, {
+          connected: client.status === 'ready',
+          status: client.status,
+          host: client.options?.host || 'unknown',
+          port: client.options?.port || 'unknown',
+          db: client.options?.db || 0,
+        });
+
+        // Check queue metrics from processor side
+        const [waiting, active, completed, failed] = await Promise.all([
+          this.messageQueue.getWaitingCount(),
+          this.messageQueue.getActiveCount(),
+          this.messageQueue.getCompletedCount(),
+          this.messageQueue.getFailedCount(),
+        ]);
+
+        this.logger.log(`📊 Processor Queue View:`, { waiting, active, completed, failed });
+
+        if (waiting > 0) {
+          this.logger.warn(`⚠️ PROCESSOR SEES ${waiting} WAITING JOBS BUT ISN'T PROCESSING THEM!`);
+        } else {
+          this.logger.log('📡 Processor is ready to receive jobs from Bull queue system');
+        }
       } catch (error) {
         this.logger.error(`❌ Error during processor initialization check: ${error.message}`);
       }

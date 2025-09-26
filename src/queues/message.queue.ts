@@ -47,15 +47,8 @@ export class MessageQueue implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`🎯 Adding job to queue - Job type: "send-message", Queue: "messages"`);
     this.logger.log(`📊 Queue metrics before adding:`, await this.getQueueMetrics());
 
-    const job = await this.messageQueue.add('send-message', data, {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 2000,
-      },
-      removeOnComplete: 100, // Keep last 100 completed jobs for monitoring
-      removeOnFail: false, // Keep failed jobs for debugging
-    });
+    const job = await this.messageQueue.add('send-message', data);
+    // Job options inherited from global BullModule.forRootAsync() configuration
 
     const platformIds = data.message.targets.map(t => t.platformId);
     this.logger.log(
