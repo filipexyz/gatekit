@@ -219,4 +219,64 @@ export class MessagesService {
       deletedCount: deleted.count,
     };
   }
+
+  async getSentMessages(projectSlug: string, query: any) {
+    const project = await this.prisma.project.findUnique({
+      where: { slug: projectSlug },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const where: any = {
+      projectId: project.id,
+    };
+
+    if (query.platform) {
+      where.platform = query.platform;
+    }
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    const limit = parseInt(query.limit) || 50;
+    const offset = parseInt(query.offset) || 0;
+
+    const [messages, total] = await Promise.all([
+      this.prisma.sentMessage.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+        select: {
+          id: true,
+          platform: true,
+          jobId: true,
+          providerMessageId: true,
+          targetChatId: true,
+          targetUserId: true,
+          targetType: true,
+          messageText: true,
+          messageContent: true,
+          status: true,
+          errorMessage: true,
+          sentAt: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.sentMessage.count({ where }),
+    ]);
+
+    return {
+      messages,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + limit < total,
+      },
+    };
+  }
 }

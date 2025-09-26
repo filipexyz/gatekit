@@ -106,12 +106,38 @@ export interface MessageListResponse {
 }
 
 export interface MessageStatsResponse {
-  totalMessages: number;
-  recentMessages: number;
-  uniqueUsers: number;
-  uniqueChats: number;
-  byPlatform: Array<{
-    platform: string;
-    count: number;
-  }>;
+  received: {
+    totalMessages: number;
+    recentMessages: number;
+    uniqueUsers: number;
+    uniqueChats: number;
+    byPlatform: Array<{
+      platform: string;
+      count: number;
+    }>;
+  };
+  sent: {
+    totalMessages: number;
+    byPlatformAndStatus: Array<{
+      platform: string;
+      status: string;
+      count: number;
+    }>;
+  };
+}
+
+export interface SentMessage {
+  id: string;
+  platform: string;
+  jobId: string | null;
+  providerMessageId: string | null;
+  targetChatId: string;
+  targetUserId: string | null;
+  targetType: string;
+  messageText: string | null;
+  messageContent: any | null;
+  status: string;
+  errorMessage: string | null;
+  sentAt: Date | null;
+  createdAt: Date;
 }

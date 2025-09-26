@@ -273,4 +273,36 @@ export class MessagesController {
   ) {
     return this.platformMessagesService.retryMessage(jobId);
   }
+
+  @Get('sent')
+  @RequireScopes('messages:read')
+  @SdkContract({
+    command: 'messages sent',
+    description: 'List sent messages for a project',
+    category: 'Messages',
+    requiredScopes: ['messages:read'],
+    outputType: 'SentMessage[]',
+    options: {
+      platform: { description: 'Filter by platform', type: 'string' },
+      status: { description: 'Filter by status (pending, sent, failed)', type: 'string', choices: ['pending', 'sent', 'failed'] },
+      limit: { description: 'Number of messages to return', type: 'number', default: 50 },
+      offset: { description: 'Number of messages to skip', type: 'number', default: 0 },
+    },
+    examples: [
+      {
+        description: 'Get sent messages',
+        command: 'gatekit messages sent'
+      },
+      {
+        description: 'Get failed messages',
+        command: 'gatekit messages sent --status failed'
+      }
+    ]
+  })
+  async getSentMessages(
+    @Param('projectSlug') projectSlug: string,
+    @Query() query: any,
+  ) {
+    return this.messagesService.getSentMessages(projectSlug, query);
+  }
 }
