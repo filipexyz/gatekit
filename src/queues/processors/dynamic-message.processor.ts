@@ -115,13 +115,9 @@ export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
           const isPaused = await this.messageQueue.isPaused();
           this.logger.log(`⏸️ Queue paused status: ${isPaused}`);
 
-          // Check concurrency
-          const opts = this.messageQueue.opts;
-          this.logger.log(`⚙️ Queue options:`, {
-            concurrency: opts.settings?.maxStalledCount,
-            stalledInterval: opts.settings?.stalledInterval,
-            retryProcessDelay: opts.settings?.retryProcessDelay,
-          });
+          // Check concurrency and queue settings
+          this.logger.log(`⚙️ Queue name: ${this.messageQueue.name}`);
+          this.logger.log(`🔧 Queue client type: ${this.messageQueue.client.constructor.name}`);
 
           // NUCLEAR OPTION: Manually bind processor if decorator failed
           this.logger.log('☢️ NUCLEAR DEBUG: Attempting manual processor binding...');
