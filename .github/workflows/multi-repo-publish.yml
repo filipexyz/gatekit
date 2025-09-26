@@ -87,8 +87,15 @@ jobs:
           git checkout -b $BRANCH_NAME
 
           # Copy generated files (preserve .git and .github)
-          find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -exec rm -rf {} \;
+          # Remove all files except .git and .github
+          find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -not -name '..' -exec rm -rf {} \;
+
+          # Copy all generated files
           cp -r $GITHUB_WORKSPACE/generated/sdk/* .
+
+          # Debug: List what was copied
+          echo "Files copied to SDK repo:"
+          find . -type f -not -path './.git/*' | head -20
 
           # Commit and push
           git add .
@@ -125,8 +132,12 @@ jobs:
           git checkout -b $BRANCH_NAME
 
           # Copy generated files (preserve .git and .github)
-          find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -exec rm -rf {} \;
+          find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -not -name '..' -exec rm -rf {} \;
           cp -r $GITHUB_WORKSPACE/generated/cli/* .
+
+          # Debug: List what was copied
+          echo "Files copied to CLI repo:"
+          find . -type f -not -path './.git/*' | head -20
 
           # Commit and push
           git add .
@@ -168,8 +179,12 @@ jobs:
           git checkout -b $BRANCH_NAME
 
           # Copy generated files (preserve .git and .github)
-          find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -exec rm -rf {} \;
+          find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -not -name '..' -exec rm -rf {} \;
           cp -r $GITHUB_WORKSPACE/generated/n8n/* .
+
+          # Debug: List what was copied
+          echo "Files copied to n8n repo:"
+          find . -type f -not -path './.git/*' | head -20
 
           # Commit and push
           git add .
