@@ -47,21 +47,32 @@ import { sentryConfig } from './config/sentry.config';
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        redis: {
+      useFactory: (config: ConfigService) => {
+        const redisConfig = {
           host: config.get<string>('REDIS_HOST', 'localhost'),
           port: config.get<number>('REDIS_PORT', 6379),
           password: config.get<string>('REDIS_PASSWORD'),
           db: config.get<number>('REDIS_DB', 0),
-        },
-        defaultJobOptions: {
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 2000,
+        };
+
+        console.log('🔗 Redis Bull Queue Configuration:', {
+          host: redisConfig.host,
+          port: redisConfig.port,
+          password: redisConfig.password ? '***HIDDEN***' : 'NOT_SET',
+          db: redisConfig.db,
+        });
+
+        return {
+          redis: redisConfig,
+          defaultJobOptions: {
+            attempts: 3,
+            backoff: {
+              type: 'exponential',
+              delay: 2000,
+            },
           },
-        },
-      }),
+        };
+      },
     }),
     HealthModule,
     AuthModule,
