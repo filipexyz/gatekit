@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PlatformProviderDecorator } from '../decorators/platform-provider.decorator';
 import { MessageEnvelopeV1 } from '../interfaces/message-envelope.interface';
 import { makeEnvelope } from '../utils/envelope.factory';
+import { CryptoUtil } from '../../common/utils/crypto.util';
 
 interface TelegramConnection {
   connectionKey: string; // projectId:platformId
@@ -196,10 +197,35 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
 
   // Process webhook update for a specific project
   async processWebhookUpdate(projectId: string, update: TelegramBot.Update, platformId?: string) {
-    const connection = this.connections.get(projectId);
+    // Connections are stored by connectionKey (projectId:platformId), not just projectId
+    const connectionKey = platformId ? `${projectId}:${platformId}` : projectId;
+    let connection = this.connections.get(connectionKey);
+
+    if (!connection && platformId) {
+      this.logger.log(`Auto-creating Telegram connection for incoming webhook - project: ${projectId}`);
+
+      // Get platform credentials to create connection
+      try {
+        const platformConfig = await this.prisma.projectPlatform.findUnique({
+          where: { id: platformId },
+        });
+
+        if (platformConfig && platformConfig.isActive) {
+          // Decrypt credentials and create connection
+          const credentials = JSON.parse(CryptoUtil.decrypt(platformConfig.credentialsEncrypted));
+          const connectionKey = `${projectId}:${platformId}`;
+
+          await this.createAdapter(connectionKey, credentials);
+          connection = this.connections.get(connectionKey);
+          this.logger.log(`✅ Auto-created Telegram connection for webhook processing`);
+        }
+      } catch (error) {
+        this.logger.error(`Failed to auto-create connection: ${error.message}`);
+      }
+    }
 
     if (!connection) {
-      this.logger.warn(`No connection found for project ${projectId}`);
+      this.logger.warn(`No connection available for project ${projectId} - webhook ignored`);
       return false;
     }
 
