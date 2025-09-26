@@ -1,0 +1,226 @@
+name: Multi-Repo Package Publishing
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_sdk:
+        description: 'Create PR for @gatekit/sdk'
+        required: true
+        default: true
+        type: boolean
+      publish_cli:
+        description: 'Create PR for @gatekit/cli'
+        required: true
+        default: true
+        type: boolean
+      publish_n8n:
+        description: 'Create PR for n8n-nodes-gatekit'
+        required: true
+        default: false
+        type: boolean
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  generate-and-create-prs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate all packages
+        run: |
+          npm run extract:contracts:standalone
+          npm run generate:sdk
+          npm run generate:cli
+          npm run generate:n8n
+
+      - name: Get version and commit info
+        id: version
+        run: |
+          VERSION=$(node -p "require('./generated/sdk/package.json').version")
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          COMMIT_MSG=$(git log -1 --pretty=%B | head -n1)
+          TIMESTAMP=$(date +%s)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
+          echo "branch_suffix=$TIMESTAMP" >> $GITHUB_OUTPUT
+
+      - name: Setup Git
+        run: |
+          git config --global user.email "bot@gatekit.dev"
+          git config --global user.name "GateKit Bot"
+
+      - name: Create SDK Branch and PR
+        if: ${{ inputs.publish_sdk }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        run: |
+          BRANCH_NAME="auto-update/v${{ steps.version.outputs.version }}-${{ steps.version.outputs.branch_suffix }}"
+
+          # Clone and setup SDK repo
+          git clone https://x-access-token:$GITHUB_TOKEN@github.com/filipexyz/gatekit-sdk.git sdk-repo
+          cd sdk-repo
+          git checkout -b $BRANCH_NAME
+
+          # Copy generated files (preserve .git and .github)
+          find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -exec rm -rf {} \;
+          cp -r ../generated/sdk/* .
+
+          # Commit and push
+          git add .
+          git commit -m "feat: update SDK to v${{ steps.version.outputs.version }}"
+          git push origin $BRANCH_NAME
+
+          # Create PR
+          gh pr create \
+            --title "🚀 Auto-update SDK to v${{ steps.version.outputs.version }}" \
+            --body "## Auto-generated SDK Update
+
+          **Version**: v${{ steps.version.outputs.version }}
+          **Source**: [${{ steps.version.outputs.commit_sha }}](https://github.com/GateKit/backend/commit/${{ github.sha }})
+
+          ### Changes
+          - ${{ steps.version.outputs.commit_msg }}
+          - Updated TypeScript types and client methods
+          - Enhanced API coverage and type safety
+
+          **Ready for review and merge** 🚀" \
+            --head $BRANCH_NAME \
+            --base main
+
+      - name: Create CLI Branch and PR
+        if: ${{ inputs.publish_cli }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        run: |
+          BRANCH_NAME="auto-update/v${{ steps.version.outputs.version }}-${{ steps.version.outputs.branch_suffix }}"
+
+          # Clone and setup CLI repo
+          git clone https://x-access-token:$GITHUB_TOKEN@github.com/filipexyz/gatekit-cli.git cli-repo
+          cd cli-repo
+          git checkout -b $BRANCH_NAME
+
+          # Copy generated files (preserve .git and .github)
+          find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -exec rm -rf {} \;
+          cp -r ../generated/cli/* .
+
+          # Commit and push
+          git add .
+          git commit -m "feat: update CLI to v${{ steps.version.outputs.version }}"
+          git push origin $BRANCH_NAME
+
+          # Create PR
+          gh pr create \
+            --title "🚀 Auto-update CLI to v${{ steps.version.outputs.version }}" \
+            --body "## Auto-generated CLI Update
+
+          **Version**: v${{ steps.version.outputs.version }}
+          **Source**: [${{ steps.version.outputs.commit_sha }}](https://github.com/GateKit/backend/commit/${{ github.sha }})
+
+          ### Changes
+          - ${{ steps.version.outputs.commit_msg }}
+          - Updated CLI commands with latest endpoints
+          - Enhanced pattern system and permission checking
+
+          ### Revolutionary Pattern System
+          - Simple targets: \`--target \"platformId:user:123\"\`
+          - Multiple targets: \`--targets \"p1:user:123,p2:channel:456\"\`
+          - Text shortcuts: \`--text \"Your message\"\`
+
+          **Ready for review and merge** 🚀" \
+            --head $BRANCH_NAME \
+            --base main
+
+      - name: Create n8n Branch and PR
+        if: ${{ inputs.publish_n8n }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        run: |
+          BRANCH_NAME="auto-update/v${{ steps.version.outputs.version }}-${{ steps.version.outputs.branch_suffix }}"
+
+          # Clone and setup n8n repo
+          git clone https://x-access-token:$GITHUB_TOKEN@github.com/filipexyz/n8n-nodes-gatekit.git n8n-repo
+          cd n8n-repo
+          git checkout -b $BRANCH_NAME
+
+          # Copy generated files (preserve .git and .github)
+          find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -exec rm -rf {} \;
+          cp -r ../generated/n8n/* .
+
+          # Commit and push
+          git add .
+          git commit -m "feat: update n8n nodes to v${{ steps.version.outputs.version }}"
+          git push origin $BRANCH_NAME
+
+          # Create PR
+          gh pr create \
+            --title "🚀 Auto-update n8n nodes to v${{ steps.version.outputs.version }}" \
+            --body "## Auto-generated n8n Nodes Update
+
+          **Version**: v${{ steps.version.outputs.version }}
+          **Source**: [${{ steps.version.outputs.commit_sha }}](https://github.com/GateKit/backend/commit/${{ github.sha }})
+
+          ### Changes
+          - ${{ steps.version.outputs.commit_msg }}
+          - Updated n8n community nodes with latest endpoints
+          - Enhanced visual automation capabilities
+
+          ### n8n Community Impact
+          - 🎯 **300k+ n8n users** get GateKit automation
+          - 🔧 **Visual workflows** for messaging
+          - 🚀 **Drag-and-drop** platform management
+
+          **Ready for review and merge** 🚀" \
+            --head $BRANCH_NAME \
+            --base main
+
+      - name: Summary
+        run: |
+          echo "## 🚀 Multi-Repo Publishing Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version**: v${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: [${{ steps.version.outputs.commit_sha }}](https://github.com/GateKit/backend/commit/${{ github.sha }})" >> $GITHUB_STEP_SUMMARY
+          echo "**Version Bump**: ${{ inputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Packages Selected:" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ inputs.publish_sdk }}" == "true" ]; then
+            echo "- ✅ [📦 SDK PR](https://github.com/filipexyz/gatekit-sdk/pulls)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⏭️ SDK (skipped)" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ inputs.publish_cli }}" == "true" ]; then
+            echo "- ✅ [🖥️ CLI PR](https://github.com/filipexyz/gatekit-cli/pulls)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⏭️ CLI (skipped)" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ inputs.publish_n8n }}" == "true" ]; then
+            echo "- ✅ [🎨 n8n Nodes PR](https://github.com/filipexyz/n8n-nodes-gatekit/pulls)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⏭️ n8n Nodes (skipped)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Steps**: Review and merge PRs to publish selected packages to npm" >> $GITHUB_STEP_SUMMARY
