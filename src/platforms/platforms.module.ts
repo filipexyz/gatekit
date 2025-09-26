@@ -5,7 +5,6 @@ import { BullModule } from '@nestjs/bull';
 import { PlatformsService } from './platforms.service';
 import { PlatformsController } from './platforms.controller';
 import { MessagesService } from './messages/messages.service';
-import { MessagesController } from './messages/messages.controller';
 import { DynamicWebhookController } from './webhooks/dynamic-webhook.controller';
 import { PlatformHealthController } from './controllers/platform-health.controller';
 import { EventBusService } from './services/event-bus.service';
@@ -37,7 +36,6 @@ import { TelegramProvider } from './providers/telegram.provider';
   ],
   controllers: [
     PlatformsController,
-    MessagesController,
     DynamicWebhookController,
     PlatformHealthController,
   ],

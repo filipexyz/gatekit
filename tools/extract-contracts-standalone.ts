@@ -233,7 +233,8 @@ async function extractAllTypes(contracts: ExtractedContract[]): Promise<Record<s
   const typeFiles = await glob('src/**/sdk-models.ts');
   const responseFiles = await glob('src/**/api-responses.ts');
   const dtoFiles = await glob('src/**/*.dto.ts');
-  const allTypeFiles = [...typeFiles, ...responseFiles, ...dtoFiles];
+  const interfaceFiles = await glob('src/**/interfaces/*.interface.ts');
+  const allTypeFiles = [...typeFiles, ...responseFiles, ...interfaceFiles, ...dtoFiles];
 
   console.log(`🔍 Searching in ${allTypeFiles.length} type files:`, allTypeFiles);
 

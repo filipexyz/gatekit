@@ -6,9 +6,14 @@ import {
   Delete,
   UseGuards,
   Body,
+  Post,
 } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { QueryMessagesDto } from './dto/query-messages.dto';
+// Clean interface for SDK generation
+import type { QueryMessagesDto as QueryMessagesInterface } from './interfaces/query-messages.interface';
+import { SendMessageDto } from '../platforms/dto/send-message.dto';
+import { MessagesService as PlatformMessagesService } from '../platforms/messages/messages.service';
 import { AppAuthGuard } from '../common/guards/app-auth.guard';
 import { RequireScopes } from '../common/decorators/require-scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
@@ -16,7 +21,10 @@ import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 @Controller('api/v1/projects/:projectSlug/messages')
 @UseGuards(AppAuthGuard)
 export class MessagesController {
-  constructor(private readonly messagesService: MessagesService) {}
+  constructor(
+    private readonly messagesService: MessagesService,
+    private readonly platformMessagesService: PlatformMessagesService,
+  ) {}
 
   @Get()
   @RequireScopes('messages:read')
@@ -163,5 +171,84 @@ export class MessagesController {
     @Body('daysBefore') daysBefore: number,
   ) {
     return this.messagesService.deleteOldMessages(projectSlug, daysBefore);
+  }
+
+  @Post('send')
+  @RequireScopes('messages:send')
+  @SdkContract({
+    command: 'messages send',
+    description: 'Send a message to platforms',
+    category: 'Messages',
+    requiredScopes: ['messages:send'],
+    inputType: 'SendMessageDto',
+    outputType: 'MessageSendResponse',
+    options: {
+      targets: { required: true, description: 'Message targets array', type: 'object' },
+      content: { required: true, description: 'Message content object', type: 'object' },
+      options: { description: 'Message options', type: 'object' },
+      metadata: { description: 'Message metadata', type: 'object' }
+    },
+    examples: [
+      {
+        description: 'Send text message',
+        command: 'gatekit messages send --targets "[{\"platformId\":\"id\",\"type\":\"channel\",\"id\":\"123\"}]" --text "Hello!"'
+      }
+    ]
+  })
+  async sendMessage(
+    @Param('projectSlug') projectSlug: string,
+    @Body() sendMessageDto: SendMessageDto,
+  ) {
+    return this.platformMessagesService.sendMessage(projectSlug, sendMessageDto);
+  }
+
+  @Get('status/:jobId')
+  @RequireScopes('messages:read')
+  @SdkContract({
+    command: 'messages status',
+    description: 'Check message delivery status',
+    category: 'Messages',
+    requiredScopes: ['messages:read'],
+    outputType: 'MessageStatusResponse',
+    options: {
+      jobId: { required: true, description: 'Message job ID', type: 'string' }
+    },
+    examples: [
+      {
+        description: 'Check message status',
+        command: 'gatekit messages status --jobId "job-123"'
+      }
+    ]
+  })
+  async getMessageStatus(
+    @Param('projectSlug') projectSlug: string,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.platformMessagesService.getMessageStatus(jobId);
+  }
+
+  @Post('retry/:jobId')
+  @RequireScopes('messages:send')
+  @SdkContract({
+    command: 'messages retry',
+    description: 'Retry a failed message',
+    category: 'Messages',
+    requiredScopes: ['messages:send'],
+    outputType: 'MessageRetryResponse',
+    options: {
+      jobId: { required: true, description: 'Failed message job ID', type: 'string' }
+    },
+    examples: [
+      {
+        description: 'Retry failed message',
+        command: 'gatekit messages retry --jobId "job-123"'
+      }
+    ]
+  })
+  async retryMessage(
+    @Param('projectSlug') projectSlug: string,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.platformMessagesService.retryMessage(jobId);
   }
 }

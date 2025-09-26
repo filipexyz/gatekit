@@ -331,10 +331,18 @@ ${Object.keys(groups).map(category =>
     const actualHttpMethod = httpMethod.toLowerCase();
 
     if (needsInput) {
-      return `async ${methodName}(${methodParams}): Promise<${outputType}> {
+      // For GET requests with input data, use params config instead of request body
+      if (actualHttpMethod === 'get') {
+        return `async ${methodName}(${methodParams}): Promise<${outputType}> {
+    const response = await this.client.${actualHttpMethod}<${outputType}>(${urlWithParams}, { params: data });
+    return response.data;
+  }`;
+      } else {
+        return `async ${methodName}(${methodParams}): Promise<${outputType}> {
     const response = await this.client.${actualHttpMethod}<${outputType}>(${urlWithParams}, data);
     return response.data;
   }`;
+      }
     }
 
     // Methods without input data
@@ -367,7 +375,10 @@ ${Object.keys(groups).map(category =>
 
   private getMethodName(command: string): string {
     const parts = command.split(' ');
-    return parts[parts.length - 1]; // 'projects create' -> 'create'
+    const methodName = parts[parts.length - 1]; // 'projects create' -> 'create'
+
+    // Convert kebab-case to camelCase for valid JavaScript method names
+    return methodName.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
   }
 
   private groupContractsByCategory(contracts: ExtractedContract[]): Record<string, ExtractedContract[]> {

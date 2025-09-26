@@ -89,10 +89,10 @@ export class TypeExtractorService {
     }
 
     // Extract interface definitions
-    const interfaceRegex = new RegExp(`export interface ${typeName}[\\s\\S]*?^}`, 'gm');
+    const interfaceRegex = new RegExp(`export interface ${typeName}\\s*{[\\s\\S]*?^}`, 'gm');
     const interfaceMatch = content.match(interfaceRegex);
     if (interfaceMatch) {
-      return interfaceMatch[0];
+      return this.cleanTypeDefinition(interfaceMatch[0]);
     }
 
     // Extract type aliases
@@ -103,6 +103,40 @@ export class TypeExtractorService {
     }
 
     return null;
+  }
+
+  private cleanTypeDefinition(definition: string): string {
+    // Split into lines and process each line
+    const lines = definition.split('\n');
+    const cleanedLines: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      // Skip decorator lines
+      if (trimmed.startsWith('@')) {
+        continue;
+      }
+
+      // Skip lines with decorator artifacts
+      if (trimmed.match(/^=>\s*[A-Za-z]+\)/) || trimmed === '=> Number)') {
+        continue;
+      }
+
+      // Clean the line of any inline decorators
+      let cleanedLine = line
+        .replace(/@[A-Za-z]+\([^)]*(?:\([^)]*\)[^)]*)*\)/g, '')
+        .replace(/@[A-Za-z]+/g, '')
+        .replace(/=>\s*[A-Za-z]+\)/g, '');
+
+      // Only include non-empty lines
+      if (cleanedLine.trim()) {
+        cleanedLines.push(cleanedLine);
+      }
+    }
+
+    return cleanedLines.join('\n');
   }
 
   private findReferencedTypes(typeDefinition: string): string[] {

@@ -92,7 +92,9 @@ ${this.generateCommandHelpers()}
 
     const allOptions = [options, pathParamOptions].filter(Boolean).join('\n');
 
-    const methodCall = subCommand === 'create' ? 'create' : subCommand === 'list' ? 'list' : subCommand;
+    // Convert kebab-case to camelCase for method calls
+    const camelCaseMethod = subCommand.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+    const methodCall = subCommand === 'create' ? 'create' : subCommand === 'list' ? 'list' : camelCaseMethod;
 
     return `  ${category.toLowerCase()}
     .command('${subCommand}')
@@ -151,10 +153,24 @@ ${allOptions}
       return '{}';
     }
 
-    // Simple 1:1 mapping - contract options = DTO properties
-    const optionEntries = Object.keys(options).map(key =>
-      `      ${key}: options.${key}`
-    ).join(',\n');
+    // Handle type conversion based on contract metadata
+    const optionEntries = Object.keys(options).map(key => {
+      const option = options[key];
+
+      if (option.type === 'object') {
+        // Parse JSON strings for object types
+        return `      ${key}: options.${key} ? JSON.parse(options.${key}) : undefined`;
+      } else if (option.type === 'boolean') {
+        // Convert string to boolean
+        return `      ${key}: options.${key} === 'true' || options.${key} === true`;
+      } else if (option.type === 'number') {
+        // Convert string to number
+        return `      ${key}: options.${key} ? parseInt(options.${key}) : undefined`;
+      } else {
+        // String type or default
+        return `      ${key}: options.${key}`;
+      }
+    }).join(',\n');
 
     return `{
 ${optionEntries}
