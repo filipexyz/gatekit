@@ -45,97 +45,18 @@ export class DynamicMessageProcessor extends WorkerHost implements OnModuleInit,
     @InjectQueue('messages') private readonly messageQueue: Queue,
   ) {
     super(); // Required for WorkerHost
-    this.logger.log('🚀 DynamicMessageProcessor constructor called - processor created');
-    this.logger.log('🔗 Injected queue instance for processor');
+    this.logger.log('Queue processor initialized');
   }
 
   async onModuleInit() {
-    this.logger.log('🔌 DynamicMessageProcessor onModuleInit - attempting to connect to Redis queue');
-    this.logger.log('🔍 Queue processor should now be listening for "send-message" jobs on "messages" queue');
-
-    // Add a small delay and then check if we can see any jobs
-    setTimeout(async () => {
-      try {
-        this.logger.log('🕐 Checking for jobs in queue after 2 seconds...');
-
-        // BullMQ processor status
-        this.logger.log(`🔗 BullMQ Processor Status: Connected and ready`);
-
-        // Check queue metrics from processor side
-        const [waiting, active, completed, failed] = await Promise.all([
-          this.messageQueue.getWaitingCount(),
-          this.messageQueue.getActiveCount(),
-          this.messageQueue.getCompletedCount(),
-          this.messageQueue.getFailedCount(),
-        ]);
-
-        this.logger.log(`📊 Processor Queue View:`, { waiting, active, completed, failed });
-
-        if (waiting > 0) {
-          this.logger.warn(`⚠️ PROCESSOR SEES ${waiting} WAITING JOBS BUT ISN'T PROCESSING THEM!`);
-          this.logger.log('🔧 Attempting to manually trigger job processing...');
-
-          // Manually process waiting jobs if the automatic processor isn't working
-          try {
-            // Get the next waiting job
-            const waitingJobs = await this.messageQueue.getWaiting(0, waiting - 1);
-            this.logger.log(`🔍 Found ${waitingJobs.length} waiting jobs, attempting to process first one manually...`);
-
-            if (waitingJobs.length > 0) {
-              const firstJob = waitingJobs[0];
-              this.logger.log(`🎯 Manually triggering job ${firstJob.id} processing...`);
-
-              // Test if the handler method works when called directly
-              this.logger.log(`🧪 Testing if process method works manually...`);
-              try {
-                await this.process(firstJob);
-                this.logger.log(`✅ Manual processing succeeded! BullMQ WorkerHost process method working.`);
-              } catch (error) {
-                this.logger.error(`❌ Manual processing failed: ${error.message}`);
-                this.logger.error(`🔍 This suggests the handler method itself has issues`);
-              }
-            }
-          } catch (error) {
-            this.logger.error(`❌ Manual job processing failed: ${error.message}`);
-          }
-        } else {
-          this.logger.log('📡 Processor is ready to receive jobs from Bull queue system');
-        }
-
-        // DEEP DEBUG: Check if Bull.js queue is properly configured for processing
-        this.logger.log('🔬 DEEP DEBUG: Checking Bull queue processing configuration...');
-        try {
-          // Check if queue is paused
-          const isPaused = await this.messageQueue.isPaused();
-          this.logger.log(`⏸️ Queue paused status: ${isPaused}`);
-
-          // Check concurrency and queue settings
-          this.logger.log(`⚙️ Queue name: ${this.messageQueue.name}`);
-          this.logger.log(`🔧 Queue client type: ${this.messageQueue.client.constructor.name}`);
-
-          // PROPER FIX: The correct solution is queue settings, not manual binding
-          this.logger.log('✅ Queue settings configured with proper lockDuration and stall prevention');
-          this.logger.log('🎯 @Process decorator should now work with correct queue configuration');
-
-        } catch (error) {
-          this.logger.error(`❌ Deep debug failed: ${error.message}`);
-        }
-      } catch (error) {
-        this.logger.error(`❌ Error during processor initialization check: ${error.message}`);
-      }
-    }, 2000);
+    this.logger.log('BullMQ processor ready for message processing');
   }
 
   // BullMQ WorkerHost requires this method name
   async process(job: Job<MessageJob>) {
-    this.logger.log(`🎯 QUEUE PROCESSOR ACTIVATED! Processing job ${job.id}`);
-    this.logger.log(`📨 Job data received - checking job structure...`);
-
     const { projectSlug, projectId, message } = job.data;
 
-    this.logger.log(
-      `📊 Processing message job ${job.id} - Project: ${projectSlug}, Targets: ${message.targets.length}, PlatformIds: ${message.targets.map(t => t.platformId).join(', ')}`,
-    );
+    this.logger.log(`Processing job ${job.id} - ${message.targets.length} targets`);
 
     const results: any[] = [];
     const errors: any[] = [];
