@@ -387,7 +387,7 @@ export function handleError(error: any): void {
         prepublishOnly: 'npm run build'
       },
       dependencies: {
-        '@gatekit/sdk': 'file:../sdk',
+        '@gatekit/sdk': '^1.0.0',
         'commander': '^11.0.0',
         'axios': '^1.6.0'
       },
@@ -399,7 +399,11 @@ export function handleError(error: any): void {
       license: 'MIT',
       repository: {
         type: 'git',
-        url: 'https://github.com/gatekit/cli.git'
+        url: 'https://github.com/filipexyz/gatekit-cli.git'
+      },
+      homepage: 'https://github.com/filipexyz/gatekit-cli',
+      bugs: {
+        url: 'https://github.com/filipexyz/gatekit-cli/issues'
       }
     }, null, 2);
   }
@@ -576,10 +580,14 @@ The CLI provides helpful error messages:
 
 ## Links
 
-- **SDK Package**: [@gatekit/sdk](https://www.npmjs.com/package/@gatekit/sdk)
-- **Documentation**: [docs.gatekit.dev](https://docs.gatekit.dev)
-- **Dashboard**: [app.gatekit.dev](https://app.gatekit.dev)
-- **GitHub**: [github.com/gatekit](https://github.com/gatekit)
+[![View on GitHub](https://img.shields.io/badge/View%20on-GitHub-blue?logo=github)](https://github.com/filipexyz/gatekit-cli)
+[![View on npm](https://img.shields.io/badge/View%20on-npm-red?logo=npm)](https://www.npmjs.com/package/@gatekit/cli)
+
+- **📦 Repository**: [github.com/filipexyz/gatekit-cli](https://github.com/filipexyz/gatekit-cli)
+- **📥 npm Package**: [@gatekit/cli](https://www.npmjs.com/package/@gatekit/cli)
+- **🔧 SDK Package**: [@gatekit/sdk](https://www.npmjs.com/package/@gatekit/sdk)
+- **📚 Documentation**: [docs.gatekit.dev](https://docs.gatekit.dev)
+- **🎛️ Dashboard**: [app.gatekit.dev](https://app.gatekit.dev)
 
 `;
   }

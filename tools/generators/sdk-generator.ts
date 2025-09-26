@@ -463,7 +463,11 @@ export const CONTRACTS_COUNT = ${contracts.length};
       license: 'MIT',
       repository: {
         type: 'git',
-        url: 'https://github.com/gatekit/sdk.git'
+        url: 'https://github.com/filipexyz/gatekit-sdk.git'
+      },
+      homepage: 'https://github.com/filipexyz/gatekit-sdk',
+      bugs: {
+        url: 'https://github.com/filipexyz/gatekit-sdk/issues'
       }
     }, null, 2);
   }
@@ -584,10 +588,14 @@ try {
 
 ## Links
 
-- **Documentation**: [docs.gatekit.dev](https://docs.gatekit.dev)
-- **Dashboard**: [app.gatekit.dev](https://app.gatekit.dev)
-- **CLI Package**: [@gatekit/cli](https://www.npmjs.com/package/@gatekit/cli)
-- **GitHub**: [github.com/gatekit](https://github.com/gatekit)
+[![View on GitHub](https://img.shields.io/badge/View%20on-GitHub-blue?logo=github)](https://github.com/filipexyz/gatekit-sdk)
+[![View on npm](https://img.shields.io/badge/View%20on-npm-red?logo=npm)](https://www.npmjs.com/package/@gatekit/sdk)
+
+- **📦 Repository**: [github.com/filipexyz/gatekit-sdk](https://github.com/filipexyz/gatekit-sdk)
+- **📥 npm Package**: [@gatekit/sdk](https://www.npmjs.com/package/@gatekit/sdk)
+- **🖥️ CLI Package**: [@gatekit/cli](https://www.npmjs.com/package/@gatekit/cli)
+- **📚 Documentation**: [docs.gatekit.dev](https://docs.gatekit.dev)
+- **🎛️ Dashboard**: [app.gatekit.dev](https://app.gatekit.dev)
 
 `;
   }
