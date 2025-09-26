@@ -12,11 +12,18 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Configure git
+git config --global user.email "luis@filipe.xyz"
+git config --global user.name "filipexyz"
+
 # SDK Repository
 echo -e "${BLUE}📦 Setting up gatekit-sdk repository...${NC}"
 if [ -d "temp-sdk" ]; then rm -rf temp-sdk; fi
 git clone git@github.com:filipexyz/gatekit-sdk.git temp-sdk
 cd temp-sdk
+
+# Create main branch if it doesn't exist
+git checkout -b main 2>/dev/null || git checkout main
 
 # Create initial structure
 cat > README.md << 'EOF'
@@ -70,6 +77,9 @@ echo -e "${BLUE}🖥️ Setting up gatekit-cli repository...${NC}"
 if [ -d "temp-cli" ]; then rm -rf temp-cli; fi
 git clone git@github.com:filipexyz/gatekit-cli.git temp-cli
 cd temp-cli
+
+# Create main branch if it doesn't exist
+git checkout -b main 2>/dev/null || git checkout main
 
 # Create initial structure
 cat > README.md << 'EOF'
@@ -125,6 +135,9 @@ echo -e "${BLUE}🎨 Setting up n8n-nodes-gatekit repository...${NC}"
 if [ -d "temp-n8n" ]; then rm -rf temp-n8n; fi
 git clone git@github.com:filipexyz/n8n-nodes-gatekit.git temp-n8n
 cd temp-n8n
+
+# Create main branch if it doesn't exist
+git checkout -b main 2>/dev/null || git checkout main
 
 # Create initial structure
 cat > README.md << 'EOF'

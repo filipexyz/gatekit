@@ -71,8 +71,8 @@ jobs:
 
       - name: Setup Git
         run: |
-          git config --global user.email "bot@gatekit.dev"
-          git config --global user.name "GateKit Bot"
+          git config --global user.email "luis@filipe.xyz"
+          git config --global user.name "filipexyz"
 
       - name: Create SDK Branch and PR
         if: ${{ inputs.publish_sdk }}
@@ -88,7 +88,7 @@ jobs:
 
           # Copy generated files (preserve .git and .github)
           find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -exec rm -rf {} \;
-          cp -r ../generated/sdk/* .
+          cp -r $GITHUB_WORKSPACE/generated/sdk/* .
 
           # Commit and push
           git add .
@@ -126,7 +126,7 @@ jobs:
 
           # Copy generated files (preserve .git and .github)
           find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -exec rm -rf {} \;
-          cp -r ../generated/cli/* .
+          cp -r $GITHUB_WORKSPACE/generated/cli/* .
 
           # Commit and push
           git add .
@@ -169,7 +169,7 @@ jobs:
 
           # Copy generated files (preserve .git and .github)
           find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -exec rm -rf {} \;
-          cp -r ../generated/n8n/* .
+          cp -r $GITHUB_WORKSPACE/generated/n8n/* .
 
           # Commit and push
           git add .
