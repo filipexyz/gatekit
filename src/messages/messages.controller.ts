@@ -183,15 +183,37 @@ export class MessagesController {
     inputType: 'SendMessageDto',
     outputType: 'MessageSendResponse',
     options: {
-      targets: { required: true, description: 'Message targets array', type: 'object' },
-      content: { required: true, description: 'Message content object', type: 'object' },
+      target: {
+        description: 'Single target in format: platformId:type:id',
+        type: 'target_pattern'
+      },
+      targets: {
+        description: 'Multiple targets comma-separated: platformId:type:id,platformId:type:id',
+        type: 'targets_pattern'
+      },
+      text: {
+        description: 'Message text content',
+        type: 'string'
+      },
+      content: {
+        description: 'Full message content object (advanced)',
+        type: 'object'
+      },
       options: { description: 'Message options', type: 'object' },
       metadata: { description: 'Message metadata', type: 'object' }
     },
     examples: [
       {
-        description: 'Send text message',
-        command: 'gatekit messages send --targets "[{\"platformId\":\"id\",\"type\":\"channel\",\"id\":\"123\"}]" --text "Hello!"'
+        description: 'Send to single user',
+        command: 'gatekit messages send --target "platformId:user:253191879" --text "Hello!"'
+      },
+      {
+        description: 'Send to multiple targets',
+        command: 'gatekit messages send --targets "platform1:user:123,platform2:channel:456" --text "Broadcast message"'
+      },
+      {
+        description: 'Advanced with full content object',
+        command: 'gatekit messages send --target "platformId:user:123" --content \'{"text":"Hello","buttons":[{"text":"Click me"}]}\''
       }
     ]
   })

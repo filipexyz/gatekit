@@ -153,7 +153,16 @@ ${allOptions}
       return '{}';
     }
 
-    // Handle type conversion based on contract metadata
+    // Check if we have target patterns
+    const hasTargetPattern = options.target?.type === 'target_pattern';
+    const hasTargetsPattern = options.targets?.type === 'targets_pattern';
+    const hasTextShortcut = options.text?.type === 'string';
+
+    if (hasTargetPattern || hasTargetsPattern || hasTextShortcut) {
+      return this.buildPatternBasedDto(options);
+    }
+
+    // Handle standard type conversion
     const optionEntries = Object.keys(options).map(key => {
       const option = options[key];
 
@@ -177,9 +186,62 @@ ${optionEntries}
         }`;
   }
 
+  private buildPatternBasedDto(options: Record<string, any>): string {
+    return `buildMessageDto(options)`;
+  }
+
 
   private generateCommandHelpers(): string {
     return `
+// Target pattern parsing helpers
+function parseTargetPattern(pattern: string): { platformId: string; type: string; id: string } {
+  const parts = pattern.split(':');
+  if (parts.length !== 3) {
+    throw new Error('Invalid target pattern. Expected format: platformId:type:id');
+  }
+
+  const [platformId, type, id] = parts;
+
+  if (!['user', 'channel', 'group'].includes(type)) {
+    throw new Error('Invalid target type. Must be: user, channel, or group');
+  }
+
+  return { platformId, type, id };
+}
+
+function parseTargetsPattern(pattern: string): Array<{ platformId: string; type: string; id: string }> {
+  const patterns = pattern.split(',').map(p => p.trim());
+  return patterns.map(parseTargetPattern);
+}
+
+function buildMessageDto(options: any): any {
+  const dto: any = {};
+
+  // Handle targets - priority: targets pattern > target pattern > content object
+  if (options.targets) {
+    dto.targets = parseTargetsPattern(options.targets);
+  } else if (options.target) {
+    dto.targets = [parseTargetPattern(options.target)];
+  }
+
+  // Handle content - priority: text shortcut > content object
+  if (options.text) {
+    dto.content = { text: options.text };
+  } else if (options.content) {
+    dto.content = JSON.parse(options.content);
+  }
+
+  // Handle optional fields
+  if (options.options) {
+    dto.options = JSON.parse(options.options);
+  }
+  if (options.metadata) {
+    dto.metadata = JSON.parse(options.metadata);
+  }
+
+  return dto;
+}
+
 async function checkPermissions(config: any, requiredScopes: string[]): Promise<boolean> {
   try {
     // We need to add a permissions method to the SDK
