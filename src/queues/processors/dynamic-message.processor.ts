@@ -119,13 +119,24 @@ export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
           this.logger.log(`⚙️ Queue name: ${this.messageQueue.name}`);
           this.logger.log(`🔧 Queue client type: ${this.messageQueue.client.constructor.name}`);
 
-          // NUCLEAR OPTION: Manually bind processor if decorator failed
-          this.logger.log('☢️ NUCLEAR DEBUG: Attempting manual processor binding...');
-          this.messageQueue.process('send-message', 1, async (job: any) => {
-            this.logger.log(`🚀 MANUAL PROCESSOR TRIGGERED! Job ${job.id}`);
-            return await this.handleSendMessage(job);
+          // ULTRAFIX: Replace broken @Process decorator with manual processing
+          this.logger.log('☢️ ULTRAFIX: Manually binding processor to replace broken @Process decorator...');
+
+          // Bind manual processor with proper concurrency
+          this.messageQueue.process('send-message', 5, async (job: any) => {
+            this.logger.log(`🚀 MANUAL PROCESSOR TRIGGERED! Job ${job.id} - BYPASSING @Process DECORATOR`);
+            try {
+              const result = await this.handleSendMessage(job);
+              this.logger.log(`✅ Manual processor completed job ${job.id} successfully`);
+              return result;
+            } catch (error) {
+              this.logger.error(`❌ Manual processor failed job ${job.id}: ${error.message}`);
+              throw error;
+            }
           });
-          this.logger.log('🔧 Manual processor binding completed');
+
+          this.logger.log('🔧 Manual processor binding completed - should now process waiting jobs');
+          this.logger.log('🎯 @Process decorator bypassed - using direct queue.process() instead');
 
         } catch (error) {
           this.logger.error(`❌ Deep debug failed: ${error.message}`);
@@ -136,7 +147,7 @@ export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
     }, 2000);
   }
 
-  @Process('send-message')
+  // @Process('send-message') <- REMOVED: Decorator doesn't work properly, using manual binding instead
   async handleSendMessage(job: Job<MessageJob>) {
     this.logger.log(`🎯 QUEUE PROCESSOR ACTIVATED! Processing job ${job.id}`);
     this.logger.log(`📨 Job data received - checking job structure...`);

@@ -9,7 +9,12 @@ import { PrismaModule } from '../prisma/prisma.module';
   imports: [
     BullModule.registerQueue({
       name: 'messages',
-      // Don't override global Redis config - use the one from app.module.ts
+      settings: {
+        lockDuration: 5 * 60 * 1000, // 5 minutes (prevent job stalling)
+        maxStalledCount: 0,           // Disable stalled job detection
+        stalledInterval: 30 * 1000,   // Check for stalled jobs every 30s
+        retryProcessDelay: 5000,      // Delay before retrying
+      },
     }),
     PlatformsModule,
     PrismaModule,
