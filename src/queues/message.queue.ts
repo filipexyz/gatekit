@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import { SendMessageDto } from '../platforms/dto/send-message.dto';
@@ -11,12 +11,42 @@ export interface MessageJobData {
 }
 
 @Injectable()
-export class MessageQueue implements OnModuleDestroy {
+export class MessageQueue implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MessageQueue.name);
 
-  constructor(@InjectQueue('messages') private messageQueue: Queue) {}
+  constructor(@InjectQueue('messages') private messageQueue: Queue) {
+    this.logger.log('🏗️ MessageQueue constructor - injected "messages" queue');
+  }
+
+  async onModuleInit() {
+    try {
+      this.logger.log('🔌 MessageQueue onModuleInit - checking Redis connection...');
+
+      // Get Redis client info for debugging
+      const client = this.messageQueue.client;
+      this.logger.log(`📊 Redis Client Status:`, {
+        connected: client.status === 'ready',
+        status: client.status,
+        mode: client.mode,
+        host: client.options?.host || 'unknown',
+        port: client.options?.port || 'unknown',
+        db: client.options?.db || 0,
+      });
+
+      // Test queue operations
+      const metrics = await this.getQueueMetrics();
+      this.logger.log(`📈 Queue Metrics on Startup:`, metrics);
+
+      this.logger.log('✅ MessageQueue Redis connection verified');
+    } catch (error) {
+      this.logger.error(`❌ MessageQueue Redis connection failed: ${error.message}`);
+    }
+  }
 
   async addMessage(data: MessageJobData) {
+    this.logger.log(`🎯 Adding job to queue - Job type: "send-message", Queue: "messages"`);
+    this.logger.log(`📊 Queue metrics before adding:`, await this.getQueueMetrics());
+
     const job = await this.messageQueue.add('send-message', data, {
       attempts: 3,
       backoff: {
@@ -29,8 +59,11 @@ export class MessageQueue implements OnModuleDestroy {
 
     const platformIds = data.message.targets.map(t => t.platformId);
     this.logger.log(
-      `Message queued for ${data.message.targets.length} targets with platformIds: ${platformIds.join(', ')} (Job ID: ${job.id})`,
+      `✅ Message queued for ${data.message.targets.length} targets with platformIds: ${platformIds.join(', ')} (Job ID: ${job.id})`,
     );
+
+    this.logger.log(`📊 Queue metrics after adding:`, await this.getQueueMetrics());
+    this.logger.log(`🔍 Job added to Redis key: bull:messages:send-message (DB: ${this.messageQueue.client.options?.db || 0})`);
 
     return {
       jobId: job.id,

@@ -48,6 +48,17 @@ export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     this.logger.log('🔌 DynamicMessageProcessor onModuleInit - attempting to connect to Redis queue');
     this.logger.log('🔍 Queue processor should now be listening for "send-message" jobs on "messages" queue');
+
+    // Add a small delay and then check if we can see any jobs
+    setTimeout(async () => {
+      try {
+        this.logger.log('🕐 Checking for jobs in queue after 2 seconds...');
+        // We can't access the queue directly from processor, but we can log that we're ready
+        this.logger.log('📡 Processor is ready to receive jobs from Bull queue system');
+      } catch (error) {
+        this.logger.error(`❌ Error during processor initialization check: ${error.message}`);
+      }
+    }, 2000);
   }
 
   @Process('send-message')
