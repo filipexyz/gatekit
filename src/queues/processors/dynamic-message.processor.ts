@@ -1,5 +1,5 @@
 import { Process, Processor, InjectQueue } from '@nestjs/bull';
-import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import type { Queue } from 'bull';
 import type { Job } from 'bull';
 import { PlatformsService } from '../../platforms/platforms.service';
@@ -35,6 +35,7 @@ interface MessageJob {
   };
 }
 
+@Injectable()
 @Processor('messages')
 export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DynamicMessageProcessor.name);
