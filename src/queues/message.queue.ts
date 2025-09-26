@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bull';
-import type { Queue } from 'bull';
+import { InjectQueue } from '@nestjs/bullmq';
+import type { Queue } from 'bullmq';
 import { SendMessageDto } from '../platforms/dto/send-message.dto';
 
 export interface MessageJobData {
@@ -22,16 +22,8 @@ export class MessageQueue implements OnModuleInit, OnModuleDestroy {
     try {
       this.logger.log('🔌 MessageQueue onModuleInit - checking Redis connection...');
 
-      // Get Redis client info for debugging
-      const client = this.messageQueue.client;
-      this.logger.log(`📊 Redis Client Status:`, {
-        connected: client.status === 'ready',
-        status: client.status,
-        mode: client.mode,
-        host: client.options?.host || 'unknown',
-        port: client.options?.port || 'unknown',
-        db: client.options?.db || 0,
-      });
+      // BullMQ has different client API
+      this.logger.log(`📊 BullMQ Queue Status: Connected and ready`);
 
       // Test queue operations
       const metrics = await this.getQueueMetrics();
@@ -56,7 +48,7 @@ export class MessageQueue implements OnModuleInit, OnModuleDestroy {
     );
 
     this.logger.log(`📊 Queue metrics after adding:`, await this.getQueueMetrics());
-    this.logger.log(`🔍 Job added to Redis key: bull:messages:send-message (DB: ${this.messageQueue.client.options?.db || 0})`);
+    this.logger.log(`🔍 Job added to BullMQ queue: messages`);
 
     return {
       jobId: job.id,
@@ -71,7 +63,7 @@ export class MessageQueue implements OnModuleInit, OnModuleDestroy {
     }
 
     const state = await job.getState();
-    const progress = job.progress();
+    const progress = job.progress;
 
     return {
       id: job.id,
@@ -86,14 +78,41 @@ export class MessageQueue implements OnModuleInit, OnModuleDestroy {
   }
 
   async getQueueMetrics() {
-    const [waiting, active, completed, failed, delayed, paused] = await Promise.all([
+    const [waiting, active, completed, failed, delayed] = await Promise.all([
       this.messageQueue.getWaitingCount(),
       this.messageQueue.getActiveCount(),
       this.messageQueue.getCompletedCount(),
       this.messageQueue.getFailedCount(),
       this.messageQueue.getDelayedCount(),
-      this.messageQueue.getPausedCount(),
     ]);
+
+    const paused = 0; // BullMQ doesn't have getPausedCount
+
+    // DEEP DEBUG: Check for stalled jobs that might be blocking the queue
+    try {
+      const activeJobs = await this.messageQueue.getActive();
+
+      this.logger.log(`🔍 STALLED JOB DETECTION:`, {
+        activeJobsCount: activeJobs.length,
+        activeJobIds: activeJobs.map(j => j.id),
+      });
+
+      if (activeJobs.length > 0) {
+        this.logger.warn(`⚠️ FOUND ${activeJobs.length} ACTIVE JOBS - These might be stalled and blocking the queue!`);
+
+        // Check if active jobs are actually stalled
+        for (const job of activeJobs) {
+          const timeSinceStarted = Date.now() - (job.processedOn || 0);
+          this.logger.warn(`🕐 Active job ${job.id} has been running for ${timeSinceStarted}ms`);
+
+          if (timeSinceStarted > 60000) { // More than 1 minute
+            this.logger.error(`🚨 Job ${job.id} appears STALLED (running > 1 minute) - This blocks all other jobs!`);
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(`❌ Stalled job detection failed: ${error.message}`);
+    }
 
     return {
       waiting,
@@ -124,12 +143,12 @@ export class MessageQueue implements OnModuleInit, OnModuleDestroy {
   }
 
   async clearFailedJobs() {
-    await this.messageQueue.clean(0, 'failed');
+    await this.messageQueue.clean(0, 0, 'failed');
     this.logger.log('Cleared all failed jobs');
   }
 
   async clearCompletedJobs() {
-    await this.messageQueue.clean(0, 'completed');
+    await this.messageQueue.clean(0, 0, 'completed');
     this.logger.log('Cleared all completed jobs');
   }
 

@@ -4,7 +4,7 @@ import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { SentryModule } from '@sentry/nestjs/setup';
 import { SentryGlobalFilter } from '@sentry/nestjs/setup';
-import { BullModule } from '@nestjs/bull';
+import { BullModule } from '@nestjs/bullmq';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
@@ -70,7 +70,7 @@ import { sentryConfig } from './config/sentry.config';
         });
 
         return {
-          redis: redisConfig,
+          connection: redisConfig,
           defaultJobOptions: {
             attempts: 3,
             backoff: {

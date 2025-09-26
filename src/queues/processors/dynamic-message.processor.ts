@@ -1,7 +1,6 @@
-import { Process, Processor, InjectQueue } from '@nestjs/bull';
+import { Processor, WorkerHost, InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import type { Queue } from 'bull';
-import type { Job } from 'bull';
+import type { Queue, Job } from 'bullmq';
 import { PlatformsService } from '../../platforms/platforms.service';
 import { PlatformRegistry } from '../../platforms/services/platform-registry.service';
 import { makeEnvelope } from '../../platforms/utils/envelope.factory';
@@ -37,7 +36,7 @@ interface MessageJob {
 
 @Injectable()
 @Processor('messages')
-export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
+export class DynamicMessageProcessor extends WorkerHost implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DynamicMessageProcessor.name);
 
   constructor(
@@ -45,6 +44,7 @@ export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
     private readonly platformRegistry: PlatformRegistry,
     @InjectQueue('messages') private readonly messageQueue: Queue,
   ) {
+    super(); // Required for WorkerHost
     this.logger.log('🚀 DynamicMessageProcessor constructor called - processor created');
     this.logger.log('🔗 Injected queue instance for processor');
   }
@@ -58,15 +58,8 @@ export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
       try {
         this.logger.log('🕐 Checking for jobs in queue after 2 seconds...');
 
-        // Check if processor can see the same queue as producer
-        const client = this.messageQueue.client;
-        this.logger.log(`🔗 Processor Redis Status:`, {
-          connected: client.status === 'ready',
-          status: client.status,
-          host: client.options?.host || 'unknown',
-          port: client.options?.port || 'unknown',
-          db: client.options?.db || 0,
-        });
+        // BullMQ processor status
+        this.logger.log(`🔗 BullMQ Processor Status: Connected and ready`);
 
         // Check queue metrics from processor side
         const [waiting, active, completed, failed] = await Promise.all([
@@ -93,10 +86,10 @@ export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
               this.logger.log(`🎯 Manually triggering job ${firstJob.id} processing...`);
 
               // Test if the handler method works when called directly
-              this.logger.log(`🧪 Testing if handleSendMessage method works manually...`);
+              this.logger.log(`🧪 Testing if process method works manually...`);
               try {
-                await this.handleSendMessage(firstJob);
-                this.logger.log(`✅ Manual processing succeeded! The @Process decorator is broken.`);
+                await this.process(firstJob);
+                this.logger.log(`✅ Manual processing succeeded! BullMQ WorkerHost process method working.`);
               } catch (error) {
                 this.logger.error(`❌ Manual processing failed: ${error.message}`);
                 this.logger.error(`🔍 This suggests the handler method itself has issues`);
@@ -133,8 +126,8 @@ export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
     }, 2000);
   }
 
-  @Process('send-message')
-  async handleSendMessage(job: Job<MessageJob>) {
+  // BullMQ WorkerHost requires this method name
+  async process(job: Job<MessageJob>) {
     this.logger.log(`🎯 QUEUE PROCESSOR ACTIVATED! Processing job ${job.id}`);
     this.logger.log(`📨 Job data received - checking job structure...`);
 

@@ -1,5 +1,5 @@
 import { Module, Logger, OnModuleInit } from '@nestjs/common';
-import { BullModule } from '@nestjs/bull';
+import { BullModule } from '@nestjs/bullmq';
 import { MessageQueue } from './message.queue';
 import { DynamicMessageProcessor } from './processors/dynamic-message.processor';
 import { PlatformsModule } from '../platforms/platforms.module';
@@ -9,12 +9,7 @@ import { PrismaModule } from '../prisma/prisma.module';
   imports: [
     BullModule.registerQueue({
       name: 'messages',
-      settings: {
-        lockDuration: 5 * 60 * 1000, // 5 minutes (prevent job stalling)
-        maxStalledCount: 0,           // Disable stalled job detection
-        stalledInterval: 30 * 1000,   // Check for stalled jobs every 30s
-        retryProcessDelay: 5000,      // Delay before retrying
-      },
+      // BullMQ uses different worker settings - configured in app.module.ts
     }),
     PlatformsModule,
     PrismaModule,
