@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { PlatformRegistry } from '../services/platform-registry.service';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('api/v1/webhooks')
 export class DynamicWebhookController {
@@ -25,6 +26,7 @@ export class DynamicWebhookController {
    * Dynamic webhook handler that routes to the appropriate platform provider
    * This single endpoint handles all platform webhooks dynamically
    */
+  @Public()
   @All(':platform/:webhookToken')
   async handleWebhook(
     @Param('platform') platform: string,
@@ -34,7 +36,11 @@ export class DynamicWebhookController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    this.logger.log(`Received webhook for platform: ${platform}, token: ${webhookToken.substring(0, 8)}...`);
+    this.logger.log(`🔔 WEBHOOK RECEIVED! Platform: ${platform}, Method: ${req.method}, IP: ${req.ip}`);
+    this.logger.log(`🎯 Webhook token: ${webhookToken.substring(0, 8)}...`);
+    this.logger.log(`📨 Body size: ${JSON.stringify(body).length} bytes`);
+    this.logger.log(`🔗 Headers: User-Agent: ${headers['user-agent'] || 'none'}`);
+    this.logger.log(`📍 Full URL: ${req.protocol}://${req.get('host')}${req.originalUrl}`);
 
     // Get the platform provider
     const provider = this.platformRegistry.getProvider(platform);
@@ -106,6 +112,7 @@ export class DynamicWebhookController {
   /**
    * Health check endpoint for webhooks
    */
+  @Public()
   @Post('health')
   async webhookHealth() {
     const providers = this.platformRegistry.getAllProviders();
