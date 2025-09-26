@@ -1,5 +1,5 @@
 import { Process, Processor } from '@nestjs/bull';
-import { Logger, OnModuleDestroy } from '@nestjs/common';
+import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import type { Job } from 'bull';
 import { PlatformsService } from '../../platforms/platforms.service';
 import { PlatformRegistry } from '../../platforms/services/platform-registry.service';
@@ -35,20 +35,30 @@ interface MessageJob {
 }
 
 @Processor('messages')
-export class DynamicMessageProcessor implements OnModuleDestroy {
+export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DynamicMessageProcessor.name);
 
   constructor(
     private readonly platformsService: PlatformsService,
     private readonly platformRegistry: PlatformRegistry,
-  ) {}
+  ) {
+    this.logger.log('🚀 DynamicMessageProcessor constructor called - processor created');
+  }
+
+  async onModuleInit() {
+    this.logger.log('🔌 DynamicMessageProcessor onModuleInit - attempting to connect to Redis queue');
+    this.logger.log('🔍 Queue processor should now be listening for "send-message" jobs on "messages" queue');
+  }
 
   @Process('send-message')
   async handleSendMessage(job: Job<MessageJob>) {
+    this.logger.log(`🎯 QUEUE PROCESSOR ACTIVATED! Processing job ${job.id}`);
+    this.logger.log(`📨 Job data received - checking job structure...`);
+
     const { projectSlug, projectId, message } = job.data;
 
     this.logger.log(
-      `Processing message job ${job.id} - Targets: ${message.targets.length}`,
+      `📊 Processing message job ${job.id} - Project: ${projectSlug}, Targets: ${message.targets.length}, PlatformIds: ${message.targets.map(t => t.platformId).join(', ')}`,
     );
 
     const results: any[] = [];
@@ -184,7 +194,8 @@ export class DynamicMessageProcessor implements OnModuleDestroy {
   }
 
   async onModuleDestroy() {
-    this.logger.log('Message processor shutting down, cleaning up platform providers...');
+    this.logger.log('🔌 DynamicMessageProcessor onModuleDestroy - shutting down processor');
+    this.logger.log('🛑 Message processor shutting down, cleaning up platform providers...');
 
     // Let the platform registry handle cleanup
     await this.platformRegistry.getAllProviders().forEach(async (provider) => {
