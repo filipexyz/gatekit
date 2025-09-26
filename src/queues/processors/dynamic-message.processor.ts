@@ -90,13 +90,49 @@ export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
             if (waitingJobs.length > 0) {
               const firstJob = waitingJobs[0];
               this.logger.log(`🎯 Manually triggering job ${firstJob.id} processing...`);
-              // The @Process decorator should handle this, but let's see if manual trigger works
+
+              // Test if the handler method works when called directly
+              this.logger.log(`🧪 Testing if handleSendMessage method works manually...`);
+              try {
+                await this.handleSendMessage(firstJob);
+                this.logger.log(`✅ Manual processing succeeded! The @Process decorator is broken.`);
+              } catch (error) {
+                this.logger.error(`❌ Manual processing failed: ${error.message}`);
+                this.logger.error(`🔍 This suggests the handler method itself has issues`);
+              }
             }
           } catch (error) {
             this.logger.error(`❌ Manual job processing failed: ${error.message}`);
           }
         } else {
           this.logger.log('📡 Processor is ready to receive jobs from Bull queue system');
+        }
+
+        // DEEP DEBUG: Check if Bull.js queue is properly configured for processing
+        this.logger.log('🔬 DEEP DEBUG: Checking Bull queue processing configuration...');
+        try {
+          // Check if queue is paused
+          const isPaused = await this.messageQueue.isPaused();
+          this.logger.log(`⏸️ Queue paused status: ${isPaused}`);
+
+          // Check concurrency
+          const opts = this.messageQueue.opts;
+          this.logger.log(`⚙️ Queue options:`, {
+            concurrency: opts.settings?.maxStalledCount,
+            stalledInterval: opts.settings?.stalledInterval,
+            retryProcessDelay: opts.settings?.retryProcessDelay,
+          });
+
+          // NUCLEAR OPTION: Manually bind processor if decorator failed
+          this.logger.log('☢️ NUCLEAR DEBUG: Attempting manual processor binding...');
+          this.messageQueue.process('send-message', 1, async (job: any) => {
+            this.logger.log(`🚀 MANUAL PROCESSOR TRIGGERED! Job ${job.id}`);
+            return await this.handleSendMessage(job);
+          });
+          this.logger.log('🔧 Manual processor binding completed');
+
+        } catch (error) {
+          this.logger.error(`❌ Deep debug failed: ${error.message}`);
         }
       } catch (error) {
         this.logger.error(`❌ Error during processor initialization check: ${error.message}`);
