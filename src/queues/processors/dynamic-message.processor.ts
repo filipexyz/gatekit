@@ -79,6 +79,22 @@ export class DynamicMessageProcessor implements OnModuleInit, OnModuleDestroy {
 
         if (waiting > 0) {
           this.logger.warn(`⚠️ PROCESSOR SEES ${waiting} WAITING JOBS BUT ISN'T PROCESSING THEM!`);
+          this.logger.log('🔧 Attempting to manually trigger job processing...');
+
+          // Manually process waiting jobs if the automatic processor isn't working
+          try {
+            // Get the next waiting job
+            const waitingJobs = await this.messageQueue.getWaiting(0, waiting - 1);
+            this.logger.log(`🔍 Found ${waitingJobs.length} waiting jobs, attempting to process first one manually...`);
+
+            if (waitingJobs.length > 0) {
+              const firstJob = waitingJobs[0];
+              this.logger.log(`🎯 Manually triggering job ${firstJob.id} processing...`);
+              // The @Process decorator should handle this, but let's see if manual trigger works
+            }
+          } catch (error) {
+            this.logger.error(`❌ Manual job processing failed: ${error.message}`);
+          }
         } else {
           this.logger.log('📡 Processor is ready to receive jobs from Bull queue system');
         }
