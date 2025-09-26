@@ -10,6 +10,7 @@ interface GeneratedSDK {
   errors: string;
   index: string;
   packageJson: string;
+  readme: string;
 }
 
 export class SDKGenerator {
@@ -61,6 +62,7 @@ export class SDKGenerator {
       errors: this.generateErrors(),
       index: this.generateIndex(contracts),
       packageJson: this.generatePackageJson(),
+      readme: this.generateReadme(contracts),
     };
   }
 
@@ -477,6 +479,7 @@ export const CONTRACTS_COUNT = ${contracts.length};
       fs.writeFile(path.join(srcDir, 'index.ts'), sdk.index),
       fs.writeFile(path.join(outputDir, 'package.json'), sdk.packageJson),
       fs.writeFile(path.join(outputDir, 'tsconfig.json'), this.generateTSConfig()),
+      fs.writeFile(path.join(outputDir, 'README.md'), sdk.readme),
     ]);
   }
 
@@ -499,6 +502,118 @@ export const CONTRACTS_COUNT = ${contracts.length};
       include: ['src/**/*'],
       exclude: ['node_modules', 'dist']
     }, null, 2);
+  }
+
+  private generateReadme(contracts: ExtractedContract[]): string {
+    const categories = this.groupContractsByCategory(contracts);
+    const categoryExamples = Object.entries(categories)
+      .map(([category, contracts]) => {
+        const examples = contracts.slice(0, 2).map(contract => {
+          const example = contract.contractMetadata.examples?.[0];
+          return `### ${contract.contractMetadata.description}
+\`\`\`typescript
+// ${example?.description || 'Usage example'}
+${this.generateSDKExample(contract)}
+\`\`\``;
+        }).join('\n\n');
+
+        return `## ${category}\n\n${examples}`;
+      }).join('\n\n');
+
+    return `# @gatekit/sdk
+
+TypeScript SDK for GateKit - Universal messaging gateway API.
+
+## Installation
+
+\`\`\`bash
+npm install @gatekit/sdk
+\`\`\`
+
+## Quick Start
+
+\`\`\`typescript
+import { GateKit } from '@gatekit/sdk';
+
+const gk = new GateKit({
+  apiUrl: 'https://api.gatekit.dev',
+  apiKey: 'gk_live_your_api_key_here',
+});
+
+// Send a message
+const result = await gk.messages.send('project-slug', {
+  targets: [{ platformId: 'platform-id', type: 'user', id: '123' }],
+  content: { text: 'Hello from GateKit!' }
+});
+
+console.log('Message sent:', result.jobId);
+\`\`\`
+
+## Configuration
+
+\`\`\`typescript
+const gk = new GateKit({
+  apiUrl: 'https://api.gatekit.dev',     // API endpoint
+  apiKey: 'gk_live_your_key',           // API key authentication
+  // OR
+  jwtToken: 'your_jwt_token',           // JWT authentication
+  timeout: 30000,                       // Request timeout (ms)
+  retries: 3,                           // Retry attempts
+});
+\`\`\`
+
+## API Reference
+
+${categoryExamples}
+
+## Error Handling
+
+\`\`\`typescript
+try {
+  const result = await gk.messages.send('project', messageData);
+} catch (error) {
+  if (error.code === 'INSUFFICIENT_PERMISSIONS') {
+    console.error('Permission denied:', error.message);
+  } else if (error.code === 'VALIDATION_ERROR') {
+    console.error('Invalid data:', error.details);
+  } else {
+    console.error('API error:', error.message);
+  }
+}
+\`\`\`
+
+## Links
+
+- **Documentation**: [docs.gatekit.dev](https://docs.gatekit.dev)
+- **Dashboard**: [app.gatekit.dev](https://app.gatekit.dev)
+- **CLI Package**: [@gatekit/cli](https://www.npmjs.com/package/@gatekit/cli)
+- **GitHub**: [github.com/gatekit](https://github.com/gatekit)
+
+`;
+  }
+
+  private generateSDKExample(contract: ExtractedContract): string {
+    const { contractMetadata, path } = contract;
+    const category = contractMetadata.category?.toLowerCase() || 'api';
+    const methodName = this.getMethodName(contractMetadata.command);
+
+    // Extract path params
+    const pathParams = this.extractPathParameters(path);
+    const hasInput = contractMetadata.inputType && contractMetadata.inputType !== 'any';
+
+    if (pathParams.length === 0 && !hasInput) {
+      return `await gk.${category}.${methodName}();`;
+    }
+
+    if (pathParams.length === 1 && !hasInput) {
+      return `await gk.${category}.${methodName}('project-slug');`;
+    }
+
+    if (pathParams.length === 1 && hasInput) {
+      return `await gk.${category}.${methodName}('project-slug', data);`;
+    }
+
+    return `await gk.${category}.${methodName}(${pathParams.map(p => `'${p}'`).join(', ')}${hasInput ? ', data' : ''});`;
   }
 }
 

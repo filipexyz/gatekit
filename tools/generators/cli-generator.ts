@@ -9,6 +9,7 @@ interface GeneratedCLI {
   index: string;
   config: string;
   packageJson: string;
+  readme: string;
 }
 
 export class CLIGenerator {
@@ -46,6 +47,7 @@ export class CLIGenerator {
       index: this.generateIndex(contracts, groups),
       config: this.generateConfig(),
       packageJson: this.generatePackageJson(),
+      readme: this.generateReadme(contracts, groups),
     };
   }
 
@@ -432,6 +434,7 @@ export function handleError(error: any): void {
       fs.writeFile(path.join(libDir, 'utils.ts'), cli.config),
       fs.writeFile(path.join(outputDir, 'package.json'), cli.packageJson),
       fs.writeFile(path.join(outputDir, 'tsconfig.json'), this.generateTSConfig()),
+      fs.writeFile(path.join(outputDir, 'README.md'), cli.readme),
     ]);
   }
 
@@ -454,6 +457,131 @@ export function handleError(error: any): void {
       include: ['src/**/*'],
       exclude: ['node_modules', 'dist']
     }, null, 2);
+  }
+
+  private generateReadme(contracts: ExtractedContract[], groups: Record<string, ExtractedContract[]>): string {
+    const commandExamples = Object.entries(groups)
+      .map(([category, contracts]) => {
+        const examples = contracts.slice(0, 3).map(contract => {
+          const example = contract.contractMetadata.examples?.[0];
+          return `### ${contract.contractMetadata.description}
+\`\`\`bash
+${example?.command || `gatekit ${contract.contractMetadata.command} --help`}
+\`\`\``;
+        }).join('\n\n');
+
+        return `## ${category}\n\n${examples}`;
+      }).join('\n\n');
+
+    return `# @gatekit/cli
+
+Official CLI for GateKit - Universal messaging gateway.
+
+## Installation
+
+\`\`\`bash
+npm install -g @gatekit/cli
+\`\`\`
+
+## Authentication
+
+### API Key (Recommended)
+\`\`\`bash
+export GATEKIT_API_KEY="gk_live_your_api_key_here"
+export GATEKIT_API_URL="https://api.gatekit.dev"
+\`\`\`
+
+### Environment Setup
+\`\`\`bash
+# Production
+export GATEKIT_API_URL="https://api.gatekit.dev"
+
+# Local development
+export GATEKIT_API_URL="http://localhost:3000"
+\`\`\`
+
+## Quick Start
+
+\`\`\`bash
+# Send a message with simplified pattern
+gatekit messages send --projectSlug my-project \\
+  --target "platformId:user:123" \\
+  --text "Hello from GateKit!"
+
+# List received messages
+gatekit messages list --projectSlug my-project --limit 10
+
+# Get message statistics
+gatekit messages stats --projectSlug my-project
+\`\`\`
+
+## Revolutionary Pattern System
+
+Instead of complex JSON, use simple patterns:
+
+\`\`\`bash
+# Single target
+--target "platformId:user:253191879"
+
+# Multiple targets
+--targets "platform1:user:123,platform2:channel:456"
+
+# Text shortcut
+--text "Your message"
+\`\`\`
+
+## Command Reference
+
+${commandExamples}
+
+## Permission System
+
+The CLI automatically checks your permissions and shows only available commands:
+
+\`\`\`bash
+# If you lack permissions, you'll see:
+❌ Insufficient permissions. Required: messages:send
+
+# Get your current permissions:
+gatekit auth whoami
+\`\`\`
+
+## Advanced Usage
+
+### Complex Content
+\`\`\`bash
+gatekit messages send --projectSlug my-project \\
+  --target "platformId:user:123" \\
+  --content '{"text":"Hello","buttons":[{"text":"Click me"}]}'
+\`\`\`
+
+### Filtering Messages
+\`\`\`bash
+# Filter by platform
+gatekit messages list --platform telegram
+
+# Filter by date range
+gatekit messages list --startDate "2024-01-01T00:00:00Z"
+
+# Get failed messages
+gatekit messages sent --status failed
+\`\`\`
+
+## Error Handling
+
+The CLI provides helpful error messages:
+- **Pattern validation**: Invalid target format guidance
+- **Permission errors**: Clear permission requirements
+- **API errors**: Detailed error descriptions
+
+## Links
+
+- **SDK Package**: [@gatekit/sdk](https://www.npmjs.com/package/@gatekit/sdk)
+- **Documentation**: [docs.gatekit.dev](https://docs.gatekit.dev)
+- **Dashboard**: [app.gatekit.dev](https://app.gatekit.dev)
+- **GitHub**: [github.com/gatekit](https://github.com/gatekit)
+
+`;
   }
 }
 
