@@ -7,7 +7,7 @@ export interface SdkContractOption {
   description?: string;
   choices?: string[];
   default?: unknown;
-  type?: 'string' | 'number' | 'boolean' | 'object';
+  type?: 'string' | 'number' | 'boolean' | 'object' | 'target_pattern' | 'targets_pattern';
 }
 
 export interface SdkContractMetadata {

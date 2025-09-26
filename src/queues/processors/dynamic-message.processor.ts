@@ -57,7 +57,7 @@ export class DynamicMessageProcessor implements OnModuleDestroy {
     // Process each target separately
     for (const target of message.targets) {
       try {
-        // Get platform configuration by ID
+        // Get platform configuration by ID - fail immediately if not found
         const platformConfig = await this.platformsService.getProjectPlatform(target.platformId);
 
         this.logger.log(
@@ -134,8 +134,25 @@ export class DynamicMessageProcessor implements OnModuleDestroy {
         });
 
       } catch (error) {
+        // Check if this is a permanent failure that shouldn't be retried
+        const isPermanentFailure =
+          error.message.includes('Platform configuration') ||
+          error.message.includes('not found') ||
+          error.message.includes('timed out') ||
+          error.message.includes('disabled') ||
+          error.message.includes('invalid');
+
+        if (isPermanentFailure) {
+          this.logger.error(
+            `[PERMANENT FAILURE] Platform ${target.platformId} - ${error.message} - MARKING JOB AS FAILED`,
+          );
+
+          // Throw to mark the entire job as permanently failed
+          throw new Error(`PERMANENT_FAILURE: Platform ${target.platformId} - ${error.message}`);
+        }
+
         this.logger.error(
-          `Failed to send message to platformId ${target.platformId}:${target.type}:${target.id}: ${error.message}`,
+          `Failed to send message to platformId ${target.platformId}:${target.type}:${target.id}: ${error.message} - will retry`,
         );
 
         errors.push({

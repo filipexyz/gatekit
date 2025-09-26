@@ -264,19 +264,12 @@ export class PlatformsService {
     try {
       logger.log(`[VALIDATION START] Checking platformId: ${platformId}`);
 
-      // Add timeout to prevent hanging queries
+      // Direct query with immediate failure on timeout - no hanging connections
       logger.log(`[VALIDATION QUERY] Starting database query for platformId: ${platformId}`);
-      const platform = await Promise.race([
-        this.prisma.projectPlatform.findUnique({
-          where: { id: platformId },
-        }),
-        new Promise((_, reject) =>
-          setTimeout(() => {
-            logger.error(`[VALIDATION TIMEOUT] Database query timed out for platformId: ${platformId}`);
-            reject(new Error('Database query timeout'));
-          }, 5000)
-        )
-      ]) as any;
+
+      const platform = await this.prisma.projectPlatform.findUnique({
+        where: { id: platformId },
+      });
 
       logger.log(`[VALIDATION QUERY COMPLETE] Query result for ${platformId}: ${platform ? 'FOUND' : 'NOT_FOUND'}`);
 
@@ -298,9 +291,7 @@ export class PlatformsService {
       return platform;
     } catch (error) {
       logger.error(`[VALIDATION ERROR] Failed to validate platformId ${platformId}: ${error.message}`);
-      if (error.message === 'Database query timeout') {
-        throw new BadRequestException('Platform validation timed out');
-      }
+      // Fail fast - don't retry, don't hang
       throw error;
     }
   }
