@@ -17,6 +17,7 @@ coverage
 Dockerfile
 docker-compose.yml
 .dockerignore
-generated/
+generated/cli/
+generated/sdk/
+generated/n8n/
 test-sdk.ts
-tools/
