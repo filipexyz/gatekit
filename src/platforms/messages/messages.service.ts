@@ -48,11 +48,68 @@ export class MessagesService {
   }
 
   async getMessageStatus(jobId: string) {
-    const status = await this.messageQueue.getJobStatus(jobId);
-    if (!status) {
+    // Get job status from queue
+    const jobStatus = await this.messageQueue.getJobStatus(jobId);
+    if (!jobStatus) {
       throw new NotFoundException(`Job ${jobId} not found`);
     }
-    return status;
+
+    // Get actual delivery results from database
+    const deliveryResults = await this.prisma.sentMessage.findMany({
+      where: { jobId },
+      select: {
+        id: true,
+        platformId: true,
+        platform: true,
+        targetChatId: true,
+        targetUserId: true,
+        targetType: true,
+        status: true,
+        errorMessage: true,
+        providerMessageId: true,
+        sentAt: true,
+        createdAt: true,
+      },
+    });
+
+    // Calculate delivery summary
+    const totalTargets = deliveryResults.length;
+    const successfulDeliveries = deliveryResults.filter(r => r.status === 'sent').length;
+    const failedDeliveries = deliveryResults.filter(r => r.status === 'failed').length;
+    const pendingDeliveries = deliveryResults.filter(r => r.status === 'pending').length;
+
+    // Determine overall status
+    let overallStatus: 'completed' | 'failed' | 'partial' | 'pending';
+    if (pendingDeliveries > 0) {
+      overallStatus = 'pending';
+    } else if (successfulDeliveries === totalTargets) {
+      overallStatus = 'completed';
+    } else if (failedDeliveries === totalTargets) {
+      overallStatus = 'failed';
+    } else {
+      overallStatus = 'partial';
+    }
+
+    return {
+      ...jobStatus,
+      delivery: {
+        overallStatus,
+        summary: {
+          totalTargets,
+          successful: successfulDeliveries,
+          failed: failedDeliveries,
+          pending: pendingDeliveries,
+        },
+        results: deliveryResults,
+        errors: deliveryResults
+          .filter(r => r.status === 'failed' && r.errorMessage)
+          .map(r => ({
+            platform: r.platform,
+            target: `${r.targetType}:${r.targetChatId}`,
+            error: r.errorMessage,
+          })),
+      },
+    };
   }
 
   async getQueueMetrics() {

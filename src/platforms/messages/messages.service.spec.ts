@@ -17,6 +17,9 @@ describe('MessagesService', () => {
     projectPlatform: {
       findUnique: jest.fn(),
     },
+    sentMessage: {
+      findMany: jest.fn(),
+    },
   };
 
   const mockMessageQueue = {
@@ -190,21 +193,62 @@ describe('MessagesService', () => {
   });
 
   describe('getMessageStatus', () => {
-    it('should return message status', async () => {
+    it('should return enhanced message status with delivery results', async () => {
       const jobId = 'job-123';
-      const mockStatus = {
+      const mockJobStatus = {
         jobId,
         status: 'completed',
         progress: 100,
         result: { success: true },
       };
 
-      mockMessageQueue.getJobStatus.mockResolvedValue(mockStatus);
+      const mockDeliveryResults = [
+        {
+          id: 'sent-1',
+          platformId: 'platform-1',
+          platform: 'telegram',
+          targetChatId: '123456',
+          targetUserId: 'user-1',
+          targetType: 'user',
+          status: 'failed',
+          errorMessage: 'EFATAL: Telegram Bot Token not provided!',
+          providerMessageId: null,
+          sentAt: null,
+          createdAt: new Date(),
+        },
+      ];
+
+      mockMessageQueue.getJobStatus.mockResolvedValue(mockJobStatus);
+      mockPrismaService.sentMessage.findMany.mockResolvedValue(mockDeliveryResults);
 
       const result = await service.getMessageStatus(jobId);
 
-      expect(result).toEqual(mockStatus);
+      expect(result).toEqual({
+        ...mockJobStatus,
+        delivery: {
+          overallStatus: 'failed',
+          summary: {
+            totalTargets: 1,
+            successful: 0,
+            failed: 1,
+            pending: 0,
+          },
+          results: mockDeliveryResults,
+          errors: [
+            {
+              platform: 'telegram',
+              target: 'user:123456',
+              error: 'EFATAL: Telegram Bot Token not provided!',
+            },
+          ],
+        },
+      });
+
       expect(mockMessageQueue.getJobStatus).toHaveBeenCalledWith(jobId);
+      expect(mockPrismaService.sentMessage.findMany).toHaveBeenCalledWith({
+        where: { jobId },
+        select: expect.any(Object),
+      });
     });
 
     it('should throw NotFoundException when job does not exist', async () => {

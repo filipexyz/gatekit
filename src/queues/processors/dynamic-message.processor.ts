@@ -187,8 +187,10 @@ export class DynamicMessageProcessor extends WorkerHost implements OnModuleInit,
       } catch (error) {
         // Check if this is a permanent failure that shouldn't be retried
         const isPermanentFailure =
+          error.message.includes('EFATAL') ||
           error.message.includes('Platform configuration') ||
           error.message.includes('not found') ||
+          error.message.includes('not provided') ||
           error.message.includes('timed out') ||
           error.message.includes('disabled') ||
           error.message.includes('invalid');
