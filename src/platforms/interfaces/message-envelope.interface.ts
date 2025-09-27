@@ -1,4 +1,4 @@
-export type ChannelType = 'discord' | 'telegram';
+export type ChannelType = 'discord' | 'telegram' | 'whatsapp-evo';
 
 export interface UserRef {
   providerUserId: string;

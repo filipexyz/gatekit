@@ -1,9 +1,16 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlatformDto } from './dto/create-platform.dto';
 import { UpdatePlatformDto } from './dto/update-platform.dto';
 import { CryptoUtil } from '../common/utils/crypto.util';
 import { CredentialValidationService } from './services/credential-validation.service';
+import { PlatformRegistry } from './services/platform-registry.service';
 import TelegramBot = require('node-telegram-bot-api');
 
 @Injectable()
@@ -13,6 +20,7 @@ export class PlatformsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly credentialValidator: CredentialValidationService,
+    private readonly platformRegistry: PlatformRegistry,
   ) {}
 
   private getWebhookUrl(platform: string, webhookToken: string): string {
@@ -26,13 +34,18 @@ export class PlatformsService {
     });
 
     if (!project) {
-      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
+      throw new NotFoundException(
+        `Project with slug '${projectSlug}' not found`,
+      );
     }
 
     // Note: Multiple instances of the same platform are now allowed per project
 
     // Validate credentials before saving
-    this.credentialValidator.validateAndThrow(createPlatformDto.platform, createPlatformDto.credentials);
+    this.credentialValidator.validateAndThrow(
+      createPlatformDto.platform,
+      createPlatformDto.credentials,
+    );
 
     // Encrypt credentials
     const encryptedCredentials = CryptoUtil.encrypt(
@@ -69,7 +82,9 @@ export class PlatformsService {
     });
 
     if (!project) {
-      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
+      throw new NotFoundException(
+        `Project with slug '${projectSlug}' not found`,
+      );
     }
 
     return project.projectPlatforms.map((platform) => ({
@@ -89,7 +104,9 @@ export class PlatformsService {
     });
 
     if (!project) {
-      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
+      throw new NotFoundException(
+        `Project with slug '${projectSlug}' not found`,
+      );
     }
 
     const platform = await this.prisma.projectPlatform.findFirst({
@@ -120,13 +137,19 @@ export class PlatformsService {
     };
   }
 
-  async update(projectSlug: string, platformId: string, updatePlatformDto: UpdatePlatformDto) {
+  async update(
+    projectSlug: string,
+    platformId: string,
+    updatePlatformDto: UpdatePlatformDto,
+  ) {
     const project = await this.prisma.project.findUnique({
       where: { slug: projectSlug },
     });
 
     if (!project) {
-      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
+      throw new NotFoundException(
+        `Project with slug '${projectSlug}' not found`,
+      );
     }
 
     const existingPlatform = await this.prisma.projectPlatform.findFirst({
@@ -144,7 +167,10 @@ export class PlatformsService {
 
     if (updatePlatformDto.credentials !== undefined) {
       // Validate credentials before updating
-      this.credentialValidator.validateAndThrow(existingPlatform.platform, updatePlatformDto.credentials);
+      this.credentialValidator.validateAndThrow(
+        existingPlatform.platform,
+        updatePlatformDto.credentials,
+      );
 
       updateData.credentialsEncrypted = CryptoUtil.encrypt(
         JSON.stringify(updatePlatformDto.credentials),
@@ -181,7 +207,9 @@ export class PlatformsService {
     });
 
     if (!project) {
-      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
+      throw new NotFoundException(
+        `Project with slug '${projectSlug}' not found`,
+      );
     }
 
     const platform = await this.prisma.projectPlatform.findFirst({
@@ -214,7 +242,9 @@ export class PlatformsService {
     });
 
     if (!projectPlatform) {
-      throw new NotFoundException(`Platform '${platform}' not configured for project`);
+      throw new NotFoundException(
+        `Platform '${platform}' not configured for project`,
+      );
     }
 
     // No need to check isActive again since we already filtered by it in the query
@@ -224,28 +254,34 @@ export class PlatformsService {
   async getProjectPlatform(platformId: string) {
     try {
       // Add timeout to prevent hanging queries
-      const platform = await Promise.race([
+      const platform = (await Promise.race([
         this.prisma.projectPlatform.findUnique({
           where: { id: platformId },
           include: { project: true },
         }),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Database query timeout')), 5000)
-        )
-      ]) as any;
+          setTimeout(() => reject(new Error('Database query timeout')), 5000),
+        ),
+      ])) as any;
 
       if (!platform) {
-        throw new NotFoundException(`Platform configuration with ID '${platformId}' not found`);
+        throw new NotFoundException(
+          `Platform configuration with ID '${platformId}' not found`,
+        );
       }
 
       if (!platform.isActive) {
-        throw new ConflictException(`Platform configuration '${platformId}' is not active`);
+        throw new ConflictException(
+          `Platform configuration '${platformId}' is not active`,
+        );
       }
 
       // Decrypt credentials with timeout
       let decryptedCredentials;
       try {
-        decryptedCredentials = JSON.parse(CryptoUtil.decrypt(platform.credentialsEncrypted));
+        decryptedCredentials = JSON.parse(
+          CryptoUtil.decrypt(platform.credentialsEncrypted),
+        );
       } catch (error) {
         throw new BadRequestException('Failed to decrypt platform credentials');
       }
@@ -275,13 +311,17 @@ export class PlatformsService {
       logger.log(`[VALIDATION START] Checking platformId: ${platformId}`);
 
       // Direct query with immediate failure on timeout - no hanging connections
-      logger.log(`[VALIDATION QUERY] Starting database query for platformId: ${platformId}`);
+      logger.log(
+        `[VALIDATION QUERY] Starting database query for platformId: ${platformId}`,
+      );
 
       const platform = await this.prisma.projectPlatform.findUnique({
         where: { id: platformId },
       });
 
-      logger.log(`[VALIDATION QUERY COMPLETE] Query result for ${platformId}: ${platform ? 'FOUND' : 'NOT_FOUND'}`);
+      logger.log(
+        `[VALIDATION QUERY COMPLETE] Query result for ${platformId}: ${platform ? 'FOUND' : 'NOT_FOUND'}`,
+      );
 
       if (!platform) {
         logger.warn(`[VALIDATION FAILED] Platform not found: ${platformId}`);
@@ -300,7 +340,9 @@ export class PlatformsService {
       logger.log(`[VALIDATION SUCCESS] Platform validated: ${platformId}`);
       return platform;
     } catch (error) {
-      logger.error(`[VALIDATION ERROR] Failed to validate platformId ${platformId}: ${error.message}`);
+      logger.error(
+        `[VALIDATION ERROR] Failed to validate platformId ${platformId}: ${error.message}`,
+      );
       // Fail fast - don't retry, don't hang
       throw error;
     }
@@ -312,7 +354,9 @@ export class PlatformsService {
     });
 
     if (!project) {
-      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
+      throw new NotFoundException(
+        `Project with slug '${projectSlug}' not found`,
+      );
     }
 
     const platform = await this.prisma.projectPlatform.findFirst({
@@ -327,11 +371,15 @@ export class PlatformsService {
     }
 
     if (!platform.isActive) {
-      throw new BadRequestException('Platform must be active to register webhook');
+      throw new BadRequestException(
+        'Platform must be active to register webhook',
+      );
     }
 
     // Decrypt credentials
-    const credentials = JSON.parse(CryptoUtil.decrypt(platform.credentialsEncrypted));
+    const credentials = JSON.parse(
+      CryptoUtil.decrypt(platform.credentialsEncrypted),
+    );
 
     if (platform.platform === 'telegram') {
       try {
@@ -347,7 +395,9 @@ export class PlatformsService {
           allowed_updates: ['message', 'callback_query', 'inline_query'],
         });
 
-        this.logger.log(`Telegram webhook registered for platform ${platformId}: ${webhookUrl}`);
+        this.logger.log(
+          `Telegram webhook registered for platform ${platformId}: ${webhookUrl}`,
+        );
 
         // Get webhook info to confirm
         const webhookInfo = await bot.getWebHookInfo();
@@ -363,17 +413,88 @@ export class PlatformsService {
           },
         };
       } catch (error) {
-        this.logger.error(`Failed to register Telegram webhook: ${error.message}`);
-        throw new BadRequestException(`Failed to register webhook: ${error.message}`);
+        this.logger.error(
+          `Failed to register Telegram webhook: ${error.message}`,
+        );
+        throw new BadRequestException(
+          `Failed to register webhook: ${error.message}`,
+        );
       }
     } else if (platform.platform === 'discord') {
       // Discord doesn't need webhook registration - it uses WebSocket
       return {
-        message: 'Discord uses WebSocket connection, no webhook registration needed',
+        message:
+          'Discord uses WebSocket connection, no webhook registration needed',
         connectionType: 'websocket',
       };
     } else {
-      throw new BadRequestException(`Platform '${platform.platform}' does not support webhook registration`);
+      throw new BadRequestException(
+        `Platform '${platform.platform}' does not support webhook registration`,
+      );
+    }
+  }
+
+  async getQRCode(projectSlug: string, platformId: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { slug: projectSlug },
+    });
+
+    if (!project) {
+      throw new NotFoundException(
+        `Project with slug '${projectSlug}' not found`,
+      );
+    }
+
+    const platform = await this.prisma.projectPlatform.findFirst({
+      where: {
+        id: platformId,
+        projectId: project.id,
+      },
+    });
+
+    if (!platform) {
+      throw new NotFoundException(`Platform with id '${platformId}' not found`);
+    }
+
+    if (platform.platform !== 'whatsapp-evo') {
+      throw new BadRequestException(
+        'QR code is only available for WhatsApp Evolution API platforms',
+      );
+    }
+
+    if (!platform.isActive) {
+      throw new BadRequestException('Platform must be active to get QR code');
+    }
+
+    // Get WhatsApp provider from registry
+    const whatsappProvider = this.platformRegistry.getProvider('whatsapp-evo');
+    if (!whatsappProvider) {
+      throw new NotFoundException('WhatsApp provider not available');
+    }
+
+    // Check if it's actually our WhatsApp provider with QR code support
+    if ('getQRCode' in whatsappProvider) {
+      const connectionKey = `${project.id}:${platformId}`;
+      const qrCode = await (whatsappProvider as any).getQRCode(connectionKey);
+
+      if (!qrCode) {
+        return {
+          message:
+            'QR code not available yet. Please wait for the connection to initialize.',
+          qrCode: null,
+          status: 'pending',
+        };
+      }
+
+      return {
+        message: 'QR code retrieved successfully',
+        qrCode,
+        status: 'ready',
+      };
+    } else {
+      throw new BadRequestException(
+        'WhatsApp provider does not support QR code retrieval',
+      );
     }
   }
 }
