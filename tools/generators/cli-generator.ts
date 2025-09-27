@@ -141,7 +141,8 @@ ${allOptions}
     }
 
     // Build data object by mapping CLI options to DTO properties using contract metadata
-    const dtoObject = this.buildDtoObjectFromContract(contractMetadata.options || {});
+    // Exclude path parameters from DTO object
+    const dtoObject = this.buildDtoObjectFromContract(contractMetadata.options || {}, pathParams);
 
     // Combine path parameters and data object
     const allArgs = pathParams.length > 0 ? `${pathArgs}, ${dtoObject}` : dtoObject;
@@ -153,7 +154,7 @@ ${allOptions}
     return matches ? matches.map(match => match.substring(1)) : [];
   }
 
-  private buildDtoObjectFromContract(options: Record<string, any>): string {
+  private buildDtoObjectFromContract(options: Record<string, any>, pathParams: string[] = []): string {
     if (!options || Object.keys(options).length === 0) {
       return '{}';
     }
@@ -168,7 +169,9 @@ ${allOptions}
     }
 
     // Handle standard type conversion
-    const optionEntries = Object.keys(options).map(key => {
+    // Filter out path parameters from DTO options
+    const dtoOptions = Object.keys(options).filter(key => !pathParams.includes(key));
+    const optionEntries = dtoOptions.map(key => {
       const option = options[key];
 
       if (option.type === 'object') {
@@ -307,7 +310,7 @@ program
     // Implementation here - delegate to SDK
   });
 
-program.parse();
+program.parse(process.argv);
 `;
   }
 
