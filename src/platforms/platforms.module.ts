@@ -11,6 +11,9 @@ import { PlatformLogsController } from './controllers/platform-logs.controller';
 import { EventBusService } from './services/event-bus.service';
 import { PlatformRegistry } from './services/platform-registry.service';
 import { PlatformLogsService } from './services/platform-logs.service';
+import { CredentialValidationService } from './services/credential-validation.service';
+import { TelegramCredentialsValidator } from './validators/telegram-credentials.validator';
+import { DiscordCredentialsValidator } from './validators/discord-credentials.validator';
 import { PrismaModule } from '../prisma/prisma.module';
 import { EVENT_BUS } from './interfaces/event-bus.interface';
 import { MessageQueue } from '../queues/message.queue';
@@ -48,6 +51,9 @@ import { TelegramProvider } from './providers/telegram.provider';
     EventBusService,
     PlatformRegistry,
     PlatformLogsService,
+    CredentialValidationService,
+    TelegramCredentialsValidator,
+    DiscordCredentialsValidator,
     MessageQueue,
     {
       provide: EVENT_BUS,

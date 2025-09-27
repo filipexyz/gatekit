@@ -3,13 +3,17 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlatformDto } from './dto/create-platform.dto';
 import { UpdatePlatformDto } from './dto/update-platform.dto';
 import { CryptoUtil } from '../common/utils/crypto.util';
+import { CredentialValidationService } from './services/credential-validation.service';
 import TelegramBot = require('node-telegram-bot-api');
 
 @Injectable()
 export class PlatformsService {
   private readonly logger = new Logger(PlatformsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly credentialValidator: CredentialValidationService,
+  ) {}
 
   private getWebhookUrl(platform: string, webhookToken: string): string {
     const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
@@ -26,6 +30,9 @@ export class PlatformsService {
     }
 
     // Note: Multiple instances of the same platform are now allowed per project
+
+    // Validate credentials before saving
+    this.credentialValidator.validateAndThrow(createPlatformDto.platform, createPlatformDto.credentials);
 
     // Encrypt credentials
     const encryptedCredentials = CryptoUtil.encrypt(
@@ -136,6 +143,9 @@ export class PlatformsService {
     const updateData: any = {};
 
     if (updatePlatformDto.credentials !== undefined) {
+      // Validate credentials before updating
+      this.credentialValidator.validateAndThrow(existingPlatform.platform, updatePlatformDto.credentials);
+
       updateData.credentialsEncrypted = CryptoUtil.encrypt(
         JSON.stringify(updatePlatformDto.credentials),
       );

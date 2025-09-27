@@ -3,6 +3,7 @@ import { PlatformsService } from './platforms.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { CryptoUtil } from '../common/utils/crypto.util';
+import { CredentialValidationService } from './services/credential-validation.service';
 
 jest.mock('../common/utils/crypto.util', () => ({
   CryptoUtil: {
@@ -28,6 +29,11 @@ describe('PlatformsService', () => {
     },
   };
 
+  const mockCredentialValidationService = {
+    validateAndThrow: jest.fn(),
+    validate: jest.fn().mockReturnValue({ isValid: true, errors: [] }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -35,6 +41,10 @@ describe('PlatformsService', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: CredentialValidationService,
+          useValue: mockCredentialValidationService,
         },
       ],
     }).compile();
