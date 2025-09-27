@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Request,
+} from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -25,23 +34,25 @@ export class ProjectsController {
         description: 'Project environment',
         choices: ['development', 'staging', 'production'],
         default: 'development',
-        type: 'string'
-      }
+        type: 'string',
+      },
     },
     examples: [
       {
         description: 'Create a simple project',
-        command: 'gatekit projects create --name "My Project"'
+        command: 'gatekit projects create --name "My Project"',
       },
       {
         description: 'Create a project with description',
-        command: 'gatekit projects create --name "My Project" --description "A project for testing new features"'
+        command:
+          'gatekit projects create --name "My Project" --description "A project for testing new features"',
       },
       {
         description: 'Create a production project',
-        command: 'gatekit projects create --name "My Project" --description "Production messaging service" --environment production'
-      }
-    ]
+        command:
+          'gatekit projects create --name "My Project" --description "Production messaging service" --environment production',
+      },
+    ],
   })
   create(@Body() createProjectDto: CreateProjectDto, @Request() req: any) {
     return this.projectsService.create(createProjectDto, req.user.user.id);
@@ -58,13 +69,16 @@ export class ProjectsController {
     examples: [
       {
         description: 'List all projects',
-        command: 'gatekit projects list'
-      }
-    ]
+        command: 'gatekit projects list',
+      },
+    ],
   })
   findAll(@Request() req: any) {
     if (req.authType === 'jwt') {
-      return this.projectsService.findAllForUser(req.user.user.id, req.user.user.isAdmin);
+      return this.projectsService.findAllForUser(
+        req.user.user.id,
+        req.user.user.isAdmin,
+      );
     }
     // For API key authentication, return the single project associated with the key
     return [req.project];
@@ -91,26 +105,31 @@ export class ProjectsController {
       environment: {
         description: 'Project environment',
         choices: ['development', 'staging', 'production'],
-        type: 'string'
+        type: 'string',
       },
-      isDefault: { description: 'Set as default project', type: 'boolean' }
+      isDefault: { description: 'Set as default project', type: 'boolean' },
     },
     examples: [
       {
         description: 'Update project name',
-        command: 'gatekit projects update my-project --name "New Project Name"'
+        command: 'gatekit projects update my-project --name "New Project Name"',
       },
       {
         description: 'Update project description',
-        command: 'gatekit projects update my-project --description "Updated project description"'
+        command:
+          'gatekit projects update my-project --description "Updated project description"',
       },
       {
         description: 'Update both name and description',
-        command: 'gatekit projects update my-project --name "New Name" --description "New description"'
-      }
-    ]
+        command:
+          'gatekit projects update my-project --name "New Name" --description "New description"',
+      },
+    ],
   })
-  update(@Param('slug') slug: string, @Body() updateProjectDto: UpdateProjectDto) {
+  update(
+    @Param('slug') slug: string,
+    @Body() updateProjectDto: UpdateProjectDto,
+  ) {
     return this.projectsService.update(slug, updateProjectDto);
   }
 
@@ -118,7 +137,11 @@ export class ProjectsController {
   @RequireScopes('projects:write')
   remove(@Param('slug') slug: string, @Request() req: any) {
     if (req.authType === 'jwt') {
-      return this.projectsService.remove(slug, req.user.user.id, req.user.user.isAdmin);
+      return this.projectsService.remove(
+        slug,
+        req.user.user.id,
+        req.user.user.isAdmin,
+      );
     }
     // API key users cannot delete projects
     throw new Error('Project deletion not allowed with API key authentication');

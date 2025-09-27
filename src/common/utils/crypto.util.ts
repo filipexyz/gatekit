@@ -1,4 +1,10 @@
-import { randomBytes, createHash, createCipheriv, createDecipheriv, scryptSync } from 'crypto';
+import {
+  randomBytes,
+  createHash,
+  createCipheriv,
+  createDecipheriv,
+  scryptSync,
+} from 'crypto';
 
 export class CryptoUtil {
   private static readonly ENCRYPTION_ALGORITHM = 'aes-256-gcm';
@@ -10,14 +16,14 @@ export class CryptoUtil {
     if (!key) {
       throw new Error(
         'ENCRYPTION_KEY environment variable is required. ' +
-        'Generate a secure key using: openssl rand -hex 32'
+          'Generate a secure key using: openssl rand -hex 32',
       );
     }
 
     if (key.length < 64) {
       throw new Error(
         'ENCRYPTION_KEY must be at least 64 characters (32 bytes hex). ' +
-        'Generate a secure key using: openssl rand -hex 32'
+          'Generate a secure key using: openssl rand -hex 32',
       );
     }
 
@@ -27,7 +33,7 @@ export class CryptoUtil {
     if (this.encryptionKey.length !== 32) {
       throw new Error(
         'ENCRYPTION_KEY must be exactly 32 bytes when decoded from hex. ' +
-        'Generate a secure key using: openssl rand -hex 32'
+          'Generate a secure key using: openssl rand -hex 32',
       );
     }
   }
@@ -39,7 +45,9 @@ export class CryptoUtil {
     return this.encryptionKey;
   }
 
-  static generateApiKey(environment: 'production' | 'staging' | 'development' | 'custom'): string {
+  static generateApiKey(
+    environment: 'production' | 'staging' | 'development' | 'custom',
+  ): string {
     const envPrefix = {
       production: 'prod',
       staging: 'stg',

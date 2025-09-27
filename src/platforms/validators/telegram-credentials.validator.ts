@@ -1,11 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import { PlatformCredentialValidator, CredentialValidationResult } from '../interfaces/credential-validator.interface';
+import {
+  PlatformCredentialValidator,
+  CredentialValidationResult,
+} from '../interfaces/credential-validator.interface';
 
 @Injectable()
-export class TelegramCredentialsValidator implements PlatformCredentialValidator {
+export class TelegramCredentialsValidator
+  implements PlatformCredentialValidator
+{
   readonly platform = 'telegram';
 
-  validateCredentials(credentials: Record<string, any>): CredentialValidationResult {
+  validateCredentials(
+    credentials: Record<string, any>,
+  ): CredentialValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -18,7 +25,9 @@ export class TelegramCredentialsValidator implements PlatformCredentialValidator
       // Validate Telegram bot token format: number:alphanumeric
       const tokenPattern = /^\d+:[A-Za-z0-9_-]{35}$/;
       if (!tokenPattern.test(credentials.token)) {
-        errors.push('Invalid Telegram bot token format (expected: "123456789:AbCdEfGhIjKlMnOpQrStUvWxYz123456789")');
+        errors.push(
+          'Invalid Telegram bot token format (expected: "123456789:AbCdEfGhIjKlMnOpQrStUvWxYz123456789")',
+        );
       }
     }
 
@@ -49,8 +58,17 @@ export class TelegramCredentialsValidator implements PlatformCredentialValidator
       if (!Array.isArray(credentials.allowedUpdates)) {
         errors.push('allowedUpdates must be an array');
       } else {
-        const validUpdates = ['message', 'callback_query', 'inline_query', 'chosen_inline_result', 'channel_post', 'edited_channel_post'];
-        const invalidUpdates = credentials.allowedUpdates.filter(update => !validUpdates.includes(update));
+        const validUpdates = [
+          'message',
+          'callback_query',
+          'inline_query',
+          'chosen_inline_result',
+          'channel_post',
+          'edited_channel_post',
+        ];
+        const invalidUpdates = credentials.allowedUpdates.filter(
+          (update) => !validUpdates.includes(update),
+        );
         if (invalidUpdates.length > 0) {
           errors.push(`Invalid update types: ${invalidUpdates.join(', ')}`);
         }
@@ -58,8 +76,14 @@ export class TelegramCredentialsValidator implements PlatformCredentialValidator
     }
 
     // Warn about test tokens (only if token is a string)
-    if (credentials.token && typeof credentials.token === 'string' && credentials.token.startsWith('110201543:')) {
-      warnings.push('This appears to be a Telegram test token - ensure you use a real bot token in production');
+    if (
+      credentials.token &&
+      typeof credentials.token === 'string' &&
+      credentials.token.startsWith('110201543:')
+    ) {
+      warnings.push(
+        'This appears to be a Telegram test token - ensure you use a real bot token in production',
+      );
     }
 
     return {

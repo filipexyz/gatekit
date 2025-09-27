@@ -8,7 +8,9 @@ export interface PlatformCredentialValidator {
   /**
    * Validates credentials for a specific platform
    */
-  validateCredentials(credentials: Record<string, any>): CredentialValidationResult;
+  validateCredentials(
+    credentials: Record<string, any>,
+  ): CredentialValidationResult;
 
   /**
    * Gets required credential fields for this platform

@@ -8,7 +8,13 @@ export interface PlatformLogContext {
 }
 
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
-export type LogCategory = 'connection' | 'webhook' | 'message' | 'error' | 'auth' | 'general';
+export type LogCategory =
+  | 'connection'
+  | 'webhook'
+  | 'message'
+  | 'error'
+  | 'auth'
+  | 'general';
 
 /**
  * Enhanced logger that captures platform activity to database
@@ -17,7 +23,8 @@ export type LogCategory = 'connection' | 'webhook' | 'message' | 'error' | 'auth
 @Injectable()
 export class PlatformLogger implements LoggerService {
   constructor(
-    @Inject('PLATFORM_LOGS_SERVICE') private readonly platformLogsService: PlatformLogsService,
+    @Inject('PLATFORM_LOGS_SERVICE')
+    private readonly platformLogsService: PlatformLogsService,
     private readonly context: PlatformLogContext,
   ) {}
 
@@ -31,27 +38,48 @@ export class PlatformLogger implements LoggerService {
     return new PlatformLogger(platformLogsService, context);
   }
 
-  log(message: string, category: LogCategory = 'general', metadata?: Record<string, any>) {
+  log(
+    message: string,
+    category: LogCategory = 'general',
+    metadata?: Record<string, any>,
+  ) {
     console.log(`[${this.context.platform.toUpperCase()}] ${message}`);
     this.captureLog('info', category, message, metadata);
   }
 
-  error(message: string, error?: Error | string, category: LogCategory = 'error', metadata?: Record<string, any>) {
+  error(
+    message: string,
+    error?: Error | string,
+    category: LogCategory = 'error',
+    metadata?: Record<string, any>,
+  ) {
     console.error(`[${this.context.platform.toUpperCase()}] ERROR: ${message}`);
     this.captureLog('error', category, message, metadata, error);
   }
 
-  warn(message: string, category: LogCategory = 'general', metadata?: Record<string, any>) {
+  warn(
+    message: string,
+    category: LogCategory = 'general',
+    metadata?: Record<string, any>,
+  ) {
     console.warn(`[${this.context.platform.toUpperCase()}] WARN: ${message}`);
     this.captureLog('warn', category, message, metadata);
   }
 
-  debug(message: string, category: LogCategory = 'general', metadata?: Record<string, any>) {
+  debug(
+    message: string,
+    category: LogCategory = 'general',
+    metadata?: Record<string, any>,
+  ) {
     console.debug(`[${this.context.platform.toUpperCase()}] DEBUG: ${message}`);
     this.captureLog('debug', category, message, metadata);
   }
 
-  verbose(message: string, category: LogCategory = 'general', metadata?: Record<string, any>) {
+  verbose(
+    message: string,
+    category: LogCategory = 'general',
+    metadata?: Record<string, any>,
+  ) {
     console.log(`[${this.context.platform.toUpperCase()}] VERBOSE: ${message}`);
     this.captureLog('debug', category, message, metadata);
   }
@@ -75,19 +103,35 @@ export class PlatformLogger implements LoggerService {
     this.log(message, 'auth', metadata);
   }
 
-  errorConnection(message: string, error?: Error | string, metadata?: Record<string, any>) {
+  errorConnection(
+    message: string,
+    error?: Error | string,
+    metadata?: Record<string, any>,
+  ) {
     this.error(message, error, 'connection', metadata);
   }
 
-  errorWebhook(message: string, error?: Error | string, metadata?: Record<string, any>) {
+  errorWebhook(
+    message: string,
+    error?: Error | string,
+    metadata?: Record<string, any>,
+  ) {
     this.error(message, error, 'webhook', metadata);
   }
 
-  errorMessage(message: string, error?: Error | string, metadata?: Record<string, any>) {
+  errorMessage(
+    message: string,
+    error?: Error | string,
+    metadata?: Record<string, any>,
+  ) {
     this.error(message, error, 'message', metadata);
   }
 
-  errorAuth(message: string, error?: Error | string, metadata?: Record<string, any>) {
+  errorAuth(
+    message: string,
+    error?: Error | string,
+    metadata?: Record<string, any>,
+  ) {
     this.error(message, error, 'auth', metadata);
   }
 
@@ -103,19 +147,21 @@ export class PlatformLogger implements LoggerService {
   ) {
     // Don't await - fire and forget to avoid blocking platform operations
     setImmediate(() => {
-      this.platformLogsService.logActivity({
-        projectId: this.context.projectId,
-        platformId: this.context.platformId,
-        platform: this.context.platform,
-        level,
-        category,
-        message,
-        metadata,
-        error,
-      }).catch(err => {
-        // Only log to console if database logging fails
-        console.error('Failed to capture platform log:', err);
-      });
+      this.platformLogsService
+        .logActivity({
+          projectId: this.context.projectId,
+          platformId: this.context.platformId,
+          platform: this.context.platform,
+          level,
+          category,
+          message,
+          metadata,
+          error,
+        })
+        .catch((err) => {
+          // Only log to console if database logging fails
+          console.error('Failed to capture platform log:', err);
+        });
     });
   }
 }

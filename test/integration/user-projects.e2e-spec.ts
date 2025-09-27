@@ -112,21 +112,30 @@ describe('User-Project System (e2e)', () => {
       const projectsService = app.get('ProjectsService');
 
       // User1 should see their own project
-      const user1Projects = await projectsService.findAllForUser(testUser1.id, false);
+      const user1Projects = await projectsService.findAllForUser(
+        testUser1.id,
+        false,
+      );
       expect(user1Projects).toHaveLength(1);
       expect(user1Projects[0].id).toBe(testProject.id);
 
       // User2 should see no projects (not a member)
-      const user2Projects = await projectsService.findAllForUser(testUser2.id, false);
+      const user2Projects = await projectsService.findAllForUser(
+        testUser2.id,
+        false,
+      );
       expect(user2Projects).toHaveLength(0);
     });
 
     it('should return all projects for admin users', async () => {
       const projectsService = app.get('ProjectsService');
 
-      const adminProjects = await projectsService.findAllForUser(adminUser.id, true);
+      const adminProjects = await projectsService.findAllForUser(
+        adminUser.id,
+        true,
+      );
       expect(adminProjects.length).toBeGreaterThanOrEqual(1);
-      expect(adminProjects.some(p => p.id === testProject.id)).toBe(true);
+      expect(adminProjects.some((p) => p.id === testProject.id)).toBe(true);
     });
   });
 
@@ -138,7 +147,7 @@ describe('User-Project System (e2e)', () => {
         testUser1.id,
         testProject.slug,
         ProjectRole.admin,
-        false
+        false,
       );
 
       expect(hasAccess).toBe(true);
@@ -151,7 +160,7 @@ describe('User-Project System (e2e)', () => {
         testUser2.id,
         testProject.slug,
         ProjectRole.viewer,
-        false
+        false,
       );
 
       expect(hasAccess).toBe(false);
@@ -164,7 +173,7 @@ describe('User-Project System (e2e)', () => {
         adminUser.id,
         testProject.slug,
         ProjectRole.admin,
-        true
+        true,
       );
 
       expect(hasAccess).toBe(true);
@@ -174,8 +183,10 @@ describe('User-Project System (e2e)', () => {
       const projectsService = app.get('ProjectsService');
 
       await expect(
-        projectsService.remove(testProject.slug, testUser2.id, false)
-      ).rejects.toThrow('Only project owners or global admins can delete projects');
+        projectsService.remove(testProject.slug, testUser2.id, false),
+      ).rejects.toThrow(
+        'Only project owners or global admins can delete projects',
+      );
     });
 
     it('should allow admin to delete any project', async () => {
@@ -192,7 +203,11 @@ describe('User-Project System (e2e)', () => {
       const projectsService = app.get('ProjectsService');
 
       // Admin should be able to delete it
-      const result = await projectsService.remove(tempProject.slug, adminUser.id, true);
+      const result = await projectsService.remove(
+        tempProject.slug,
+        adminUser.id,
+        true,
+      );
       expect(result.id).toBe(tempProject.id);
 
       // Verify it's deleted
@@ -233,7 +248,7 @@ describe('User-Project System (e2e)', () => {
         membershipTestProject.slug,
         testUser2.email,
         ProjectRole.member,
-        testUser1.id
+        testUser1.id,
       );
 
       expect(member.userId).toBe(testUser2.id);
@@ -248,7 +263,7 @@ describe('User-Project System (e2e)', () => {
         membershipTestProject.slug,
         testUser2.id,
         ProjectRole.admin,
-        testUser1.id
+        testUser1.id,
       );
 
       expect(updatedMember.role).toBe(ProjectRole.admin);
@@ -261,7 +276,7 @@ describe('User-Project System (e2e)', () => {
         testUser2.id,
         membershipTestProject.slug,
         ProjectRole.member,
-        false
+        false,
       );
 
       expect(hasAccess).toBe(true);
@@ -270,8 +285,13 @@ describe('User-Project System (e2e)', () => {
     it('should include project in member accessible projects', async () => {
       const projectsService = app.get('ProjectsService');
 
-      const user2Projects = await projectsService.findAllForUser(testUser2.id, false);
-      expect(user2Projects.some(p => p.id === membershipTestProject.id)).toBe(true);
+      const user2Projects = await projectsService.findAllForUser(
+        testUser2.id,
+        false,
+      );
+      expect(user2Projects.some((p) => p.id === membershipTestProject.id)).toBe(
+        true,
+      );
     });
 
     it('should remove member from project', async () => {
@@ -280,7 +300,7 @@ describe('User-Project System (e2e)', () => {
       await usersService.removeProjectMember(
         membershipTestProject.slug,
         testUser2.id,
-        testUser1.id
+        testUser1.id,
       );
 
       // Verify member was removed
@@ -289,7 +309,7 @@ describe('User-Project System (e2e)', () => {
         testUser2.id,
         membershipTestProject.slug,
         ProjectRole.viewer,
-        false
+        false,
       );
 
       expect(hasAccess).toBe(false);
@@ -302,8 +322,8 @@ describe('User-Project System (e2e)', () => {
         usersService.removeProjectMember(
           membershipTestProject.slug,
           testUser1.id, // Project owner
-          testUser1.id
-        )
+          testUser1.id,
+        ),
       ).rejects.toThrow('Cannot remove project owner from members');
     });
 
@@ -315,8 +335,8 @@ describe('User-Project System (e2e)', () => {
           membershipTestProject.slug,
           testUser1.id, // Project owner
           ProjectRole.member,
-          testUser1.id
-        )
+          testUser1.id,
+        ),
       ).rejects.toThrow('Cannot change role of project owner');
     });
   });
@@ -440,7 +460,7 @@ describe('User-Project System (e2e)', () => {
           userId,
           hierarchyTestProject.slug,
           requiredRole as ProjectRole,
-          false
+          false,
         );
 
         expect(hasAccess).toBe(expected);

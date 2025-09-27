@@ -104,7 +104,11 @@ describe('UsersService', () => {
         name: 'Updated User',
       };
 
-      const updatedUser = { ...mockUser, email: auth0Payload.email, name: auth0Payload.name };
+      const updatedUser = {
+        ...mockUser,
+        email: auth0Payload.email,
+        name: auth0Payload.name,
+      };
       prisma.user.upsert.mockResolvedValue(updatedUser);
 
       const result = await service.upsertFromAuth0(auth0Payload);
@@ -172,7 +176,9 @@ describe('UsersService', () => {
     it('should throw NotFoundException if user not found', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.findById('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.findById('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -207,7 +213,11 @@ describe('UsersService', () => {
 
       prisma.project.findUnique.mockResolvedValue(projectWithMember);
 
-      const result = await service.checkProjectAccess('user-1', 'test-project', ProjectRole.member);
+      const result = await service.checkProjectAccess(
+        'user-1',
+        'test-project',
+        ProjectRole.member,
+      );
 
       expect(result).toBe(true);
     });
@@ -228,7 +238,11 @@ describe('UsersService', () => {
 
       prisma.project.findUnique.mockResolvedValue(projectWithMember);
 
-      const result = await service.checkProjectAccess('user-1', 'test-project', ProjectRole.admin);
+      const result = await service.checkProjectAccess(
+        'user-1',
+        'test-project',
+        ProjectRole.admin,
+      );
 
       expect(result).toBe(false);
     });
@@ -339,7 +353,7 @@ describe('UsersService', () => {
         'test-project',
         'member@example.com',
         ProjectRole.member,
-        'user-1'
+        'user-1',
       );
 
       expect(result).toEqual(createdMember);
@@ -349,7 +363,12 @@ describe('UsersService', () => {
       prisma.project.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.addProjectMember('test-project', 'member@example.com', ProjectRole.member, 'user-1')
+        service.addProjectMember(
+          'test-project',
+          'member@example.com',
+          ProjectRole.member,
+          'user-1',
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -365,7 +384,12 @@ describe('UsersService', () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.addProjectMember('test-project', 'nonexistent@example.com', ProjectRole.member, 'user-1')
+        service.addProjectMember(
+          'test-project',
+          'nonexistent@example.com',
+          ProjectRole.member,
+          'user-1',
+        ),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -382,7 +406,11 @@ describe('UsersService', () => {
       prisma.project.findUnique.mockResolvedValue(projectWithAdminAccess);
       prisma.projectMember.delete.mockResolvedValue(mockProjectMember);
 
-      const result = await service.removeProjectMember('test-project', 'user-2', 'user-1');
+      const result = await service.removeProjectMember(
+        'test-project',
+        'user-2',
+        'user-1',
+      );
 
       expect(prisma.projectMember.delete).toHaveBeenCalledWith({
         where: {
@@ -406,7 +434,7 @@ describe('UsersService', () => {
       prisma.project.findUnique.mockResolvedValue(projectWithAdminAccess);
 
       await expect(
-        service.removeProjectMember('test-project', 'user-2', 'user-1')
+        service.removeProjectMember('test-project', 'user-2', 'user-1'),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -437,7 +465,7 @@ describe('UsersService', () => {
         'test-project',
         'user-2',
         ProjectRole.admin,
-        'user-1'
+        'user-1',
       );
 
       expect(result).toEqual(updatedMember);
@@ -454,7 +482,12 @@ describe('UsersService', () => {
       prisma.project.findUnique.mockResolvedValue(projectWithAdminAccess);
 
       await expect(
-        service.updateProjectMemberRole('test-project', 'user-2', ProjectRole.member, 'user-1')
+        service.updateProjectMemberRole(
+          'test-project',
+          'user-2',
+          ProjectRole.member,
+          'user-1',
+        ),
       ).rejects.toThrow(NotFoundException);
     });
   });

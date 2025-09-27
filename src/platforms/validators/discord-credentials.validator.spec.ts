@@ -10,7 +10,8 @@ describe('DiscordCredentialsValidator', () => {
   describe('validateCredentials', () => {
     it('should validate correct Discord credentials', () => {
       const validCredentials = {
-        token: 'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
+        token:
+          'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
         clientId: '1014986224337285120',
         intents: ['GuildMessages', 'MessageContent'],
       };
@@ -56,47 +57,65 @@ describe('DiscordCredentialsValidator', () => {
 
     it('should validate client ID format if provided', () => {
       const credentialsWithInvalidClientId = {
-        token: 'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
+        token:
+          'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
         clientId: 'not-a-valid-id',
       };
 
-      const result = validator.validateCredentials(credentialsWithInvalidClientId);
+      const result = validator.validateCredentials(
+        credentialsWithInvalidClientId,
+      );
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Invalid Discord client ID format (expected: 17-19 digit snowflake)');
+      expect(result.errors).toContain(
+        'Invalid Discord client ID format (expected: 17-19 digit snowflake)',
+      );
     });
 
     it('should validate guild ID format if provided', () => {
       const credentialsWithInvalidGuildId = {
-        token: 'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
+        token:
+          'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
         guildId: 'invalid-guild-id',
       };
 
-      const result = validator.validateCredentials(credentialsWithInvalidGuildId);
+      const result = validator.validateCredentials(
+        credentialsWithInvalidGuildId,
+      );
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Invalid Discord guild ID format (expected: 17-19 digit snowflake)');
+      expect(result.errors).toContain(
+        'Invalid Discord guild ID format (expected: 17-19 digit snowflake)',
+      );
     });
 
     it('should validate intents array if provided', () => {
       const credentialsWithInvalidIntents = {
-        token: 'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
+        token:
+          'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
         intents: ['GuildMessages', 'InvalidIntent'],
       };
 
-      const result = validator.validateCredentials(credentialsWithInvalidIntents);
+      const result = validator.validateCredentials(
+        credentialsWithInvalidIntents,
+      );
 
       expect(result.isValid).toBe(false);
-      expect(result.errors[0]).toContain('Invalid Discord intents: InvalidIntent');
+      expect(result.errors[0]).toContain(
+        'Invalid Discord intents: InvalidIntent',
+      );
     });
 
     it('should accept numeric intents', () => {
       const credentialsWithNumericIntents = {
-        token: 'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
+        token:
+          'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
         intents: 3276800, // GuildMessages + MessageContent
       };
 
-      const result = validator.validateCredentials(credentialsWithNumericIntents);
+      const result = validator.validateCredentials(
+        credentialsWithNumericIntents,
+      );
 
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
@@ -104,13 +123,16 @@ describe('DiscordCredentialsValidator', () => {
 
     it('should warn about test/example tokens', () => {
       const testCredentials = {
-        token: 'MTAxNDk4NjIyNDMzNzI4NTEyMA.Gk-J6g.test_token_here_AbCdEfGhIjKlMnOpQr',
+        token:
+          'MTAxNDk4NjIyNDMzNzI4NTEyMA.Gk-J6g.test_token_here_AbCdEfGhIjKlMnOpQr',
       };
 
       const result = validator.validateCredentials(testCredentials);
 
       expect(result.isValid).toBe(true);
-      expect(result.warnings).toContain('This appears to be a test/example token - ensure you use a real bot token');
+      expect(result.warnings).toContain(
+        'This appears to be a test/example token - ensure you use a real bot token',
+      );
     });
   });
 
@@ -124,7 +146,12 @@ describe('DiscordCredentialsValidator', () => {
   describe('getOptionalFields', () => {
     it('should return optional fields', () => {
       const optional = validator.getOptionalFields();
-      expect(optional).toEqual(['clientId', 'guildId', 'intents', 'permissions']);
+      expect(optional).toEqual([
+        'clientId',
+        'guildId',
+        'intents',
+        'permissions',
+      ]);
     });
   });
 
