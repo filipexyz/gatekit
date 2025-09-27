@@ -40,6 +40,7 @@ export class SeedService implements OnModuleInit {
         const defaultProject = await this.prisma.project.create({
           data: {
             name: 'Default Project',
+            description: 'Default development project for testing and initial setup',
             slug: 'default',
             environment: 'development',
             isDefault: true,

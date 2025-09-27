@@ -9,6 +9,7 @@ export type ProjectRole = 'owner' | 'admin' | 'member' | 'viewer';
 export interface Project {
   id: string;
   name: string;
+  description?: string;
   slug: string;
   environment: 'development' | 'staging' | 'production';
   isDefault: boolean;

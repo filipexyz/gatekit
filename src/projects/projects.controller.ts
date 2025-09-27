@@ -20,6 +20,7 @@ export class ProjectsController {
     outputType: 'Project',
     options: {
       name: { required: true, description: 'Project name', type: 'string' },
+      description: { description: 'Project description', type: 'string' },
       environment: {
         description: 'Project environment',
         choices: ['development', 'staging', 'production'],
@@ -29,12 +30,16 @@ export class ProjectsController {
     },
     examples: [
       {
-        description: 'Create a development project',
+        description: 'Create a simple project',
         command: 'gatekit projects create --name "My Project"'
       },
       {
+        description: 'Create a project with description',
+        command: 'gatekit projects create --name "My Project" --description "A project for testing new features"'
+      },
+      {
         description: 'Create a production project',
-        command: 'gatekit projects create --name "My Project" --environment production'
+        command: 'gatekit projects create --name "My Project" --description "Production messaging service" --environment production'
       }
     ]
   })
