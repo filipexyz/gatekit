@@ -34,10 +34,13 @@ describe('Auth0 Authentication (e2e)', () => {
     prisma = moduleFixture.get<PrismaService>(PrismaService);
     configService = moduleFixture.get<ConfigService>(ConfigService);
 
-    // Clean database
+    // Clean database in correct order (respecting foreign keys)
     await prisma.apiKeyScope.deleteMany();
     await prisma.apiKey.deleteMany();
+    await prisma.projectPlatform.deleteMany();
+    await prisma.projectMember.deleteMany();
     await prisma.project.deleteMany();
+    await prisma.user.deleteMany();
 
     // Create test data
     const project = await createTestProject(prisma, {

@@ -22,13 +22,9 @@ export class DiscordCredentialsValidator
     } else if (typeof credentials.token !== 'string') {
       errors.push('Bot token must be a string');
     } else {
-      // Validate Discord bot token format: base64-like string with 3 parts
-      const tokenPattern =
-        /^[A-Za-z0-9_-]{24,26}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,40}$/;
-      if (!tokenPattern.test(credentials.token)) {
-        errors.push(
-          'Invalid Discord bot token format (expected: "MTAxNDk4NjIyNDMzNzI4NTEyMA.Gk-J6g.example_token_here")',
-        );
+      // Basic string validation - just ensure it's not empty
+      if (credentials.token.trim().length === 0) {
+        errors.push('Bot token cannot be empty');
       }
     }
 

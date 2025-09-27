@@ -205,7 +205,11 @@ export class ApiKeysService {
     const key = await this.prisma.apiKey.findUnique({
       where: { keyHash },
       include: {
-        project: true,
+        project: {
+          include: {
+            owner: true,
+          },
+        },
         scopes: true,
       },
     });

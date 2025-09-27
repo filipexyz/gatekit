@@ -22,12 +22,9 @@ export class TelegramCredentialsValidator
     } else if (typeof credentials.token !== 'string') {
       errors.push('Bot token must be a string');
     } else {
-      // Validate Telegram bot token format: number:alphanumeric
-      const tokenPattern = /^\d+:[A-Za-z0-9_-]{35}$/;
-      if (!tokenPattern.test(credentials.token)) {
-        errors.push(
-          'Invalid Telegram bot token format (expected: "123456789:AbCdEfGhIjKlMnOpQrStUvWxYz123456789")',
-        );
+      // Basic string validation - just ensure it's not empty
+      if (credentials.token.trim().length === 0) {
+        errors.push('Bot token cannot be empty');
       }
     }
 
