@@ -4,6 +4,7 @@
 // Enums
 export type ProjectEnvironment = 'development' | 'staging' | 'production';
 export type PlatformType = 'discord' | 'telegram';
+export type ProjectRole = 'owner' | 'admin' | 'member' | 'viewer';
 
 export interface Project {
   id: string;
@@ -105,4 +106,37 @@ export interface MetadataDto {
   trackingId?: string;
   tags?: string[];
   priority?: 'low' | 'normal' | 'high';
+}
+
+// User and Project Member DTOs
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  isAdmin: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectMember {
+  id: string;
+  projectId: string;
+  userId: string;
+  role: ProjectRole;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+  };
+}
+
+export interface AddMemberDto {
+  email: string;
+  role: ProjectRole;
+}
+
+export interface UpdateMemberRoleDto {
+  role: ProjectRole;
 }

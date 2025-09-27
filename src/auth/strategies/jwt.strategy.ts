@@ -4,13 +4,18 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { passportJwtSecret } from 'jwks-rsa';
 import { ConfigService } from '@nestjs/config';
 import { AppConfig } from '../../config/app.config';
+import { UsersService } from '../../users/users.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   private isConfigured: boolean;
   private configService: ConfigService;
+  private usersService: UsersService;
 
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    usersService: UsersService
+  ) {
     const auth0Config = configService.get<AppConfig['auth0']>('app.auth0');
 
     if (!auth0Config?.domain || !auth0Config?.audience) {
@@ -20,7 +25,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
         passReqToCallback: false,
       });
-      this.isConfigured = false;
     } else {
         super({
         secretOrKeyProvider: passportJwtSecret({
@@ -34,9 +38,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         issuer: `https://${auth0Config.domain}/`,
         algorithms: ['RS256'],
       });
-      this.isConfigured = true;
     }
+
+    this.isConfigured = !(!auth0Config?.domain || !auth0Config?.audience);
     this.configService = configService;
+    this.usersService = usersService;
   }
 
   async validate(payload: any): Promise<any> {
@@ -48,11 +54,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid token');
     }
 
+    // Create or update user record from Auth0 token
+    const user = await this.usersService.upsertFromAuth0({
+      sub: payload.sub,
+      email: payload.email,
+      name: payload.name,
+    });
+
     return {
       userId: payload.sub,
       email: payload.email,
       permissions: payload.permissions || [],
       scope: payload.scope,
+      user: user, // Include full user record
     };
   }
 }

@@ -3,6 +3,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ExtractedContract } from '../extractors/contract-extractor.service';
+import { CaseConverter } from '../../src/common/utils/case-converter';
 
 interface GeneratedSDK {
   types: string;
@@ -228,7 +229,7 @@ export interface ApiKeyResult {
     const typeImports = Array.from(usedTypes).sort().join(',\n  ');
 
     const apiGroups = Object.entries(groups).map(([category, contracts]) => {
-      const className = `${category}API`;
+      const className = `${CaseConverter.toValidClassName(category)}API`;
       const methods = contracts.map(contract => this.generateAPIMethod(contract)).join('\n\n  ');
 
       return `class ${className} {
@@ -254,7 +255,7 @@ export class GateKit {
 
   // API group instances
 ${Object.keys(groups).map(category =>
-  `  readonly ${category.toLowerCase()}: ${category}API;`
+  `  readonly ${CaseConverter.toValidPropertyName(category)}: ${CaseConverter.toValidClassName(category)}API;`
 ).join('\n')}
 
   constructor(config: GateKitConfig) {
@@ -269,7 +270,7 @@ ${Object.keys(groups).map(category =>
 
     // Initialize API groups after client is ready
 ${Object.keys(groups).map(category =>
-  `    this.${category.toLowerCase()} = new ${category}API(this.client);`
+  `    this.${CaseConverter.toValidPropertyName(category)} = new ${CaseConverter.toValidClassName(category)}API(this.client);`
 ).join('\n')}
   }
 
@@ -347,9 +348,10 @@ ${Object.keys(groups).map(category =>
       }
     }
 
-    // Methods without input data
+    // Methods without input data - use actual HTTP method from contract
+    const httpMethodLower = httpMethod.toLowerCase();
     return `async ${methodName}(${methodParams}): Promise<${outputType}> {
-    const response = await this.client.get<${outputType}>(${urlWithParams});
+    const response = await this.client.${httpMethodLower}<${outputType}>(${urlWithParams});
     return response.data;
   }`;
   }
@@ -602,7 +604,7 @@ try {
 
   private generateSDKExample(contract: ExtractedContract): string {
     const { contractMetadata, path } = contract;
-    const category = contractMetadata.category?.toLowerCase() || 'api';
+    const category = CaseConverter.toValidPropertyName(contractMetadata.category || 'api');
     const methodName = this.getMethodName(contractMetadata.command);
 
     // Extract path params

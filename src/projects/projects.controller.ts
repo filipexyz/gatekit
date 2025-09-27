@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Request } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -38,8 +38,8 @@ export class ProjectsController {
       }
     ]
   })
-  create(@Body() createProjectDto: CreateProjectDto) {
-    return this.projectsService.create(createProjectDto);
+  create(@Body() createProjectDto: CreateProjectDto, @Request() req: any) {
+    return this.projectsService.create(createProjectDto, req.user.user.id);
   }
 
   @Get()
@@ -57,8 +57,12 @@ export class ProjectsController {
       }
     ]
   })
-  findAll() {
-    return this.projectsService.findAll();
+  findAll(@Request() req: any) {
+    if (req.authType === 'jwt') {
+      return this.projectsService.findAllForUser(req.user.user.id, req.user.user.isAdmin);
+    }
+    // For API key authentication, return the single project associated with the key
+    return [req.project];
   }
 
   @Get(':slug')
@@ -75,7 +79,11 @@ export class ProjectsController {
 
   @Delete(':slug')
   @RequireScopes('projects:write')
-  remove(@Param('slug') slug: string) {
-    return this.projectsService.remove(slug);
+  remove(@Param('slug') slug: string, @Request() req: any) {
+    if (req.authType === 'jwt') {
+      return this.projectsService.remove(slug, req.user.user.id, req.user.user.isAdmin);
+    }
+    // API key users cannot delete projects
+    throw new Error('Project deletion not allowed with API key authentication');
   }
 }

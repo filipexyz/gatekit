@@ -3,6 +3,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ExtractedContract } from '../extractors/contract-extractor.service';
+import { CaseConverter } from '../../src/common/utils/case-converter';
 
 interface GeneratedCLI {
   commands: Record<string, string>; // category -> command file content
@@ -13,6 +14,7 @@ interface GeneratedCLI {
 }
 
 export class CLIGenerator {
+
   async generateFromContracts(contractsPath: string, outputDir: string): Promise<void> {
     console.log('🔧 Generating permission-aware CLI from contracts...');
 
@@ -39,7 +41,7 @@ export class CLIGenerator {
 
     const commands: Record<string, string> = {};
     Object.entries(groups).forEach(([category, contracts]) => {
-      commands[category.toLowerCase()] = this.generateCommandFile(category, contracts);
+      commands[CaseConverter.toValidFilename(category)] = this.generateCommandFile(category, contracts);
     });
 
     return {
@@ -61,12 +63,12 @@ import { Command } from 'commander';
 import { GateKit } from '@gatekit/sdk';
 import { loadConfig, formatOutput, handleError } from '../lib/utils';
 
-export function create${category}Command(): Command {
-  const ${category.toLowerCase()} = new Command('${category.toLowerCase()}');
+export function create${CaseConverter.toValidClassName(category)}Command(): Command {
+  const ${CaseConverter.toValidPropertyName(category)} = new Command('${CaseConverter.toValidFilename(category)}');
 
 ${commandMethods}
 
-  return ${category.toLowerCase()};
+  return ${CaseConverter.toValidPropertyName(category)};
 }
 
 ${this.generateCommandHelpers()}
@@ -98,7 +100,7 @@ ${this.generateCommandHelpers()}
     const camelCaseMethod = subCommand.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
     const methodCall = subCommand === 'create' ? 'create' : subCommand === 'list' ? 'list' : camelCaseMethod;
 
-    return `  ${category.toLowerCase()}
+    return `  ${CaseConverter.toValidPropertyName(category)}
     .command('${subCommand}')
     .description('${contractMetadata.description}')
 ${allOptions}
@@ -126,7 +128,8 @@ ${allOptions}
   }
 
   private generateMethodCall(subCommand: string, methodCall: string, category: string, contractMetadata: any, pathParams: string[]): string {
-    const namespace = category.toLowerCase() === 'apikeys' ? 'apikeys' : category.toLowerCase();
+    // Convert category to valid SDK namespace (dynamically, no hardcoded keys)
+    const sdkNamespace = CaseConverter.toValidPropertyName(category);
 
     // Build path parameter arguments
     const pathArgs = pathParams.map(param => `options.${param} || 'default'`).join(', ');
@@ -134,7 +137,7 @@ ${allOptions}
     // If no input type specified, method takes only path parameters
     if (!contractMetadata.inputType) {
       const args = pathParams.length > 0 ? pathArgs : '';
-      return `const result = await gk.${namespace}.${methodCall}(${args});`;
+      return `const result = await gk.${sdkNamespace}.${methodCall}(${args});`;
     }
 
     // Build data object by mapping CLI options to DTO properties using contract metadata
@@ -142,7 +145,7 @@ ${allOptions}
 
     // Combine path parameters and data object
     const allArgs = pathParams.length > 0 ? `${pathArgs}, ${dtoObject}` : dtoObject;
-    return `const result = await gk.${namespace}.${methodCall}(${allArgs});`;
+    return `const result = await gk.${sdkNamespace}.${methodCall}(${allArgs});`;
   }
 
   private extractPathParameters(path: string): string[] {
@@ -266,11 +269,11 @@ async function checkPermissions(config: any, requiredScopes: string[]): Promise<
 
   private generateIndex(contracts: ExtractedContract[], groups: Record<string, ExtractedContract[]>): string {
     const commandImports = Object.keys(groups).map(category =>
-      `import { create${category}Command } from './commands/${category.toLowerCase()}';`
+      `import { create${CaseConverter.toValidClassName(category)}Command } from './commands/${CaseConverter.toValidFilename(category)}';`
     ).join('\n');
 
     const commandRegistrations = Object.keys(groups).map(category =>
-      `  program.addCommand(create${category}Command());`
+      `  program.addCommand(create${CaseConverter.toValidClassName(category)}Command());`
     ).join('\n');
 
     return `#!/usr/bin/env node

@@ -18,6 +18,7 @@ import { PlatformsModule } from './platforms/platforms.module';
 import { QueuesModule } from './queues/queues.module';
 import { DocsModule } from './docs/docs.module';
 import { MessagesModule } from './messages/messages.module';
+import { UsersModule } from './users/users.module';
 import { sentryConfig } from './config/sentry.config';
 
 @Module({
@@ -92,6 +93,7 @@ import { sentryConfig } from './config/sentry.config';
     QueuesModule,
     DocsModule,
     MessagesModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [

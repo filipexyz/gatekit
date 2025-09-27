@@ -21,12 +21,29 @@ export class SeedService implements OnModuleInit {
       if (!existingProject) {
         console.log('Seeding database with default project...');
 
+        // Create or find a default system user
+        let systemUser = await this.prisma.user.findUnique({
+          where: { auth0Id: 'system|default' },
+        });
+
+        if (!systemUser) {
+          systemUser = await this.prisma.user.create({
+            data: {
+              auth0Id: 'system|default',
+              email: 'system@gatekit.dev',
+              name: 'System User',
+              isAdmin: true,
+            },
+          });
+        }
+
         const defaultProject = await this.prisma.project.create({
           data: {
             name: 'Default Project',
             slug: 'default',
             environment: 'development',
             isDefault: true,
+            ownerId: systemUser.id,
             settings: {
               rateLimits: {
                 test: 100,
@@ -48,6 +65,7 @@ export class SeedService implements OnModuleInit {
             keyPrefix,
             keySuffix,
             name: 'Development Test Key',
+            createdBy: systemUser.id,
             scopes: {
               create: [
                 { scope: 'messages:send' },

@@ -2,13 +2,27 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtStrategy } from './jwt.strategy';
+import { UsersService } from '../../users/users.service';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
   let configService: ConfigService;
+  let usersService: UsersService;
+
+  const mockUser = {
+    id: 'user-1',
+    auth0Id: 'auth0|123456',
+    email: 'test@example.com',
+    name: 'Test User',
+    isAdmin: false,
+  };
 
   describe('with Auth0 configuration', () => {
     beforeEach(async () => {
+      const mockUsersService = {
+        upsertFromAuth0: jest.fn().mockResolvedValue(mockUser),
+      };
+
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           JwtStrategy,
@@ -28,11 +42,16 @@ describe('JwtStrategy', () => {
               }),
             },
           },
+          {
+            provide: UsersService,
+            useValue: mockUsersService,
+          },
         ],
       }).compile();
 
       strategy = module.get<JwtStrategy>(JwtStrategy);
       configService = module.get<ConfigService>(ConfigService);
+      usersService = module.get<UsersService>(UsersService);
     });
 
     it('should be defined', () => {
@@ -43,17 +62,25 @@ describe('JwtStrategy', () => {
       const payload = {
         sub: 'auth0|123456',
         email: 'test@example.com',
+        name: 'Test User',
         permissions: ['projects:read', 'projects:write'],
         scope: 'openid profile email',
       };
 
       const result = await strategy.validate(payload);
 
+      expect(usersService.upsertFromAuth0).toHaveBeenCalledWith({
+        sub: 'auth0|123456',
+        email: 'test@example.com',
+        name: 'Test User',
+      });
+
       expect(result).toEqual({
         userId: 'auth0|123456',
         email: 'test@example.com',
         permissions: ['projects:read', 'projects:write'],
         scope: 'openid profile email',
+        user: mockUser,
       });
     });
 
@@ -70,6 +97,7 @@ describe('JwtStrategy', () => {
         email: 'test@example.com',
         permissions: [],
         scope: undefined,
+        user: mockUser,
       });
     });
 
@@ -82,6 +110,10 @@ describe('JwtStrategy', () => {
   describe('without Auth0 configuration', () => {
     beforeEach(async () => {
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const mockUsersService = {
+        upsertFromAuth0: jest.fn().mockResolvedValue(mockUser),
+      };
 
       const module: TestingModule = await Test.createTestingModule({
         providers: [
@@ -101,6 +133,10 @@ describe('JwtStrategy', () => {
                 return null;
               }),
             },
+          },
+          {
+            provide: UsersService,
+            useValue: mockUsersService,
           },
         ],
       }).compile();

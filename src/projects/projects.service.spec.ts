@@ -1,13 +1,59 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectsService } from './projects.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotFoundException, ConflictException } from '@nestjs/common';
+import { NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { ProjectRole, ProjectEnvironment } from '@prisma/client';
 
 describe('ProjectsService', () => {
   let service: ProjectsService;
   let prisma: PrismaService;
 
+  const mockUser = {
+    id: 'user-1',
+    auth0Id: 'auth0|123456789',
+    email: 'test@example.com',
+    name: 'Test User',
+    isAdmin: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockAdminUser = {
+    id: 'admin-1',
+    auth0Id: 'auth0|admin123',
+    email: 'admin@example.com',
+    name: 'Admin User',
+    isAdmin: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockProject = {
+    id: 'project-1',
+    name: 'Test Project',
+    slug: 'test-project',
+    ownerId: 'user-1',
+    environment: ProjectEnvironment.development,
+    isDefault: false,
+    settings: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    owner: {
+      id: mockUser.id,
+      email: mockUser.email,
+      name: mockUser.name,
+    },
+    _count: {
+      apiKeys: 0,
+      projectPlatforms: 0,
+      members: 0,
+    },
+  };
+
   const mockPrismaService = {
+    user: {
+      findUnique: jest.fn(),
+    },
     project: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -36,6 +82,9 @@ describe('ProjectsService', () => {
     prisma = module.get<PrismaService>(PrismaService);
 
     // Reset all mocks
+    Object.values(mockPrismaService.user).forEach(mockFn => {
+      (mockFn as jest.Mock).mockReset();
+    });
     Object.values(mockPrismaService.project).forEach(mockFn => {
       (mockFn as jest.Mock).mockReset();
     });
@@ -43,85 +92,126 @@ describe('ProjectsService', () => {
   });
 
   describe('create', () => {
-    it('should create a project with generated slug', async () => {
-      const createDto = { name: 'Test Project' };
-      const expectedSlug = 'test-project';
-      const createdProject = {
-        id: 'project-id',
-        name: 'Test Project',
-        slug: expectedSlug,
-        environment: 'development',
-        isDefault: false,
-      };
+    const createDto = {
+      name: 'New Project',
+      environment: ProjectEnvironment.development,
+      isDefault: false,
+    };
 
-      mockPrismaService.project.findUnique.mockResolvedValue(null);
-      mockPrismaService.project.create.mockResolvedValue(createdProject);
+    it('should create a new project successfully', async () => {
+      mockPrismaService.project.findUnique.mockResolvedValue(null); // No existing project
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      mockPrismaService.project.create.mockResolvedValue(mockProject);
 
-      const result = await service.create(createDto);
+      const result = await service.create(createDto, 'user-1');
 
-      expect(mockPrismaService.project.findUnique).toHaveBeenCalledWith({
-        where: { slug: expectedSlug },
-      });
       expect(mockPrismaService.project.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          name: 'Test Project',
-          slug: expectedSlug,
-        }),
+        data: {
+          name: createDto.name,
+          slug: expect.any(String),
+          environment: createDto.environment,
+          isDefault: createDto.isDefault,
+          settings: undefined,
+          ownerId: 'user-1',
+        },
+        include: {
+          owner: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+            },
+          },
+          _count: {
+            select: {
+              apiKeys: true,
+              projectPlatforms: true,
+              members: true,
+            },
+          },
+        },
       });
-      expect(result).toEqual(createdProject);
+      expect(result).toEqual(mockProject);
     });
 
-    it('should throw ConflictException when slug already exists', async () => {
-      const createDto = { name: 'Test Project' };
+    it('should throw ConflictException if project slug already exists', async () => {
+      mockPrismaService.project.findUnique.mockResolvedValue(mockProject);
 
-      mockPrismaService.project.findUnique.mockResolvedValue({
-        id: 'existing-id',
-        slug: 'test-project',
-      });
-
-      await expect(service.create(createDto)).rejects.toThrow(ConflictException);
+      await expect(service.create(createDto, 'user-1')).rejects.toThrow(ConflictException);
     });
 
-    it('should set as default and unset other defaults when isDefault is true', async () => {
-      const createDto = { name: 'Default Project', isDefault: true };
+    it('should throw NotFoundException if owner does not exist', async () => {
+      mockPrismaService.project.findUnique.mockResolvedValue(null);
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+
+      await expect(service.create(createDto, 'nonexistent')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should update default projects when creating a default project', async () => {
+      const defaultDto = { ...createDto, isDefault: true };
 
       mockPrismaService.project.findUnique.mockResolvedValue(null);
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
       mockPrismaService.project.updateMany.mockResolvedValue({ count: 1 });
-      mockPrismaService.project.create.mockResolvedValue({
-        id: 'project-id',
-        name: 'Default Project',
-        slug: 'default-project',
-        isDefault: true,
-      });
+      mockPrismaService.project.create.mockResolvedValue({ ...mockProject, isDefault: true });
 
-      await service.create(createDto);
+      await service.create(defaultDto, 'user-1');
 
       expect(mockPrismaService.project.updateMany).toHaveBeenCalledWith({
-        where: { isDefault: true },
+        where: {
+          isDefault: true,
+          ownerId: 'user-1',
+        },
         data: { isDefault: false },
       });
     });
   });
 
-  describe('findAll', () => {
-    it('should return all projects with API key count', async () => {
-      const projects = [
-        { id: '1', name: 'Project 1', _count: { apiKeys: 5 } },
-        { id: '2', name: 'Project 2', _count: { apiKeys: 3 } },
-      ];
+  describe('findAllForUser', () => {
+    it('should return all projects for admin users', async () => {
+      const allProjects = [mockProject];
+      mockPrismaService.project.findMany.mockResolvedValue(allProjects);
 
-      mockPrismaService.project.findMany.mockResolvedValue(projects);
-
-      const result = await service.findAll();
+      const result = await service.findAllForUser('admin-1', true);
 
       expect(mockPrismaService.project.findMany).toHaveBeenCalledWith({
-        include: {
-          _count: {
-            select: { apiKeys: true },
+        include: expect.objectContaining({
+          owner: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+            },
           },
-        },
+        }),
       });
-      expect(result).toEqual(projects);
+      expect(result).toEqual(allProjects);
+    });
+
+    it('should return only accessible projects for regular users', async () => {
+      const accessibleProjects = [mockProject];
+      mockPrismaService.project.findMany.mockResolvedValue(accessibleProjects);
+
+      const result = await service.findAllForUser('user-1', false);
+
+      expect(mockPrismaService.project.findMany).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { ownerId: 'user-1' },
+            { members: { some: { userId: 'user-1' } } },
+          ],
+        },
+        include: expect.objectContaining({
+          owner: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+            },
+          },
+        }),
+      });
+      expect(result).toEqual(accessibleProjects);
     });
   });
 
@@ -196,41 +286,180 @@ describe('ProjectsService', () => {
   });
 
   describe('remove', () => {
-    it('should delete project with no active API keys', async () => {
-      const project = {
-        id: 'project-id',
-        slug: 'test-project',
+    it('should remove project successfully for owner', async () => {
+      const projectToDelete = {
+        ...mockProject,
         _count: { apiKeys: 0 },
       };
 
-      mockPrismaService.project.findUnique.mockResolvedValue(project);
-      mockPrismaService.project.delete.mockResolvedValue(project);
+      mockPrismaService.project.findUnique.mockResolvedValue(projectToDelete);
+      mockPrismaService.project.delete.mockResolvedValue(projectToDelete);
 
-      const result = await service.remove('test-project');
+      const result = await service.remove('test-project', 'user-1', false);
 
       expect(mockPrismaService.project.delete).toHaveBeenCalledWith({
         where: { slug: 'test-project' },
       });
-      expect(result).toEqual(project);
+      expect(result).toEqual(projectToDelete);
     });
 
-    it('should throw ConflictException when project has active API keys', async () => {
-      const project = {
-        id: 'project-id',
-        slug: 'test-project',
+    it('should remove project successfully for admin', async () => {
+      const projectToDelete = {
+        ...mockProject,
+        ownerId: 'other-user',
+        _count: { apiKeys: 0 },
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue(projectToDelete);
+      mockPrismaService.project.delete.mockResolvedValue(projectToDelete);
+
+      const result = await service.remove('test-project', 'admin-1', true);
+
+      expect(result).toEqual(projectToDelete);
+    });
+
+    it('should throw ForbiddenException if non-owner tries to delete', async () => {
+      const projectToDelete = {
+        ...mockProject,
+        ownerId: 'other-user',
+        _count: { apiKeys: 0 },
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue(projectToDelete);
+
+      await expect(service.remove('test-project', 'user-1', false)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw ConflictException if project has active API keys', async () => {
+      const projectWithKeys = {
+        ...mockProject,
         _count: { apiKeys: 2 },
       };
 
-      mockPrismaService.project.findUnique.mockResolvedValue(project);
-      mockPrismaService.apiKey.count.mockResolvedValue(1);
+      mockPrismaService.project.findUnique.mockResolvedValue(projectWithKeys);
+      mockPrismaService.apiKey.count.mockResolvedValue(2);
 
-      await expect(service.remove('test-project')).rejects.toThrow(ConflictException);
+      await expect(service.remove('test-project', 'user-1', false)).rejects.toThrow(ConflictException);
     });
 
-    it('should throw NotFoundException when project does not exist', async () => {
+    it('should throw NotFoundException if project does not exist', async () => {
       mockPrismaService.project.findUnique.mockResolvedValue(null);
 
-      await expect(service.remove('non-existent')).rejects.toThrow(NotFoundException);
+      await expect(service.remove('nonexistent', 'user-1', false)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('checkProjectAccess', () => {
+    it('should return true for global admin', async () => {
+      const result = await service.checkProjectAccess('admin-1', 'test-project', undefined, true);
+
+      expect(result).toBe(true);
+      expect(mockPrismaService.project.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('should return true for project owner', async () => {
+      const projectWithOwner = {
+        ...mockProject,
+        members: [],
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue(projectWithOwner);
+
+      const result = await service.checkProjectAccess('user-1', 'test-project', undefined, false);
+
+      expect(result).toBe(true);
+    });
+
+    it('should return true for member with sufficient role', async () => {
+      const projectWithMember = {
+        ...mockProject,
+        ownerId: 'other-user',
+        members: [
+          {
+            userId: 'user-1',
+            role: ProjectRole.admin,
+          },
+        ],
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue(projectWithMember);
+
+      const result = await service.checkProjectAccess('user-1', 'test-project', ProjectRole.member, false);
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false for member with insufficient role', async () => {
+      const projectWithMember = {
+        ...mockProject,
+        ownerId: 'other-user',
+        members: [
+          {
+            userId: 'user-1',
+            role: ProjectRole.viewer,
+          },
+        ],
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue(projectWithMember);
+
+      const result = await service.checkProjectAccess('user-1', 'test-project', ProjectRole.admin, false);
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false for non-member', async () => {
+      const projectWithoutMember = {
+        ...mockProject,
+        ownerId: 'other-user',
+        members: [],
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue(projectWithoutMember);
+
+      const result = await service.checkProjectAccess('user-1', 'test-project', undefined, false);
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false for nonexistent project', async () => {
+      mockPrismaService.project.findUnique.mockResolvedValue(null);
+
+      const result = await service.checkProjectAccess('user-1', 'nonexistent', undefined, false);
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('role hierarchy', () => {
+    const testCases = [
+      { userRole: ProjectRole.owner, requiredRole: ProjectRole.admin, expected: true },
+      { userRole: ProjectRole.admin, requiredRole: ProjectRole.member, expected: true },
+      { userRole: ProjectRole.member, requiredRole: ProjectRole.viewer, expected: true },
+      { userRole: ProjectRole.viewer, requiredRole: ProjectRole.member, expected: false },
+      { userRole: ProjectRole.member, requiredRole: ProjectRole.admin, expected: false },
+      { userRole: ProjectRole.admin, requiredRole: ProjectRole.owner, expected: false },
+    ];
+
+    testCases.forEach(({ userRole, requiredRole, expected }) => {
+      it(`should return ${expected} when user has ${userRole} role and ${requiredRole} is required`, async () => {
+        const projectWithMember = {
+          ...mockProject,
+          ownerId: 'other-user',
+          members: [
+            {
+              userId: 'user-1',
+              role: userRole,
+            },
+          ],
+        };
+
+        mockPrismaService.project.findUnique.mockResolvedValue(projectWithMember);
+
+        const result = await service.checkProjectAccess('user-1', 'test-project', requiredRole, false);
+
+        expect(result).toBe(expected);
+      });
     });
   });
 });
