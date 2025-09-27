@@ -9,7 +9,6 @@ import { ConfigService } from '@nestjs/config';
 import { CryptoUtil } from './common/utils/crypto.util';
 
 async function bootstrap() {
-
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
@@ -28,7 +27,9 @@ async function bootstrap() {
   // Sentry is integrated via the interceptor instead of middleware for NestJS
 
   // Configure CORS with specific origins
-  const corsOrigins = configService.get<string[]>('app.corsOrigins') || ['http://localhost:3000'];
+  const corsOrigins = configService.get<string[]>('app.corsOrigins') || [
+    'http://localhost:3000',
+  ];
   app.enableCors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or Postman)
@@ -43,7 +44,11 @@ async function bootstrap() {
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
-    exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+    exposedHeaders: [
+      'X-RateLimit-Limit',
+      'X-RateLimit-Remaining',
+      'X-RateLimit-Reset',
+    ],
   });
 
   const port = configService.get<number>('app.port') || 3000;

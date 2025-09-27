@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Request, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { AppAuthGuard } from '../common/guards/app-auth.guard';
 import { RequireScopes } from '../common/decorators/scopes.decorator';
@@ -30,14 +40,11 @@ export class UsersController {
     examples: [
       {
         description: 'List all project members',
-        command: 'gatekit members list my-project'
-      }
-    ]
+        command: 'gatekit members list my-project',
+      },
+    ],
   })
-  async listMembers(
-    @Param('slug') slug: string,
-    @Request() req: any
-  ) {
+  async listMembers(@Param('slug') slug: string, @Request() req: any) {
     return this.usersService.getProjectMembers(slug, req.user.userId);
   }
 
@@ -51,35 +58,41 @@ export class UsersController {
     inputType: 'AddMemberDto',
     outputType: 'ProjectMember',
     options: {
-      email: { required: true, description: 'Email of user to add', type: 'string' },
+      email: {
+        required: true,
+        description: 'Email of user to add',
+        type: 'string',
+      },
       role: {
         required: true,
         description: 'Role to assign to the member',
         choices: ['owner', 'admin', 'member', 'viewer'],
-        type: 'string'
-      }
+        type: 'string',
+      },
     },
     examples: [
       {
         description: 'Add a member with admin role',
-        command: 'gatekit members add my-project --email user@example.com --role admin'
+        command:
+          'gatekit members add my-project --email user@example.com --role admin',
       },
       {
         description: 'Add a viewer to the project',
-        command: 'gatekit members add my-project --email viewer@example.com --role viewer'
-      }
-    ]
+        command:
+          'gatekit members add my-project --email viewer@example.com --role viewer',
+      },
+    ],
   })
   async addMember(
     @Param('slug') slug: string,
     @Body() dto: AddMemberDto,
-    @Request() req: any
+    @Request() req: any,
   ) {
     return this.usersService.addProjectMember(
       slug,
       dto.email,
       dto.role,
-      req.user.userId
+      req.user.userId,
     );
   }
 
@@ -93,36 +106,40 @@ export class UsersController {
     inputType: 'UpdateMemberRoleDto',
     outputType: 'ProjectMember',
     options: {
-      userId: { required: true, description: 'User ID of the member to update', type: 'string' },
+      userId: {
+        required: true,
+        description: 'User ID of the member to update',
+        type: 'string',
+      },
       role: {
         required: true,
         description: 'New role to assign',
         choices: ['admin', 'member', 'viewer'],
-        type: 'string'
-      }
+        type: 'string',
+      },
     },
     examples: [
       {
         description: 'Promote member to admin',
-        command: 'gatekit members update my-project user-123 --role admin'
+        command: 'gatekit members update my-project user-123 --role admin',
       },
       {
         description: 'Demote admin to member',
-        command: 'gatekit members update my-project user-123 --role member'
-      }
-    ]
+        command: 'gatekit members update my-project user-123 --role member',
+      },
+    ],
   })
   async updateMemberRole(
     @Param('slug') slug: string,
     @Param('userId') userId: string,
     @Body() dto: UpdateMemberRoleDto,
-    @Request() req: any
+    @Request() req: any,
   ) {
     return this.usersService.updateProjectMemberRole(
       slug,
       userId,
       dto.role,
-      req.user.userId
+      req.user.userId,
     );
   }
 
@@ -135,19 +152,23 @@ export class UsersController {
     requiredScopes: ['members:write'],
     outputType: 'MessageResponse',
     options: {
-      userId: { required: true, description: 'User ID of the member to remove', type: 'string' }
+      userId: {
+        required: true,
+        description: 'User ID of the member to remove',
+        type: 'string',
+      },
     },
     examples: [
       {
         description: 'Remove a member from project',
-        command: 'gatekit members remove my-project user-123'
-      }
-    ]
+        command: 'gatekit members remove my-project user-123',
+      },
+    ],
   })
   async removeMember(
     @Param('slug') slug: string,
     @Param('userId') userId: string,
-    @Request() req: any
+    @Request() req: any,
   ) {
     return this.usersService.removeProjectMember(slug, userId, req.user.userId);
   }

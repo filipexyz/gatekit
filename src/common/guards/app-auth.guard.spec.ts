@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ExecutionContext, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AppAuthGuard } from './app-auth.guard';
@@ -11,7 +15,11 @@ describe('AppAuthGuard', () => {
   let reflector: Reflector;
   let configService: ConfigService;
 
-  const mockExecutionContext = (headers: any = {}, handler?: any, class_?: any): ExecutionContext => {
+  const mockExecutionContext = (
+    headers: any = {},
+    handler?: any,
+    class_?: any,
+  ): ExecutionContext => {
     const request = { headers };
     return {
       switchToHttp: () => ({
@@ -82,7 +90,9 @@ describe('AppAuthGuard', () => {
         scopes: ['projects:read', 'projects:write'],
       };
 
-      jest.spyOn(apiKeysService, 'validateApiKey').mockResolvedValue(mockValidatedKey as any);
+      jest
+        .spyOn(apiKeysService, 'validateApiKey')
+        .mockResolvedValue(mockValidatedKey as any);
 
       const context = mockExecutionContext({ 'x-api-key': mockApiKey });
       const request = context.switchToHttp().getRequest();
@@ -101,8 +111,12 @@ describe('AppAuthGuard', () => {
 
       const context = mockExecutionContext({ 'x-api-key': 'invalid-key' });
 
-      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
-      await expect(guard.canActivate(context)).rejects.toThrow('Invalid API key');
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        'Invalid API key',
+      );
     });
 
     it('should reject when API key lacks required scopes', async () => {
@@ -112,17 +126,26 @@ describe('AppAuthGuard', () => {
         scopes: ['projects:read'], // Missing projects:write
       };
 
-      jest.spyOn(apiKeysService, 'validateApiKey').mockResolvedValue(mockValidatedKey as any);
-      jest.spyOn(reflector, 'getAllAndOverride').mockImplementation((key: string) => {
-        if (key === 'isPublic') return false;
-        if (key === 'requiredScopes') return ['projects:read', 'projects:write'];
-        return null;
-      });
+      jest
+        .spyOn(apiKeysService, 'validateApiKey')
+        .mockResolvedValue(mockValidatedKey as any);
+      jest
+        .spyOn(reflector, 'getAllAndOverride')
+        .mockImplementation((key: string) => {
+          if (key === 'isPublic') return false;
+          if (key === 'requiredScopes')
+            return ['projects:read', 'projects:write'];
+          return null;
+        });
 
       const context = mockExecutionContext({ 'x-api-key': 'valid-key' });
 
-      await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
-      await expect(guard.canActivate(context)).rejects.toThrow('Insufficient permissions');
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        'Insufficient permissions',
+      );
     });
   });
 
@@ -141,9 +164,11 @@ describe('AppAuthGuard', () => {
         authorization: 'Bearer fake.jwt.token',
       });
 
-      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
       await expect(guard.canActivate(context)).rejects.toThrow(
-        'JWT authentication is not configured. Please use API key authentication.'
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        'JWT authentication is not configured. Please use API key authentication.',
       );
     });
 
@@ -179,7 +204,9 @@ describe('AppAuthGuard', () => {
       });
 
       // Test that invalid JWT tokens are properly rejected
-      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -189,9 +216,11 @@ describe('AppAuthGuard', () => {
 
       const context = mockExecutionContext({});
 
-      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
       await expect(guard.canActivate(context)).rejects.toThrow(
-        'Authentication required. Provide either an API key or Bearer token.'
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        'Authentication required. Provide either an API key or Bearer token.',
       );
     });
   });
@@ -206,7 +235,9 @@ describe('AppAuthGuard', () => {
         scopes: ['projects:read'],
       };
 
-      jest.spyOn(apiKeysService, 'validateApiKey').mockResolvedValue(mockValidatedKey as any);
+      jest
+        .spyOn(apiKeysService, 'validateApiKey')
+        .mockResolvedValue(mockValidatedKey as any);
 
       const context = mockExecutionContext({
         'x-api-key': 'valid-api-key',
