@@ -21,16 +21,15 @@ export class PlatformRegistry implements OnModuleInit {
     this.logger.log('Auto-discovering platform providers...');
 
     // Get all providers with our decorator
-    const providers = this.discoveryService.getProviders().filter((wrapper) => {
-      try {
-        return (
-          wrapper.metatype &&
-          Reflect.getMetadata(PLATFORM_PROVIDER_METADATA, wrapper.metatype)
-        );
-      } catch {
-        return false;
-      }
-    });
+    const providers = this.discoveryService
+      .getProviders()
+      .filter((wrapper) => {
+        try {
+          return wrapper.metatype && Reflect.getMetadata(PLATFORM_PROVIDER_METADATA, wrapper.metatype);
+        } catch {
+          return false;
+        }
+      });
 
     // Register each discovered provider
     for (const wrapper of providers) {
@@ -43,15 +42,11 @@ export class PlatformRegistry implements OnModuleInit {
           this.logger.log(`Auto-registered platform: ${instance.displayName}`);
         }
       } catch (error) {
-        this.logger.error(
-          `Failed to register provider ${wrapper.name}: ${error.message}`,
-        );
+        this.logger.error(`Failed to register provider ${wrapper.name}: ${error.message}`);
       }
     }
 
-    this.logger.log(
-      `Discovered and registered ${this.providers.size} platform providers`,
-    );
+    this.logger.log(`Discovered and registered ${this.providers.size} platform providers`);
   }
 
   private isPlatformProvider(instance: any): instance is PlatformProvider {
@@ -68,15 +63,11 @@ export class PlatformRegistry implements OnModuleInit {
   register(provider: PlatformProvider) {
     const name = provider.name.toLowerCase();
     if (this.providers.has(name)) {
-      this.logger.warn(
-        `Platform provider '${name}' is already registered, overwriting...`,
-      );
+      this.logger.warn(`Platform provider '${name}' is already registered, overwriting...`);
     }
 
     this.providers.set(name, provider);
-    this.logger.log(
-      `Registered platform provider: ${provider.displayName} (${provider.connectionType})`,
-    );
+    this.logger.log(`Registered platform provider: ${provider.displayName} (${provider.connectionType})`);
   }
 
   unregister(platformName: string) {

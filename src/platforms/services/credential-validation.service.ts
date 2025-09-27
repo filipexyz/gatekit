@@ -1,11 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import {
-  PlatformCredentialValidator,
-  CredentialValidationResult,
-} from '../interfaces/credential-validator.interface';
+import { PlatformCredentialValidator, CredentialValidationResult } from '../interfaces/credential-validator.interface';
 import { TelegramCredentialsValidator } from '../validators/telegram-credentials.validator';
 import { DiscordCredentialsValidator } from '../validators/discord-credentials.validator';
-import { WhatsAppCredentialsValidator } from '../validators/whatsapp-credentials.validator';
 
 @Injectable()
 export class CredentialValidationService {
@@ -14,12 +10,10 @@ export class CredentialValidationService {
   constructor(
     private readonly telegramValidator: TelegramCredentialsValidator,
     private readonly discordValidator: DiscordCredentialsValidator,
-    private readonly whatsappValidator: WhatsAppCredentialsValidator,
   ) {
     // Register platform validators
     this.validators.set('telegram', this.telegramValidator);
     this.validators.set('discord', this.discordValidator);
-    this.validators.set('whatsapp-evo', this.whatsappValidator);
   }
 
   /**
@@ -36,9 +30,7 @@ export class CredentialValidationService {
 
     // Log warnings if any
     if (result.warnings && result.warnings.length > 0) {
-      console.warn(
-        `[${platform.toUpperCase()}] Credential warnings: ${result.warnings.join(', ')}`,
-      );
+      console.warn(`[${platform.toUpperCase()}] Credential warnings: ${result.warnings.join(', ')}`);
     }
   }
 
@@ -46,10 +38,7 @@ export class CredentialValidationService {
    * Validates credentials for a specific platform
    * Returns validation result without throwing
    */
-  validate(
-    platform: string,
-    credentials: Record<string, any>,
-  ): CredentialValidationResult {
+  validate(platform: string, credentials: Record<string, any>): CredentialValidationResult {
     const validator = this.validators.get(platform.toLowerCase());
 
     if (!validator) {
@@ -114,8 +103,8 @@ export class CredentialValidationService {
    * Gets validation schemas for all platforms
    */
   getAllValidationSchemas() {
-    return Array.from(this.validators.keys()).map((platform) =>
-      this.getValidationSchema(platform),
+    return Array.from(this.validators.keys()).map(platform =>
+      this.getValidationSchema(platform)
     );
   }
 }

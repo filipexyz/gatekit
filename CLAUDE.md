@@ -2,11 +2,7 @@
 
 ## Project Overview
 
-**GateKit** is a universal messaging gateway that provides a single API to send messages across multiple platforms (Discord, Telegram, WhatsApp via Evolution API, etc.). It solves the problem of developers wasting 70% of their time on platform-specific integrations.
-
-## Community
-
-Join our Discord community for support and discussions: https://discord.gg/bQPsvycW
+**GateKit** is a universal messaging gateway that provides a single API to send messages across multiple platforms (Discord, Telegram, Slack, WhatsApp, etc.). It solves the problem of developers wasting 70% of their time on platform-specific integrations.
 
 ## Technology Stack
 
@@ -68,11 +64,10 @@ Dual authentication support:
 
 ### Platform Configuration
 - `GET /api/v1/projects/:slug/platforms` - List configured platforms
-- `POST /api/v1/projects/:slug/platforms` - Configure platform (Discord, Telegram, WhatsApp-Evo)
+- `POST /api/v1/projects/:slug/platforms` - Configure platform
 - `PATCH /api/v1/projects/:slug/platforms/:id` - Update platform
 - `DELETE /api/v1/projects/:slug/platforms/:id` - Delete platform
-- `POST /api/v1/projects/:slug/platforms/:id/register-webhook` - Register webhook with provider
-- `GET /api/v1/projects/:slug/platforms/:id/qr-code` - Get QR code for WhatsApp authentication
+- `POST /api/v1/projects/:slug/platforms/:id/register-webhook` - Register webhook with provider (Telegram)
 
 ### Messaging (Queue-based)
 - `POST /api/v1/projects/:slug/messages/send` - Queue message for delivery
@@ -89,44 +84,8 @@ Dual authentication support:
 ### Webhooks (Dynamic & UUID-secured)
 - `POST /api/v1/webhooks/:platform/:webhookToken` - Dynamic webhook handler for any platform
 - `GET /api/v1/platforms/health` - Platform provider health status
-- `GET /api/v1/platforms/supported` - List supported platforms (discord, telegram, whatsapp-evo)
+- `GET /api/v1/platforms/supported` - List supported platforms
 - `GET /api/v1/platforms/webhook-routes` - Available webhook routes
-
-## Platform Integrations
-
-### **WhatsApp via Evolution API (whatsapp-evo)**
-
-GateKit integrates with WhatsApp through the Evolution API, providing robust WhatsApp messaging capabilities:
-
-#### **Features:**
-- **QR Code Authentication** - Secure connection setup via QR code scanning
-- **Real-time Messaging** - Webhook-based message reception and sending
-- **Multi-format Support** - Handles various Evolution API payload formats
-- **Auto-Connection** - Dynamic connection creation on incoming webhooks
-- **Message Persistence** - Complete message history with raw data storage
-
-#### **Setup Process:**
-1. **Configure Platform** - Add WhatsApp-Evo platform with Evolution API credentials
-2. **QR Code Flow** - Use `/platforms/:id/qr-code` endpoint for authentication
-3. **Webhook Registration** - Automatic webhook setup with Evolution API
-4. **Message Flow** - Send/receive messages through unified GateKit API
-
-#### **Credentials Required:**
-- `evolutionApiUrl` - Evolution API server URL (e.g., https://evo.example.com)
-- `evolutionApiKey` - Evolution API authentication key
-
-#### **Example Configuration:**
-```bash
-curl -X POST "/api/v1/projects/my-project/platforms" \
-  -H "X-API-Key: your-api-key" \
-  -d '{
-    "platform": "whatsapp-evo",
-    "credentials": {
-      "evolutionApiUrl": "https://evo.example.com",
-      "evolutionApiKey": "your-evolution-api-key"
-    }
-  }'
-```
 
 ## Architecture Highlights
 
@@ -134,7 +93,7 @@ curl -X POST "/api/v1/projects/my-project/platforms" \
 - **Plugin-based architecture** - Platforms auto-register via `@PlatformProviderDecorator`
 - **Complete isolation** - Each platform provider manages its own connections and logic
 - **Thread-safe design** - No shared state between projects or platforms
-- **Connection strategies** - WebSocket (Discord), Webhook (Telegram, WhatsApp-Evo), easily extensible
+- **Connection strategies** - WebSocket (Discord), Webhook (Telegram), easily extensible
 - **Auto-discovery** - New platforms require only a single provider class
 
 ### Message Queue System
@@ -153,12 +112,11 @@ curl -X POST "/api/v1/projects/my-project/platforms" \
 - **Message deduplication** - Unique constraints prevent duplicate storage
 
 ### Platform Provider Features
-- **One connection per project** - Discord: dedicated WebSocket per project, WhatsApp-Evo: Evolution API integration
+- **One connection per project** - Discord: dedicated WebSocket per project
 - **Resource management** - Connection limits, cleanup, health monitoring
 - **Error resilience** - Graceful degradation when platforms unavailable
 - **Hot-swappable** - Providers can be added/removed without restarting
-- **Webhook auto-registration** - Telegram and WhatsApp-Evo webhooks configured automatically
-- **QR Code Authentication** - WhatsApp-Evo supports QR code flow for connection setup
+- **Webhook auto-registration** - Telegram webhooks registered automatically
 - **Message persistence** - All incoming messages stored with full raw data
 
 ## Development Setup
@@ -189,22 +147,11 @@ When writing or modifying tests:
 
 ### Quick Commands
 ```bash
-npm test         # Run unit tests (300 tests - all platforms)
+npm test         # Run unit tests
 npm test:e2e     # Run integration tests
-npm test -- --testPathPatterns="whatsapp.*spec.ts"  # Run WhatsApp-Evo tests (57 tests)
 ```
 
-### Platform Test Coverage
-- **Discord Provider**: Complete WebSocket connection testing
-- **Telegram Provider**: Comprehensive webhook and bot API testing
-- **WhatsApp-Evo Provider**: 57 tests covering Evolution API integration, QR code flow, edge cases
-- **Credential Validators**: Extensive validation testing for all platforms
-
 For detailed testing guidelines, see: **[test/CLAUDE.md](test/CLAUDE.md)**
-
-## Platform-Specific Documentation
-
-- **[WHATSAPP_EVO.md](WHATSAPP_EVO.md)** - Complete WhatsApp via Evolution API integration guide
 
 ## GateKit Client Architecture
 
@@ -236,7 +183,7 @@ Backend Controllers (@SdkContract decorators)
 - **Zero Duplication** - Single contract definition generates everything
 
 ### **Current Implementation Status**
-- ✅ Backend API fully functional with Discord, Telegram, and WhatsApp-Evo support
+- ✅ Backend API fully functional with Discord/Telegram support
 - ✅ Revolutionary contract-driven architecture complete and production-ready
 - ✅ Permission Discovery API (`/auth/whoami`) operational
 - ✅ Recursive type auto-discovery system (20 types extracted automatically)

@@ -37,9 +37,9 @@ export class MessagesController {
     outputType: 'MessageListResponse',
     options: {
       platform: {
-        description: 'Filter by platform (telegram, discord, whatsapp-evo)',
+        description: 'Filter by platform (telegram, discord)',
         type: 'string',
-        choices: ['telegram', 'discord', 'whatsapp-evo'],
+        choices: ['telegram', 'discord'],
       },
       chatId: {
         description: 'Filter by chat/channel ID',
@@ -81,8 +81,7 @@ export class MessagesController {
       },
       {
         description: 'Get Telegram messages from specific chat',
-        command:
-          'gatekit messages list --platform telegram --chatId "123456789"',
+        command: 'gatekit messages list --platform telegram --chatId "123456789"',
       },
       {
         description: 'Get messages from last 24 hours',
@@ -186,50 +185,43 @@ export class MessagesController {
     options: {
       target: {
         description: 'Single target in format: platformId:type:id',
-        type: 'target_pattern',
+        type: 'target_pattern'
       },
       targets: {
-        description:
-          'Multiple targets comma-separated: platformId:type:id,platformId:type:id',
-        type: 'targets_pattern',
+        description: 'Multiple targets comma-separated: platformId:type:id,platformId:type:id',
+        type: 'targets_pattern'
       },
       text: {
         description: 'Message text content',
-        type: 'string',
+        type: 'string'
       },
       content: {
         description: 'Full message content object (advanced)',
-        type: 'object',
+        type: 'object'
       },
       options: { description: 'Message options', type: 'object' },
-      metadata: { description: 'Message metadata', type: 'object' },
+      metadata: { description: 'Message metadata', type: 'object' }
     },
     examples: [
       {
         description: 'Send to single user',
-        command:
-          'gatekit messages send --target "platformId:user:253191879" --text "Hello!"',
+        command: 'gatekit messages send --target "platformId:user:253191879" --text "Hello!"'
       },
       {
         description: 'Send to multiple targets',
-        command:
-          'gatekit messages send --targets "platform1:user:123,platform2:channel:456" --text "Broadcast message"',
+        command: 'gatekit messages send --targets "platform1:user:123,platform2:channel:456" --text "Broadcast message"'
       },
       {
         description: 'Advanced with full content object',
-        command:
-          'gatekit messages send --target "platformId:user:123" --content \'{"text":"Hello","buttons":[{"text":"Click me"}]}\'',
-      },
-    ],
+        command: 'gatekit messages send --target "platformId:user:123" --content \'{"text":"Hello","buttons":[{"text":"Click me"}]}\''
+      }
+    ]
   })
   async sendMessage(
     @Param('projectSlug') projectSlug: string,
     @Body() sendMessageDto: SendMessageDto,
   ) {
-    return this.platformMessagesService.sendMessage(
-      projectSlug,
-      sendMessageDto,
-    );
+    return this.platformMessagesService.sendMessage(projectSlug, sendMessageDto);
   }
 
   @Get('status/:jobId')
@@ -241,14 +233,14 @@ export class MessagesController {
     requiredScopes: ['messages:read'],
     outputType: 'MessageStatusResponse',
     options: {
-      jobId: { required: true, description: 'Message job ID', type: 'string' },
+      jobId: { required: true, description: 'Message job ID', type: 'string' }
     },
     examples: [
       {
         description: 'Check message status',
-        command: 'gatekit messages status --jobId "job-123"',
-      },
-    ],
+        command: 'gatekit messages status --jobId "job-123"'
+      }
+    ]
   })
   async getMessageStatus(
     @Param('projectSlug') projectSlug: string,
@@ -266,18 +258,14 @@ export class MessagesController {
     requiredScopes: ['messages:send'],
     outputType: 'MessageRetryResponse',
     options: {
-      jobId: {
-        required: true,
-        description: 'Failed message job ID',
-        type: 'string',
-      },
+      jobId: { required: true, description: 'Failed message job ID', type: 'string' }
     },
     examples: [
       {
         description: 'Retry failed message',
-        command: 'gatekit messages retry --jobId "job-123"',
-      },
-    ],
+        command: 'gatekit messages retry --jobId "job-123"'
+      }
+    ]
   })
   async retryMessage(
     @Param('projectSlug') projectSlug: string,
@@ -296,32 +284,20 @@ export class MessagesController {
     outputType: 'SentMessage[]',
     options: {
       platform: { description: 'Filter by platform', type: 'string' },
-      status: {
-        description: 'Filter by status (pending, sent, failed)',
-        type: 'string',
-        choices: ['pending', 'sent', 'failed'],
-      },
-      limit: {
-        description: 'Number of messages to return',
-        type: 'number',
-        default: 50,
-      },
-      offset: {
-        description: 'Number of messages to skip',
-        type: 'number',
-        default: 0,
-      },
+      status: { description: 'Filter by status (pending, sent, failed)', type: 'string', choices: ['pending', 'sent', 'failed'] },
+      limit: { description: 'Number of messages to return', type: 'number', default: 50 },
+      offset: { description: 'Number of messages to skip', type: 'number', default: 0 },
     },
     examples: [
       {
         description: 'Get sent messages',
-        command: 'gatekit messages sent',
+        command: 'gatekit messages sent'
       },
       {
         description: 'Get failed messages',
-        command: 'gatekit messages sent --status failed',
-      },
-    ],
+        command: 'gatekit messages sent --status failed'
+      }
+    ]
   })
   async getSentMessages(
     @Param('projectSlug') projectSlug: string,

@@ -12,20 +12,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   private configService: ConfigService;
   private usersService: UsersService;
 
-  constructor(configService: ConfigService, usersService: UsersService) {
+  constructor(
+    configService: ConfigService,
+    usersService: UsersService
+  ) {
     const auth0Config = configService.get<AppConfig['auth0']>('app.auth0');
 
     if (!auth0Config?.domain || !auth0Config?.audience) {
-      console.warn(
-        'Auth0 configuration not found. JWT authentication will be disabled.',
-      );
+      console.warn('Auth0 configuration not found. JWT authentication will be disabled.');
       super({
         secretOrKeyProvider: () => '',
         jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
         passReqToCallback: false,
       });
     } else {
-      super({
+        super({
         secretOrKeyProvider: passportJwtSecret({
           cache: true,
           rateLimit: true,

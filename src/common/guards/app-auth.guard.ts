@@ -1,11 +1,4 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  UnauthorizedException,
-  ForbiddenException,
-  Optional,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, ForbiddenException, Optional } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
@@ -41,25 +34,17 @@ export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
 
     const authHeader = request.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const auth0Config =
-        this.configService.get<AppConfig['auth0']>('app.auth0');
+      const auth0Config = this.configService.get<AppConfig['auth0']>('app.auth0');
       if (!auth0Config?.domain || !auth0Config?.audience) {
-        throw new UnauthorizedException(
-          'JWT authentication is not configured. Please use API key authentication.',
-        );
+        throw new UnauthorizedException('JWT authentication is not configured. Please use API key authentication.');
       }
       return this.validateJwt(context);
     }
 
-    throw new UnauthorizedException(
-      'Authentication required. Provide either an API key or Bearer token.',
-    );
+    throw new UnauthorizedException('Authentication required. Provide either an API key or Bearer token.');
   }
 
-  private async validateApiKey(
-    context: ExecutionContext,
-    apiKey: string,
-  ): Promise<boolean> {
+  private async validateApiKey(context: ExecutionContext, apiKey: string): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
 
     if (!this.apiKeysService) {
@@ -72,15 +57,14 @@ export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
       throw new UnauthorizedException('Invalid API key');
     }
 
-    const requiredScopes =
-      this.reflector.getAllAndOverride<string[]>('requiredScopes', [
-        context.getHandler(),
-        context.getClass(),
-      ]) || [];
+    const requiredScopes = this.reflector.getAllAndOverride<string[]>('requiredScopes', [
+      context.getHandler(),
+      context.getClass(),
+    ]) || [];
 
     if (requiredScopes.length > 0) {
-      const hasRequiredScopes = requiredScopes.every((scope) =>
-        validatedKey.scopes.includes(scope),
+      const hasRequiredScopes = requiredScopes.every(scope =>
+        validatedKey.scopes.includes(scope)
       );
 
       if (!hasRequiredScopes) {
@@ -103,21 +87,18 @@ export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
         const request = context.switchToHttp().getRequest();
         request.authType = 'jwt';
 
-        const requiredScopes =
-          this.reflector.getAllAndOverride<string[]>('requiredScopes', [
-            context.getHandler(),
-            context.getClass(),
-          ]) || [];
+        const requiredScopes = this.reflector.getAllAndOverride<string[]>('requiredScopes', [
+          context.getHandler(),
+          context.getClass(),
+        ]) || [];
 
         if (requiredScopes.length > 0 && request.user) {
           const userPermissions = request.user.permissions || [];
-          const userScopes = request.user.scope
-            ? request.user.scope.split(' ')
-            : [];
+          const userScopes = request.user.scope ? request.user.scope.split(' ') : [];
           const allPermissions = [...userPermissions, ...userScopes];
 
-          const hasRequiredScopes = requiredScopes.every((scope) =>
-            allPermissions.includes(scope),
+          const hasRequiredScopes = requiredScopes.every(scope =>
+            allPermissions.includes(scope)
           );
 
           if (!hasRequiredScopes) {

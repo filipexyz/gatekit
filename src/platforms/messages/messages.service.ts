@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { SendMessageDto } from '../dto/send-message.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MessageQueue } from '../../queues/message.queue';
@@ -21,7 +16,7 @@ export class MessagesService {
 
   async sendMessage(projectSlug: string, sendMessageDto: SendMessageDto) {
     const targetCount = sendMessageDto.targets.length;
-    const platformIds = sendMessageDto.targets.map((t) => t.platformId);
+    const platformIds = sendMessageDto.targets.map(t => t.platformId);
 
     this.logger.log(`Sending message to ${targetCount} targets`);
 
@@ -79,15 +74,9 @@ export class MessagesService {
 
     // Calculate delivery summary
     const totalTargets = deliveryResults.length;
-    const successfulDeliveries = deliveryResults.filter(
-      (r) => r.status === 'sent',
-    ).length;
-    const failedDeliveries = deliveryResults.filter(
-      (r) => r.status === 'failed',
-    ).length;
-    const pendingDeliveries = deliveryResults.filter(
-      (r) => r.status === 'pending',
-    ).length;
+    const successfulDeliveries = deliveryResults.filter(r => r.status === 'sent').length;
+    const failedDeliveries = deliveryResults.filter(r => r.status === 'failed').length;
+    const pendingDeliveries = deliveryResults.filter(r => r.status === 'pending').length;
 
     // Determine overall status
     let overallStatus: 'completed' | 'failed' | 'partial' | 'pending';
@@ -113,8 +102,8 @@ export class MessagesService {
         },
         results: deliveryResults,
         errors: deliveryResults
-          .filter((r) => r.status === 'failed' && r.errorMessage)
-          .map((r) => ({
+          .filter(r => r.status === 'failed' && r.errorMessage)
+          .map(r => ({
             platform: r.platform,
             target: `${r.targetType}:${r.targetChatId}`,
             error: r.errorMessage,
@@ -137,11 +126,11 @@ export class MessagesService {
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
     }
 
     return project;
   }
+
+
 }

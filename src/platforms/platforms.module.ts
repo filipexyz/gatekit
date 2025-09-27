@@ -14,7 +14,6 @@ import { PlatformLogsService } from './services/platform-logs.service';
 import { CredentialValidationService } from './services/credential-validation.service';
 import { TelegramCredentialsValidator } from './validators/telegram-credentials.validator';
 import { DiscordCredentialsValidator } from './validators/discord-credentials.validator';
-import { WhatsAppCredentialsValidator } from './validators/whatsapp-credentials.validator';
 import { PrismaModule } from '../prisma/prisma.module';
 import { EVENT_BUS } from './interfaces/event-bus.interface';
 import { MessageQueue } from '../queues/message.queue';
@@ -22,7 +21,6 @@ import { MessageQueue } from '../queues/message.queue';
 // Platform Providers
 import { DiscordProvider } from './providers/discord.provider';
 import { TelegramProvider } from './providers/telegram.provider';
-import { WhatsAppProvider } from './providers/whatsapp.provider';
 
 @Module({
   imports: [
@@ -56,7 +54,6 @@ import { WhatsAppProvider } from './providers/whatsapp.provider';
     CredentialValidationService,
     TelegramCredentialsValidator,
     DiscordCredentialsValidator,
-    WhatsAppCredentialsValidator,
     MessageQueue,
     {
       provide: EVENT_BUS,
@@ -65,13 +62,7 @@ import { WhatsAppProvider } from './providers/whatsapp.provider';
     // Platform Providers - will be auto-discovered
     DiscordProvider,
     TelegramProvider,
-    WhatsAppProvider,
   ],
-  exports: [
-    PlatformsService,
-    MessagesService,
-    PlatformRegistry,
-    PlatformLogsService,
-  ],
+  exports: [PlatformsService, MessagesService, PlatformRegistry, PlatformLogsService],
 })
 export class PlatformsModule {}

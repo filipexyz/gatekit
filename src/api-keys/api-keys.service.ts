@@ -8,19 +8,14 @@ import { ProjectEnvironment } from '@prisma/client';
 export class ApiKeysService {
   constructor(private prisma: PrismaService) {}
 
-  async create(
-    projectSlug: string,
-    createApiKeyDto: CreateApiKeyDto,
-    createdBy?: string,
-  ) {
+
+  async create(projectSlug: string, createApiKeyDto: CreateApiKeyDto, createdBy?: string) {
     const project = await this.prisma.project.findUnique({
       where: { slug: projectSlug },
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
     }
 
     const apiKey = CryptoUtil.generateApiKey(project.environment);
@@ -46,7 +41,7 @@ export class ApiKeysService {
         expiresAt,
         createdBy,
         scopes: {
-          create: scopes.map((scope) => ({ scope })),
+          create: scopes.map(scope => ({ scope })),
         },
       },
       include: {
@@ -59,7 +54,7 @@ export class ApiKeysService {
       key: apiKey,
       name: createdApiKey.name,
       prefix: keyPrefix,
-      scopes: createdApiKey.scopes.map((s) => s.scope),
+      scopes: createdApiKey.scopes.map(s => s.scope),
       expiresAt: createdApiKey.expiresAt,
       createdAt: createdApiKey.createdAt,
     };
@@ -71,9 +66,7 @@ export class ApiKeysService {
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
     }
 
     const apiKeys = await this.prisma.apiKey.findMany({
@@ -86,11 +79,11 @@ export class ApiKeysService {
       },
     });
 
-    return apiKeys.map((key) => ({
+    return apiKeys.map(key => ({
       id: key.id,
       name: key.name,
       maskedKey: CryptoUtil.maskApiKey(key.keyPrefix, key.keySuffix),
-      scopes: key.scopes.map((s) => s.scope),
+      scopes: key.scopes.map(s => s.scope),
       lastUsedAt: key.lastUsedAt,
       expiresAt: key.expiresAt,
       createdAt: key.createdAt,
@@ -103,9 +96,7 @@ export class ApiKeysService {
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
     }
 
     const apiKey = await this.prisma.apiKey.findFirst({
@@ -137,9 +128,7 @@ export class ApiKeysService {
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
     }
 
     const oldKey = await this.prisma.apiKey.findFirst({
@@ -179,7 +168,7 @@ export class ApiKeysService {
           expiresAt: oldKey.expiresAt,
           createdBy,
           scopes: {
-            create: oldKey.scopes.map((s) => ({ scope: s.scope })),
+            create: oldKey.scopes.map(s => ({ scope: s.scope })),
           },
         },
         include: {
@@ -193,7 +182,7 @@ export class ApiKeysService {
       key: newApiKey,
       name: createdApiKey.name,
       prefix: keyPrefix,
-      scopes: createdApiKey.scopes.map((s) => s.scope),
+      scopes: createdApiKey.scopes.map(s => s.scope),
       expiresAt: createdApiKey.expiresAt,
       createdAt: createdApiKey.createdAt,
       oldKeyRevokedAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -232,7 +221,7 @@ export class ApiKeysService {
       id: key.id,
       projectId: key.projectId,
       project: key.project,
-      scopes: key.scopes.map((s) => s.scope),
+      scopes: key.scopes.map(s => s.scope),
     };
   }
 }

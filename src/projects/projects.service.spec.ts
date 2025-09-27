@@ -1,11 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectsService } from './projects.service';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  NotFoundException,
-  ConflictException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { ProjectRole, ProjectEnvironment } from '@prisma/client';
 
 describe('ProjectsService', () => {
@@ -86,13 +82,13 @@ describe('ProjectsService', () => {
     prisma = module.get<PrismaService>(PrismaService);
 
     // Reset all mocks
-    Object.values(mockPrismaService.user).forEach((mockFn) => {
-      mockFn.mockReset();
+    Object.values(mockPrismaService.user).forEach(mockFn => {
+      (mockFn as jest.Mock).mockReset();
     });
-    Object.values(mockPrismaService.project).forEach((mockFn) => {
-      mockFn.mockReset();
+    Object.values(mockPrismaService.project).forEach(mockFn => {
+      (mockFn as jest.Mock).mockReset();
     });
-    mockPrismaService.apiKey.count.mockReset();
+    (mockPrismaService.apiKey.count as jest.Mock).mockReset();
   });
 
   describe('create', () => {
@@ -141,18 +137,14 @@ describe('ProjectsService', () => {
     it('should throw ConflictException if project slug already exists', async () => {
       mockPrismaService.project.findUnique.mockResolvedValue(mockProject);
 
-      await expect(service.create(createDto, 'user-1')).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(service.create(createDto, 'user-1')).rejects.toThrow(ConflictException);
     });
 
     it('should throw NotFoundException if owner does not exist', async () => {
       mockPrismaService.project.findUnique.mockResolvedValue(null);
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.create(createDto, 'nonexistent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.create(createDto, 'nonexistent')).rejects.toThrow(NotFoundException);
     });
 
     it('should update default projects when creating a default project', async () => {
@@ -161,10 +153,7 @@ describe('ProjectsService', () => {
       mockPrismaService.project.findUnique.mockResolvedValue(null);
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
       mockPrismaService.project.updateMany.mockResolvedValue({ count: 1 });
-      mockPrismaService.project.create.mockResolvedValue({
-        ...mockProject,
-        isDefault: true,
-      });
+      mockPrismaService.project.create.mockResolvedValue({ ...mockProject, isDefault: true });
 
       await service.create(defaultDto, 'user-1');
 
@@ -261,9 +250,7 @@ describe('ProjectsService', () => {
     it('should throw NotFoundException when project not found', async () => {
       mockPrismaService.project.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -284,9 +271,7 @@ describe('ProjectsService', () => {
     it('should throw NotFoundException when project does not exist', async () => {
       mockPrismaService.project.findUnique.mockResolvedValue(null);
 
-      await expect(service.update('non-existent', {})).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.update('non-existent', {})).rejects.toThrow(NotFoundException);
     });
 
     it('should throw ConflictException when updating to existing slug', async () => {
@@ -296,9 +281,7 @@ describe('ProjectsService', () => {
         .mockResolvedValueOnce({ id: 'project-id', slug: 'test-project' })
         .mockResolvedValueOnce({ id: 'another-id', slug: 'existing-slug' });
 
-      await expect(service.update('test-project', updateDto)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(service.update('test-project', updateDto)).rejects.toThrow(ConflictException);
     });
   });
 
@@ -344,9 +327,7 @@ describe('ProjectsService', () => {
 
       mockPrismaService.project.findUnique.mockResolvedValue(projectToDelete);
 
-      await expect(
-        service.remove('test-project', 'user-1', false),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.remove('test-project', 'user-1', false)).rejects.toThrow(ForbiddenException);
     });
 
     it('should throw ConflictException if project has active API keys', async () => {
@@ -358,28 +339,19 @@ describe('ProjectsService', () => {
       mockPrismaService.project.findUnique.mockResolvedValue(projectWithKeys);
       mockPrismaService.apiKey.count.mockResolvedValue(2);
 
-      await expect(
-        service.remove('test-project', 'user-1', false),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.remove('test-project', 'user-1', false)).rejects.toThrow(ConflictException);
     });
 
     it('should throw NotFoundException if project does not exist', async () => {
       mockPrismaService.project.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.remove('nonexistent', 'user-1', false),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.remove('nonexistent', 'user-1', false)).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('checkProjectAccess', () => {
     it('should return true for global admin', async () => {
-      const result = await service.checkProjectAccess(
-        'admin-1',
-        'test-project',
-        undefined,
-        true,
-      );
+      const result = await service.checkProjectAccess('admin-1', 'test-project', undefined, true);
 
       expect(result).toBe(true);
       expect(mockPrismaService.project.findUnique).not.toHaveBeenCalled();
@@ -393,12 +365,7 @@ describe('ProjectsService', () => {
 
       mockPrismaService.project.findUnique.mockResolvedValue(projectWithOwner);
 
-      const result = await service.checkProjectAccess(
-        'user-1',
-        'test-project',
-        undefined,
-        false,
-      );
+      const result = await service.checkProjectAccess('user-1', 'test-project', undefined, false);
 
       expect(result).toBe(true);
     });
@@ -417,12 +384,7 @@ describe('ProjectsService', () => {
 
       mockPrismaService.project.findUnique.mockResolvedValue(projectWithMember);
 
-      const result = await service.checkProjectAccess(
-        'user-1',
-        'test-project',
-        ProjectRole.member,
-        false,
-      );
+      const result = await service.checkProjectAccess('user-1', 'test-project', ProjectRole.member, false);
 
       expect(result).toBe(true);
     });
@@ -441,12 +403,7 @@ describe('ProjectsService', () => {
 
       mockPrismaService.project.findUnique.mockResolvedValue(projectWithMember);
 
-      const result = await service.checkProjectAccess(
-        'user-1',
-        'test-project',
-        ProjectRole.admin,
-        false,
-      );
+      const result = await service.checkProjectAccess('user-1', 'test-project', ProjectRole.admin, false);
 
       expect(result).toBe(false);
     });
@@ -458,16 +415,9 @@ describe('ProjectsService', () => {
         members: [],
       };
 
-      mockPrismaService.project.findUnique.mockResolvedValue(
-        projectWithoutMember,
-      );
+      mockPrismaService.project.findUnique.mockResolvedValue(projectWithoutMember);
 
-      const result = await service.checkProjectAccess(
-        'user-1',
-        'test-project',
-        undefined,
-        false,
-      );
+      const result = await service.checkProjectAccess('user-1', 'test-project', undefined, false);
 
       expect(result).toBe(false);
     });
@@ -475,12 +425,7 @@ describe('ProjectsService', () => {
     it('should return false for nonexistent project', async () => {
       mockPrismaService.project.findUnique.mockResolvedValue(null);
 
-      const result = await service.checkProjectAccess(
-        'user-1',
-        'nonexistent',
-        undefined,
-        false,
-      );
+      const result = await service.checkProjectAccess('user-1', 'nonexistent', undefined, false);
 
       expect(result).toBe(false);
     });
@@ -488,36 +433,12 @@ describe('ProjectsService', () => {
 
   describe('role hierarchy', () => {
     const testCases = [
-      {
-        userRole: ProjectRole.owner,
-        requiredRole: ProjectRole.admin,
-        expected: true,
-      },
-      {
-        userRole: ProjectRole.admin,
-        requiredRole: ProjectRole.member,
-        expected: true,
-      },
-      {
-        userRole: ProjectRole.member,
-        requiredRole: ProjectRole.viewer,
-        expected: true,
-      },
-      {
-        userRole: ProjectRole.viewer,
-        requiredRole: ProjectRole.member,
-        expected: false,
-      },
-      {
-        userRole: ProjectRole.member,
-        requiredRole: ProjectRole.admin,
-        expected: false,
-      },
-      {
-        userRole: ProjectRole.admin,
-        requiredRole: ProjectRole.owner,
-        expected: false,
-      },
+      { userRole: ProjectRole.owner, requiredRole: ProjectRole.admin, expected: true },
+      { userRole: ProjectRole.admin, requiredRole: ProjectRole.member, expected: true },
+      { userRole: ProjectRole.member, requiredRole: ProjectRole.viewer, expected: true },
+      { userRole: ProjectRole.viewer, requiredRole: ProjectRole.member, expected: false },
+      { userRole: ProjectRole.member, requiredRole: ProjectRole.admin, expected: false },
+      { userRole: ProjectRole.admin, requiredRole: ProjectRole.owner, expected: false },
     ];
 
     testCases.forEach(({ userRole, requiredRole, expected }) => {
@@ -533,16 +454,9 @@ describe('ProjectsService', () => {
           ],
         };
 
-        mockPrismaService.project.findUnique.mockResolvedValue(
-          projectWithMember,
-        );
+        mockPrismaService.project.findUnique.mockResolvedValue(projectWithMember);
 
-        const result = await service.checkProjectAccess(
-          'user-1',
-          'test-project',
-          requiredRole,
-          false,
-        );
+        const result = await service.checkProjectAccess('user-1', 'test-project', requiredRole, false);
 
         expect(result).toBe(expected);
       });

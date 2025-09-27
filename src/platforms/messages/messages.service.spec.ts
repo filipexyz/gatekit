@@ -34,6 +34,7 @@ describe('MessagesService', () => {
     validatePlatformConfigById: jest.fn(),
   };
 
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -64,13 +65,7 @@ describe('MessagesService', () => {
     it('should queue message for Discord platform', async () => {
       const projectSlug = 'test-project';
       const sendMessageDto = {
-        targets: [
-          {
-            type: 'channel' as any,
-            id: 'channel-123',
-            platformId: 'platform-uuid-123',
-          },
-        ],
+        targets: [{ type: 'channel' as any, id: 'channel-123', platformId: 'platform-uuid-123' }],
         content: { text: 'Hello Discord!' },
       };
 
@@ -108,13 +103,7 @@ describe('MessagesService', () => {
     it('should queue message for Telegram platform', async () => {
       const projectSlug = 'test-project';
       const sendMessageDto = {
-        targets: [
-          {
-            type: 'user' as any,
-            id: 'user-123',
-            platformId: 'platform-uuid-456',
-          },
-        ],
+        targets: [{ type: 'user' as any, id: 'user-123', platformId: 'platform-uuid-456' }],
         content: { text: 'Hello Telegram!' },
       };
 
@@ -154,9 +143,7 @@ describe('MessagesService', () => {
 
       await expect(
         service.sendMessage('non-existent', {
-          targets: [
-            { type: 'channel' as any, id: '123', platformId: 'platform-123' },
-          ],
+          targets: [{ type: 'channel' as any, id: '123', platformId: 'platform-123' }],
           content: { text: 'test' },
         }),
       ).rejects.toThrow(NotFoundException);
@@ -165,13 +152,7 @@ describe('MessagesService', () => {
     it('should throw NotFoundException when platform is not configured', async () => {
       const projectSlug = 'test-project';
       const sendMessageDto = {
-        targets: [
-          {
-            type: 'channel' as any,
-            id: 'channel-123',
-            platformId: 'platform-123',
-          },
-        ],
+        targets: [{ type: 'channel' as any, id: 'channel-123', platformId: 'platform-123' }],
         content: { text: 'Test' },
       };
 
@@ -181,9 +162,7 @@ describe('MessagesService', () => {
       });
 
       mockPlatformsService.validatePlatformConfigById.mockRejectedValue(
-        new NotFoundException(
-          "Platform configuration with ID 'platform-123' not found",
-        ),
+        new NotFoundException('Platform configuration with ID \'platform-123\' not found')
       );
 
       await expect(
@@ -194,13 +173,7 @@ describe('MessagesService', () => {
     it('should throw BadRequestException when platform is disabled', async () => {
       const projectSlug = 'test-project';
       const sendMessageDto = {
-        targets: [
-          {
-            type: 'channel' as any,
-            id: 'channel-123',
-            platformId: 'disabled-platform-123',
-          },
-        ],
+        targets: [{ type: 'channel' as any, id: 'channel-123', platformId: 'disabled-platform-123' }],
         content: { text: 'Test' },
       };
 
@@ -210,9 +183,7 @@ describe('MessagesService', () => {
       });
 
       mockPlatformsService.validatePlatformConfigById.mockRejectedValue(
-        new BadRequestException(
-          "Platform configuration 'disabled-platform-123' is currently disabled",
-        ),
+        new BadRequestException('Platform configuration \'disabled-platform-123\' is currently disabled')
       );
 
       await expect(
@@ -248,9 +219,7 @@ describe('MessagesService', () => {
       ];
 
       mockMessageQueue.getJobStatus.mockResolvedValue(mockJobStatus);
-      mockPrismaService.sentMessage.findMany.mockResolvedValue(
-        mockDeliveryResults,
-      );
+      mockPrismaService.sentMessage.findMany.mockResolvedValue(mockDeliveryResults);
 
       const result = await service.getMessageStatus(jobId);
 

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -15,8 +10,7 @@ export class ProjectsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createProjectDto: CreateProjectDto, ownerId: string) {
-    const slug =
-      createProjectDto.slug || CryptoUtil.generateSlug(createProjectDto.name);
+    const slug = createProjectDto.slug || CryptoUtil.generateSlug(createProjectDto.name);
 
     const existingProject = await this.prisma.project.findUnique({
       where: { slug },
@@ -110,7 +104,10 @@ export class ProjectsService {
     // Regular users see only their owned projects and projects they're members of
     return this.prisma.project.findMany({
       where: {
-        OR: [{ ownerId: userId }, { members: { some: { userId } } }],
+        OR: [
+          { ownerId: userId },
+          { members: { some: { userId } } },
+        ],
       },
       include: {
         owner: {
@@ -193,9 +190,7 @@ export class ProjectsService {
       });
 
       if (conflictingProject) {
-        throw new ConflictException(
-          `Project with slug '${updateProjectDto.slug}' already exists`,
-        );
+        throw new ConflictException(`Project with slug '${updateProjectDto.slug}' already exists`);
       }
     }
 
@@ -228,9 +223,7 @@ export class ProjectsService {
 
     // Check if user has permission to delete (owner or admin)
     if (!isAdmin && project.ownerId !== userId) {
-      throw new ForbiddenException(
-        'Only project owners or global admins can delete projects',
-      );
+      throw new ForbiddenException('Only project owners or global admins can delete projects');
     }
 
     if (project._count.apiKeys > 0) {
@@ -242,9 +235,7 @@ export class ProjectsService {
       });
 
       if (activeKeys > 0) {
-        throw new ConflictException(
-          `Cannot delete project with ${activeKeys} active API keys`,
-        );
+        throw new ConflictException(`Cannot delete project with ${activeKeys} active API keys`);
       }
     }
 
@@ -253,12 +244,7 @@ export class ProjectsService {
     });
   }
 
-  async checkProjectAccess(
-    userId: string,
-    projectSlug: string,
-    requiredRole?: ProjectRole,
-    isAdmin: boolean = false,
-  ): Promise<boolean> {
+  async checkProjectAccess(userId: string, projectSlug: string, requiredRole?: ProjectRole, isAdmin: boolean = false): Promise<boolean> {
     if (isAdmin) {
       return true; // Global admins have access to everything
     }

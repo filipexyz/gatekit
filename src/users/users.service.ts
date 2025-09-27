@@ -63,11 +63,7 @@ export class UsersService {
     return user;
   }
 
-  async checkProjectAccess(
-    userId: string,
-    projectSlug: string,
-    requiredRole?: ProjectRole,
-  ): Promise<boolean> {
+  async checkProjectAccess(userId: string, projectSlug: string, requiredRole?: ProjectRole): Promise<boolean> {
     const project = await this.prisma.project.findUnique({
       where: { slug: projectSlug },
       include: {
@@ -149,7 +145,10 @@ export class UsersService {
     // Regular users see only their owned projects and projects they're members of
     return this.prisma.project.findMany({
       where: {
-        OR: [{ ownerId: userId }, { members: { some: { userId } } }],
+        OR: [
+          { ownerId: userId },
+          { members: { some: { userId } } },
+        ],
       },
       include: {
         owner: {
@@ -181,22 +180,11 @@ export class UsersService {
     });
   }
 
-  async addProjectMember(
-    projectSlug: string,
-    userEmail: string,
-    role: ProjectRole,
-    requesterId: string,
-  ) {
+  async addProjectMember(projectSlug: string, userEmail: string, role: ProjectRole, requesterId: string) {
     // Verify requester has admin access
-    const hasAccess = await this.checkProjectAccess(
-      requesterId,
-      projectSlug,
-      ProjectRole.admin,
-    );
+    const hasAccess = await this.checkProjectAccess(requesterId, projectSlug, ProjectRole.admin);
     if (!hasAccess) {
-      throw new NotFoundException(
-        'Project not found or insufficient permissions',
-      );
+      throw new NotFoundException('Project not found or insufficient permissions');
     }
 
     // Find the user to add
@@ -214,9 +202,7 @@ export class UsersService {
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
     }
 
     // Add or update membership
@@ -245,21 +231,11 @@ export class UsersService {
     });
   }
 
-  async removeProjectMember(
-    projectSlug: string,
-    userId: string,
-    requesterId: string,
-  ) {
+  async removeProjectMember(projectSlug: string, userId: string, requesterId: string) {
     // Verify requester has admin access
-    const hasAccess = await this.checkProjectAccess(
-      requesterId,
-      projectSlug,
-      ProjectRole.admin,
-    );
+    const hasAccess = await this.checkProjectAccess(requesterId, projectSlug, ProjectRole.admin);
     if (!hasAccess) {
-      throw new NotFoundException(
-        'Project not found or insufficient permissions',
-      );
+      throw new NotFoundException('Project not found or insufficient permissions');
     }
 
     const project = await this.prisma.project.findUnique({
@@ -267,9 +243,7 @@ export class UsersService {
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
     }
 
     // Cannot remove the project owner
@@ -287,22 +261,11 @@ export class UsersService {
     });
   }
 
-  async updateProjectMemberRole(
-    projectSlug: string,
-    userId: string,
-    role: ProjectRole,
-    requesterId: string,
-  ) {
+  async updateProjectMemberRole(projectSlug: string, userId: string, role: ProjectRole, requesterId: string) {
     // Verify requester has admin access
-    const hasAccess = await this.checkProjectAccess(
-      requesterId,
-      projectSlug,
-      ProjectRole.admin,
-    );
+    const hasAccess = await this.checkProjectAccess(requesterId, projectSlug, ProjectRole.admin);
     if (!hasAccess) {
-      throw new NotFoundException(
-        'Project not found or insufficient permissions',
-      );
+      throw new NotFoundException('Project not found or insufficient permissions');
     }
 
     const project = await this.prisma.project.findUnique({
@@ -310,9 +273,7 @@ export class UsersService {
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
     }
 
     // Cannot change role of project owner
@@ -342,15 +303,9 @@ export class UsersService {
 
   async getProjectMembers(projectSlug: string, requesterId: string) {
     // Verify requester has read access
-    const hasAccess = await this.checkProjectAccess(
-      requesterId,
-      projectSlug,
-      ProjectRole.viewer,
-    );
+    const hasAccess = await this.checkProjectAccess(requesterId, projectSlug, ProjectRole.viewer);
     if (!hasAccess) {
-      throw new NotFoundException(
-        'Project not found or insufficient permissions',
-      );
+      throw new NotFoundException('Project not found or insufficient permissions');
     }
 
     const project = await this.prisma.project.findUnique({
@@ -378,9 +333,7 @@ export class UsersService {
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project with slug '${projectSlug}' not found`);
     }
 
     // Include project owner as a member with owner role

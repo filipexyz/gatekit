@@ -40,9 +40,7 @@ describe('Auth0 Authentication (e2e)', () => {
     await prisma.project.deleteMany();
 
     // Create test data
-    const project = await createTestProject(prisma, {
-      name: 'Auth0 Test Project',
-    });
+    const project = await createTestProject(prisma, { name: 'Auth0 Test Project' });
     testProjectId = project.id;
 
     const { rawKey } = await createTestApiKey(prisma, project.id, {
@@ -78,9 +76,7 @@ describe('Auth0 Authentication (e2e)', () => {
         .get('/api/v1/projects')
         .expect(401)
         .expect((res) => {
-          expect(res.body.message).toBe(
-            'Authentication required. Provide either an API key or Bearer token.',
-          );
+          expect(res.body.message).toBe('Authentication required. Provide either an API key or Bearer token.');
         });
     });
   });
@@ -173,7 +169,9 @@ describe('Auth0 Authentication (e2e)', () => {
   describe('Error message consistency', () => {
     it('should return consistent error format for authentication failures', async () => {
       const responses = await Promise.all([
-        request(app.getHttpServer()).get('/api/v1/projects').expect(401),
+        request(app.getHttpServer())
+          .get('/api/v1/projects')
+          .expect(401),
         request(app.getHttpServer())
           .get('/api/v1/projects')
           .set('X-API-Key', 'invalid')

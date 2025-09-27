@@ -156,10 +156,7 @@ describe('TelegramProvider', () => {
         },
       } as TelegramBot.Update;
 
-      const result = await provider.processWebhookUpdate(
-        unknownProjectId,
-        mockUpdate,
-      );
+      const result = await provider.processWebhookUpdate(unknownProjectId, mockUpdate);
 
       expect(result).toBe(false);
       expect(eventBus.publish).not.toHaveBeenCalled();

@@ -32,62 +32,38 @@ export class PlatformLogsController {
     requiredScopes: ['platforms:read'],
     outputType: 'PlatformLogsResponse',
     options: {
-      platform: {
-        description: 'Filter by platform (telegram, discord)',
-        type: 'string',
-      },
+      platform: { description: 'Filter by platform (telegram, discord)', type: 'string' },
       level: {
         description: 'Filter by log level',
         choices: ['info', 'warn', 'error', 'debug'],
-        type: 'string',
+        type: 'string'
       },
       category: {
         description: 'Filter by log category',
-        choices: [
-          'connection',
-          'webhook',
-          'message',
-          'error',
-          'auth',
-          'general',
-        ],
-        type: 'string',
+        choices: ['connection', 'webhook', 'message', 'error', 'auth', 'general'],
+        type: 'string'
       },
-      startDate: {
-        description: 'Filter logs after this date (ISO 8601)',
-        type: 'string',
-      },
-      endDate: {
-        description: 'Filter logs before this date (ISO 8601)',
-        type: 'string',
-      },
-      limit: {
-        description: 'Number of logs to return (1-1000)',
-        type: 'number',
-        default: '100',
-      },
-      offset: { description: 'Number of logs to skip', type: 'number' },
+      startDate: { description: 'Filter logs after this date (ISO 8601)', type: 'string' },
+      endDate: { description: 'Filter logs before this date (ISO 8601)', type: 'string' },
+      limit: { description: 'Number of logs to return (1-1000)', type: 'number', default: '100' },
+      offset: { description: 'Number of logs to skip', type: 'number' }
     },
     examples: [
       {
         description: 'List recent platform logs',
-        command: 'gatekit platforms logs list my-project',
+        command: 'gatekit platforms logs list my-project'
       },
       {
         description: 'List only error logs',
-        command: 'gatekit platforms logs list my-project --level error',
+        command: 'gatekit platforms logs list my-project --level error'
       },
       {
         description: 'List webhook logs for Telegram',
-        command:
-          'gatekit platforms logs list my-project --platform telegram --category webhook',
-      },
-    ],
+        command: 'gatekit platforms logs list my-project --platform telegram --category webhook'
+      }
+    ]
   })
-  async listLogs(
-    @Param('slug') slug: string,
-    @Query() query: QueryPlatformLogsDto,
-  ) {
+  async listLogs(@Param('slug') slug: string, @Query() query: QueryPlatformLogsDto) {
     // Get project to ensure access control
     const project = await this.prisma.project.findUnique({
       where: { slug },
@@ -123,51 +99,33 @@ export class PlatformLogsController {
       level: {
         description: 'Filter by log level',
         choices: ['info', 'warn', 'error', 'debug'],
-        type: 'string',
+        type: 'string'
       },
       category: {
         description: 'Filter by log category',
-        choices: [
-          'connection',
-          'webhook',
-          'message',
-          'error',
-          'auth',
-          'general',
-        ],
-        type: 'string',
+        choices: ['connection', 'webhook', 'message', 'error', 'auth', 'general'],
+        type: 'string'
       },
-      startDate: {
-        description: 'Filter logs after this date (ISO 8601)',
-        type: 'string',
-      },
-      endDate: {
-        description: 'Filter logs before this date (ISO 8601)',
-        type: 'string',
-      },
-      limit: {
-        description: 'Number of logs to return (1-1000)',
-        type: 'number',
-        default: '100',
-      },
-      offset: { description: 'Number of logs to skip', type: 'number' },
+      startDate: { description: 'Filter logs after this date (ISO 8601)', type: 'string' },
+      endDate: { description: 'Filter logs before this date (ISO 8601)', type: 'string' },
+      limit: { description: 'Number of logs to return (1-1000)', type: 'number', default: '100' },
+      offset: { description: 'Number of logs to skip', type: 'number' }
     },
     examples: [
       {
         description: 'List logs for specific platform',
-        command: 'gatekit platforms logs get my-project platform-id-123',
+        command: 'gatekit platforms logs get my-project platform-id-123'
       },
       {
         description: 'List recent errors for platform',
-        command:
-          'gatekit platforms logs get my-project platform-id-123 --level error --limit 50',
-      },
-    ],
+        command: 'gatekit platforms logs get my-project platform-id-123 --level error --limit 50'
+      }
+    ]
   })
   async getPlatformLogs(
     @Param('slug') slug: string,
     @Param('platformId') platformId: string,
-    @Query() query: QueryPlatformLogsDto,
+    @Query() query: QueryPlatformLogsDto
   ) {
     // Get project to ensure access control
     const project = await this.prisma.project.findUnique({
@@ -203,9 +161,9 @@ export class PlatformLogsController {
     examples: [
       {
         description: 'Get platform logs statistics',
-        command: 'gatekit platforms logs stats my-project',
-      },
-    ],
+        command: 'gatekit platforms logs stats my-project'
+      }
+    ]
   })
   async getLogStats(@Param('slug') slug: string) {
     // Get project to ensure access control

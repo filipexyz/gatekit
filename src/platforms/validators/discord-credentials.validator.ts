@@ -1,18 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import {
-  PlatformCredentialValidator,
-  CredentialValidationResult,
-} from '../interfaces/credential-validator.interface';
+import { PlatformCredentialValidator, CredentialValidationResult } from '../interfaces/credential-validator.interface';
 
 @Injectable()
-export class DiscordCredentialsValidator
-  implements PlatformCredentialValidator
-{
+export class DiscordCredentialsValidator implements PlatformCredentialValidator {
   readonly platform = 'discord';
 
-  validateCredentials(
-    credentials: Record<string, any>,
-  ): CredentialValidationResult {
+  validateCredentials(credentials: Record<string, any>): CredentialValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -23,49 +16,25 @@ export class DiscordCredentialsValidator
       errors.push('Bot token must be a string');
     } else {
       // Validate Discord bot token format: base64-like string with 3 parts
-      const tokenPattern =
-        /^[A-Za-z0-9_-]{24,26}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,40}$/;
+      const tokenPattern = /^[A-Za-z0-9_-]{24,26}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,40}$/;
       if (!tokenPattern.test(credentials.token)) {
-        errors.push(
-          'Invalid Discord bot token format (expected: "MTAxNDk4NjIyNDMzNzI4NTEyMA.Gk-J6g.example_token_here")',
-        );
+        errors.push('Invalid Discord bot token format (expected: "MTAxNDk4NjIyNDMzNzI4NTEyMA.Gk-J6g.example_token_here")');
       }
     }
 
     // Optional field: intents
     if (credentials.intents) {
-      if (
-        !Array.isArray(credentials.intents) &&
-        typeof credentials.intents !== 'number'
-      ) {
-        errors.push(
-          'Intents must be an array of intent names or a numeric bitmask',
-        );
+      if (!Array.isArray(credentials.intents) && typeof credentials.intents !== 'number') {
+        errors.push('Intents must be an array of intent names or a numeric bitmask');
       } else if (Array.isArray(credentials.intents)) {
         const validIntents = [
-          'Guilds',
-          'GuildMembers',
-          'GuildBans',
-          'GuildEmojisAndStickers',
-          'GuildIntegrations',
-          'GuildWebhooks',
-          'GuildInvites',
-          'GuildVoiceStates',
-          'GuildPresences',
-          'GuildMessages',
-          'GuildMessageReactions',
-          'GuildMessageTyping',
-          'DirectMessages',
-          'DirectMessageReactions',
-          'DirectMessageTyping',
-          'MessageContent',
-          'GuildScheduledEvents',
-          'AutoModerationConfiguration',
-          'AutoModerationExecution',
+          'Guilds', 'GuildMembers', 'GuildBans', 'GuildEmojisAndStickers',
+          'GuildIntegrations', 'GuildWebhooks', 'GuildInvites', 'GuildVoiceStates',
+          'GuildPresences', 'GuildMessages', 'GuildMessageReactions', 'GuildMessageTyping',
+          'DirectMessages', 'DirectMessageReactions', 'DirectMessageTyping', 'MessageContent',
+          'GuildScheduledEvents', 'AutoModerationConfiguration', 'AutoModerationExecution'
         ];
-        const invalidIntents = credentials.intents.filter(
-          (intent) => !validIntents.includes(intent),
-        );
+        const invalidIntents = credentials.intents.filter(intent => !validIntents.includes(intent));
         if (invalidIntents.length > 0) {
           errors.push(`Invalid Discord intents: ${invalidIntents.join(', ')}`);
         }
@@ -77,9 +46,7 @@ export class DiscordCredentialsValidator
       if (typeof credentials.clientId !== 'string') {
         errors.push('Client ID must be a string');
       } else if (!/^\d{17,19}$/.test(credentials.clientId)) {
-        errors.push(
-          'Invalid Discord client ID format (expected: 17-19 digit snowflake)',
-        );
+        errors.push('Invalid Discord client ID format (expected: 17-19 digit snowflake)');
       }
     }
 
@@ -88,32 +55,21 @@ export class DiscordCredentialsValidator
       if (typeof credentials.guildId !== 'string') {
         errors.push('Guild ID must be a string');
       } else if (!/^\d{17,19}$/.test(credentials.guildId)) {
-        errors.push(
-          'Invalid Discord guild ID format (expected: 17-19 digit snowflake)',
-        );
+        errors.push('Invalid Discord guild ID format (expected: 17-19 digit snowflake)');
       }
     }
 
     // Optional field: permissions
     if (credentials.permissions) {
-      if (
-        typeof credentials.permissions !== 'number' &&
-        typeof credentials.permissions !== 'string'
-      ) {
+      if (typeof credentials.permissions !== 'number' && typeof credentials.permissions !== 'string') {
         errors.push('Permissions must be a number (bitmask) or string');
       }
     }
 
     // Warn about test tokens (only if token is a string)
-    if (
-      credentials.token &&
-      typeof credentials.token === 'string' &&
-      (credentials.token.includes('test') ||
-        credentials.token.includes('example'))
-    ) {
-      warnings.push(
-        'This appears to be a test/example token - ensure you use a real bot token',
-      );
+    if (credentials.token && typeof credentials.token === 'string' &&
+        (credentials.token.includes('test') || credentials.token.includes('example'))) {
+      warnings.push('This appears to be a test/example token - ensure you use a real bot token');
     }
 
     return {
@@ -133,8 +89,7 @@ export class DiscordCredentialsValidator
 
   getExampleCredentials(): Record<string, any> {
     return {
-      token:
-        'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
+      token: 'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
       clientId: '1014986224337285120',
       intents: ['GuildMessages', 'MessageContent'],
       permissions: '8',

@@ -14,7 +14,7 @@ describe('CaseConverter', () => {
       ['', ''],
       ['a', 'A'],
       ['123test', '123test'],
-      ['test123', 'Test123'],
+      ['test123', 'Test123']
     ];
 
     testCases.forEach(([input, expected]) => {
@@ -37,7 +37,7 @@ describe('CaseConverter', () => {
       ['', ''],
       ['A', 'a'],
       ['123test', '123test'],
-      ['Test123', 'test123'],
+      ['Test123', 'test123']
     ];
 
     testCases.forEach(([input, expected]) => {
@@ -60,7 +60,7 @@ describe('CaseConverter', () => {
       ['', ''],
       ['A', 'a'],
       ['XMLHttpRequest', 'xmlhttp-request'],
-      ['iPhone', 'i-phone'],
+      ['iPhone', 'i-phone']
     ];
 
     testCases.forEach(([input, expected]) => {
@@ -83,7 +83,7 @@ describe('CaseConverter', () => {
       ['', ''],
       ['A', 'a'],
       ['XMLHttpRequest', 'xmlhttp_request'],
-      ['iPhone', 'i_phone'],
+      ['iPhone', 'i_phone']
     ];
 
     testCases.forEach(([input, expected]) => {
@@ -100,7 +100,7 @@ describe('CaseConverter', () => {
       ['apiKeys', 'API_KEYS'],
       ['user-profile', 'USER_PROFILE'],
       ['single', 'SINGLE'],
-      ['', ''],
+      ['', '']
     ];
 
     testCases.forEach(([input, expected]) => {
@@ -119,7 +119,7 @@ describe('CaseConverter', () => {
       ['single', 'single'],
       ['Multi Word Input', 'multi word input'],
       ['', ''],
-      ['A', 'a'],
+      ['A', 'a']
     ];
 
     testCases.forEach(([input, expected]) => {
@@ -139,7 +139,7 @@ describe('CaseConverter', () => {
       ['normal name', 'normalName'],
       ['', ''],
       ['delete', 'delete_'],
-      ['import', 'import_'],
+      ['import', 'import_']
     ];
 
     testCases.forEach(([input, expected]) => {
@@ -157,7 +157,7 @@ describe('CaseConverter', () => {
       ['function', 'Function'],
       ['normal name', 'NormalName'],
       ['', ''],
-      ['single', 'Single'],
+      ['single', 'Single']
     ];
 
     testCases.forEach(([input, expected]) => {
@@ -176,7 +176,7 @@ describe('CaseConverter', () => {
       ['---test---', 'test'],
       ['', ''],
       ['Test With Symbols!@#$%', 'test-with-symbols'],
-      ['normal-name', 'normal-name'],
+      ['normal-name', 'normal-name']
     ];
 
     testCases.forEach(([input, expected]) => {
@@ -207,12 +207,8 @@ describe('CaseConverter', () => {
     });
 
     it('should handle consecutive separators', () => {
-      expect(CaseConverter.toPascalCase('test---name___here')).toBe(
-        'TestNameHere',
-      );
-      expect(CaseConverter.toCamelCase('test   name   here')).toBe(
-        'testNameHere',
-      );
+      expect(CaseConverter.toPascalCase('test---name___here')).toBe('TestNameHere');
+      expect(CaseConverter.toCamelCase('test   name   here')).toBe('testNameHere');
       expect(CaseConverter.toKebabCase('test___name')).toBe('test-name');
     });
   });

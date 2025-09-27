@@ -214,9 +214,7 @@ describe('Platforms (e2e)', () => {
 
         const { CryptoUtil } = require('../../src/common/utils/crypto.util');
         CryptoUtil.initializeEncryptionKey();
-        const encryptedCredentials = CryptoUtil.encrypt(
-          JSON.stringify({ token: 'discord-token' }),
-        );
+        const encryptedCredentials = CryptoUtil.encrypt(JSON.stringify({ token: 'discord-token' }));
 
         const platform = await prisma.projectPlatform.create({
           data: {
@@ -324,10 +322,7 @@ describe('Platforms (e2e)', () => {
           .set('X-API-Key', testApiKey)
           .expect(200)
           .expect((res) => {
-            expect(res.body).toHaveProperty(
-              'message',
-              'Platform removed successfully',
-            );
+            expect(res.body).toHaveProperty('message', 'Platform removed successfully');
           });
       });
 
@@ -353,9 +348,7 @@ describe('Platforms (e2e)', () => {
         data: {
           projectId: testProjectId,
           platform: 'discord',
-          credentialsEncrypted: CryptoUtil.encrypt(
-            JSON.stringify({ token: 'test-token' }),
-          ),
+          credentialsEncrypted: CryptoUtil.encrypt(JSON.stringify({ token: 'test-token' })),
           isActive: true,
           testMode: false,
         },

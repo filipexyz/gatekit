@@ -1,10 +1,5 @@
 import { Processor, WorkerHost, InjectQueue } from '@nestjs/bullmq';
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import type { Queue, Job } from 'bullmq';
 import { PlatformsService } from '../../platforms/platforms.service';
 import { PlatformRegistry } from '../../platforms/services/platform-registry.service';
@@ -42,10 +37,7 @@ interface MessageJob {
 
 @Injectable()
 @Processor('messages')
-export class DynamicMessageProcessor
-  extends WorkerHost
-  implements OnModuleInit, OnModuleDestroy
-{
+export class DynamicMessageProcessor extends WorkerHost implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DynamicMessageProcessor.name);
 
   constructor(
@@ -66,9 +58,7 @@ export class DynamicMessageProcessor
   async process(job: Job<MessageJob>) {
     const { projectSlug, projectId, message } = job.data;
 
-    this.logger.log(
-      `Processing job ${job.id} - ${message.targets.length} targets`,
-    );
+    this.logger.log(`Processing job ${job.id} - ${message.targets.length} targets`);
 
     // Store sent message records for each target
     const sentMessageIds: string[] = [];
@@ -90,9 +80,7 @@ export class DynamicMessageProcessor
         });
         sentMessageIds.push(sentMessage.id);
       } catch (error) {
-        this.logger.error(
-          `Failed to store sent message record: ${error.message}`,
-        );
+        this.logger.error(`Failed to store sent message record: ${error.message}`);
       }
     }
 
@@ -103,23 +91,17 @@ export class DynamicMessageProcessor
     for (const target of message.targets) {
       try {
         // Get platform configuration by ID - fail immediately if not found
-        const platformConfig = await this.platformsService.getProjectPlatform(
-          target.platformId,
-        );
+        const platformConfig = await this.platformsService.getProjectPlatform(target.platformId);
 
         this.logger.log(
           `Sending to ${platformConfig.platform}:${target.type}:${target.id} (platformId: ${target.platformId})`,
         );
 
         // Get the platform provider
-        const provider = this.platformRegistry.getProvider(
-          platformConfig.platform,
-        );
+        const provider = this.platformRegistry.getProvider(platformConfig.platform);
 
         if (!provider) {
-          throw new Error(
-            `Platform provider '${platformConfig.platform}' not found`,
-          );
+          throw new Error(`Platform provider '${platformConfig.platform}' not found`);
         }
 
         // Create composite key for this specific platform instance
@@ -140,7 +122,7 @@ export class DynamicMessageProcessor
 
         // Create message envelope
         const envelope = makeEnvelope({
-          channel: platformConfig.platform,
+          channel: platformConfig.platform as any,
           projectId,
           threadId: target.id,
           user: {
@@ -189,9 +171,7 @@ export class DynamicMessageProcessor
             },
           });
         } catch (error) {
-          this.logger.error(
-            `Failed to update sent message status: ${error.message}`,
-          );
+          this.logger.error(`Failed to update sent message status: ${error.message}`);
         }
 
         results.push({
@@ -203,6 +183,7 @@ export class DynamicMessageProcessor
           providerMessageId: result.providerMessageId,
           timestamp: new Date().toISOString(),
         });
+
       } catch (error) {
         // Check if this is a permanent failure that shouldn't be retried
         const isPermanentFailure =
@@ -220,9 +201,7 @@ export class DynamicMessageProcessor
           );
 
           // Throw to mark the entire job as permanently failed
-          throw new Error(
-            `PERMANENT_FAILURE: Platform ${target.platformId} - ${error.message}`,
-          );
+          throw new Error(`PERMANENT_FAILURE: Platform ${target.platformId} - ${error.message}`);
         }
 
         this.logger.error(
@@ -243,9 +222,7 @@ export class DynamicMessageProcessor
             },
           });
         } catch (updateError) {
-          this.logger.error(
-            `Failed to update sent message failure status: ${updateError.message}`,
-          );
+          this.logger.error(`Failed to update sent message failure status: ${updateError.message}`);
         }
 
         errors.push({
@@ -277,21 +254,15 @@ export class DynamicMessageProcessor
   }
 
   async onModuleDestroy() {
-    this.logger.log(
-      '🔌 DynamicMessageProcessor onModuleDestroy - shutting down processor',
-    );
-    this.logger.log(
-      '🛑 Message processor shutting down, cleaning up platform providers...',
-    );
+    this.logger.log('🔌 DynamicMessageProcessor onModuleDestroy - shutting down processor');
+    this.logger.log('🛑 Message processor shutting down, cleaning up platform providers...');
 
     // Let the platform registry handle cleanup
     await this.platformRegistry.getAllProviders().forEach(async (provider) => {
       try {
         await provider.shutdown();
       } catch (error) {
-        this.logger.warn(
-          `Failed to shutdown provider ${provider.name}: ${error.message}`,
-        );
+        this.logger.warn(`Failed to shutdown provider ${provider.name}: ${error.message}`);
       }
     });
 

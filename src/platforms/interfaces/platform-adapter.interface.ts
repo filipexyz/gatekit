@@ -21,7 +21,7 @@ export interface OutboundTransport {
 }
 
 export interface PlatformAdapter extends InboundEventSource, OutboundTransport {
-  readonly channel: 'discord' | 'telegram' | 'whatsapp-evo';
+  readonly channel: 'discord' | 'telegram';
   initialize(projectId: string, credentials: any): Promise<void>;
   validateSignature?(req: any): boolean;
   toEnvelope(providerPayload: any, projectId?: string): MessageEnvelopeV1;

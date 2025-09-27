@@ -3,9 +3,8 @@
 > **⚡ The messaging backbone that any AI agent can plug into**
 > Built by AI, for AI. Store conversations, send messages, integrate with any agentic workflow.
 
-[![Discord Community](https://img.shields.io/badge/Discord-Join%20Community-7289da?style=flat&logo=discord)](https://discord.gg/bQPsvycW)
+[![Discord](https://img.shields.io/badge/Discord-Ready-7289da?style=flat&logo=discord)](https://github.com/filipexyz/gatekit)
 [![Telegram](https://img.shields.io/badge/Telegram-Ready-0088cc?style=flat&logo=telegram)](https://github.com/filipexyz/gatekit)
-[![WhatsApp](https://img.shields.io/badge/WhatsApp-Evolution%20API-25d366?style=flat&logo=whatsapp)](https://github.com/filipexyz/gatekit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![AI Generated](https://img.shields.io/badge/100%25-AI%20Generated-blueviolet?style=flat)](https://github.com/filipexyz/gatekit)
 
@@ -30,13 +29,13 @@
 **GateKit is conversational infrastructure that any AI agent can plug into.**
 
 ### **📨 What We Store:**
-- **Received Messages** - Every incoming message from Discord, Telegram, WhatsApp, etc.
+- **Received Messages** - Every incoming message from Discord, Telegram, etc.
 - **Sent Messages** - Complete delivery tracking with success/failure status
 - **Platform Logs** - All messaging activity with rich debugging metadata
 - **User Conversations** - Unified message history across all platforms
 
 ### **🔌 What We Provide:**
-- **Universal Send API** - Send to Discord, Telegram, WhatsApp with identical code
+- **Universal Send API** - Send to Discord, Telegram with identical code
 - **Conversation History** - Query user conversations across platforms
 - **Platform Management** - Configure bots, update tokens, monitor health
 - **User & Project Management** - Multi-tenant with role-based access
@@ -70,7 +69,7 @@ class YourAIAgent {
 
 ### **✅ Core Systems Built:**
 - **User-Linked Projects** - Multi-tenant with `owner`/`admin`/`member`/`viewer` roles
-- **Platform Providers** - Discord (WebSocket), Telegram (Webhook), WhatsApp-Evo (Evolution API) production-ready
+- **Platform Providers** - Discord (WebSocket) + Telegram (Webhook) production-ready
 - **Message Queue** - BullMQ with Redis for reliable cross-platform delivery
 - **Enhanced Logging** - Platform activity monitoring with structured metadata
 - **Credential Validation** - Platform-specific format validation (bot tokens, etc.)
@@ -160,9 +159,9 @@ const logs = await gk.platformLogs.list('project', { category: 'message' });
 
 ## 📊 **Production Stats**
 
-- **✅ 300 tests passing** - Comprehensive test coverage including WhatsApp-Evo
+- **✅ 242 tests passing** - Comprehensive test coverage
 - **✅ 20 API endpoints** - With auto-generated SDK/CLI
-- **✅ 3 platform providers** - Discord, Telegram, WhatsApp-Evo production-ready
+- **✅ 2 platform providers** - Discord + Telegram production-ready
 - **✅ User management** - Multi-tenant with role-based access
 - **✅ Message storage** - Complete conversation history
 - **✅ Activity monitoring** - Rich platform logs with metadata
@@ -204,18 +203,6 @@ const logs = await gk.platformLogs.list('project', { category: 'message' });
 - 🔗 **Multi-platform bots** - Unified interface across platforms
 - 📊 **Analytics agents** - Rich activity data for insights
 - 🤖 **Autonomous systems** - Reliable message delivery infrastructure
-
----
-
-## 💬 **Community & Support**
-
-**Join our Discord community for:**
-- 🛠️ **Developer Support** - Get help with integration and troubleshooting
-- 🚀 **Feature Discussions** - Shape the future of GateKit
-- 🧠 **AI Agent Builders** - Connect with other developers building AI agents
-- 📢 **Updates & Announcements** - Stay informed about new features
-
-[![Join Discord](https://img.shields.io/badge/Discord-Join%20Community-7289da?style=for-the-badge&logo=discord)](https://discord.gg/bQPsvycW)
 
 ---
 

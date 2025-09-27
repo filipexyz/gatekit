@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { SendMessageDto } from '../platforms/dto/send-message.dto';
@@ -34,7 +29,7 @@ export class MessageQueue implements OnModuleInit, OnModuleDestroy {
   async addMessage(data: MessageJobData) {
     const job = await this.messageQueue.add('send-message', data);
 
-    const platformIds = data.message.targets.map((t) => t.platformId);
+    const platformIds = data.message.targets.map(t => t.platformId);
     this.logger.log(
       `Message queued for ${data.message.targets.length} targets (Job ID: ${job.id})`,
     );
@@ -83,26 +78,19 @@ export class MessageQueue implements OnModuleInit, OnModuleDestroy {
 
       this.logger.log(`🔍 STALLED JOB DETECTION:`, {
         activeJobsCount: activeJobs.length,
-        activeJobIds: activeJobs.map((j) => j.id),
+        activeJobIds: activeJobs.map(j => j.id),
       });
 
       if (activeJobs.length > 0) {
-        this.logger.warn(
-          `⚠️ FOUND ${activeJobs.length} ACTIVE JOBS - These might be stalled and blocking the queue!`,
-        );
+        this.logger.warn(`⚠️ FOUND ${activeJobs.length} ACTIVE JOBS - These might be stalled and blocking the queue!`);
 
         // Check if active jobs are actually stalled
         for (const job of activeJobs) {
           const timeSinceStarted = Date.now() - (job.processedOn || 0);
-          this.logger.warn(
-            `🕐 Active job ${job.id} has been running for ${timeSinceStarted}ms`,
-          );
+          this.logger.warn(`🕐 Active job ${job.id} has been running for ${timeSinceStarted}ms`);
 
-          if (timeSinceStarted > 60000) {
-            // More than 1 minute
-            this.logger.error(
-              `🚨 Job ${job.id} appears STALLED (running > 1 minute) - This blocks all other jobs!`,
-            );
+          if (timeSinceStarted > 60000) { // More than 1 minute
+            this.logger.error(`🚨 Job ${job.id} appears STALLED (running > 1 minute) - This blocks all other jobs!`);
           }
         }
       }
@@ -129,9 +117,7 @@ export class MessageQueue implements OnModuleInit, OnModuleDestroy {
 
     const state = await job.getState();
     if (state !== 'failed') {
-      throw new Error(
-        `Job ${jobId} is not in failed state (current: ${state})`,
-      );
+      throw new Error(`Job ${jobId} is not in failed state (current: ${state})`);
     }
 
     await job.retry();

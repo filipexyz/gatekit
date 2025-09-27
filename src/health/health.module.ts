@@ -6,6 +6,6 @@ import { SentryHealthIndicator } from './sentry.health';
 @Module({
   controllers: [HealthController],
   providers: [HealthService, SentryHealthIndicator],
-  exports: [SentryHealthIndicator],
+  exports: [SentryHealthIndicator]
 })
 export class HealthModule {}

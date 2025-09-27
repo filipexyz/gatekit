@@ -3,8 +3,7 @@ import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
 const sentryDsn = process.env.SENTRY_DSN;
 const environment = process.env.NODE_ENV || 'development';
-const sentryEnabled =
-  process.env.SENTRY_ENABLED === 'true' || environment === 'production';
+const sentryEnabled = process.env.SENTRY_ENABLED === 'true' || environment === 'production';
 
 if (sentryEnabled && sentryDsn) {
   Sentry.init({
@@ -15,13 +14,9 @@ if (sentryEnabled && sentryDsn) {
       nodeProfilingIntegration(),
     ],
     // Performance Monitoring
-    tracesSampleRate: parseFloat(
-      process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1',
-    ),
+    tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1'),
     // Set sampling rate for profiling - this is relative to tracesSampleRate
-    profilesSampleRate: parseFloat(
-      process.env.SENTRY_PROFILES_SAMPLE_RATE || '0.1',
-    ),
+    profilesSampleRate: parseFloat(process.env.SENTRY_PROFILES_SAMPLE_RATE || '0.1'),
     // Debug mode
     debug: process.env.SENTRY_DEBUG === 'true',
     // Attach stack trace to messages
@@ -38,11 +33,7 @@ if (sentryEnabled && sentryDsn) {
       if (event.exception) {
         const error = hint.originalException;
         // Don't send validation errors to Sentry
-        if (
-          error &&
-          error.constructor &&
-          error.constructor.name === 'ValidationError'
-        ) {
+        if (error && error.constructor && error.constructor.name === 'ValidationError') {
           return null;
         }
       }

@@ -1,8 +1,4 @@
-import {
-  HealthIndicator,
-  HealthIndicatorResult,
-  HealthCheckError,
-} from '@nestjs/terminus';
+import { HealthIndicator, HealthIndicatorResult, HealthCheckError } from '@nestjs/terminus';
 import { Injectable } from '@nestjs/common';
 import * as Sentry from '@sentry/nestjs';
 import { ConfigService } from '@nestjs/config';

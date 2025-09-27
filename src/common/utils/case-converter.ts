@@ -13,8 +13,8 @@ export class CaseConverter {
 
     return input
       .split(/[\s\-_]+/)
-      .filter((word) => word.length > 0)
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .filter(word => word.length > 0)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join('');
   }
 
@@ -25,7 +25,9 @@ export class CaseConverter {
   static toCamelCase(input: string): string {
     if (!input) return '';
 
-    const words = input.split(/[\s\-_]+/).filter((word) => word.length > 0);
+    const words = input
+      .split(/[\s\-_]+/)
+      .filter(word => word.length > 0);
 
     if (words.length === 0) return '';
 
@@ -33,7 +35,7 @@ export class CaseConverter {
       .map((word, index) =>
         index === 0
           ? word.toLowerCase()
-          : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+          : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
       )
       .join('');
   }
@@ -48,8 +50,8 @@ export class CaseConverter {
     return input
       .replace(/([a-z0-9])([A-Z])/g, '$1-$2') // Insert hyphen before uppercase letters (including after numbers)
       .split(/[\s\-_]+/)
-      .filter((word) => word.length > 0)
-      .map((word) => word.toLowerCase())
+      .filter(word => word.length > 0)
+      .map(word => word.toLowerCase())
       .join('-');
   }
 
@@ -63,8 +65,8 @@ export class CaseConverter {
     return input
       .replace(/([a-z])([A-Z])/g, '$1_$2') // Insert underscore before uppercase letters
       .split(/[\s\-_]+/)
-      .filter((word) => word.length > 0)
-      .map((word) => word.toLowerCase())
+      .filter(word => word.length > 0)
+      .map(word => word.toLowerCase())
       .join('_');
   }
 
@@ -86,8 +88,8 @@ export class CaseConverter {
     return input
       .replace(/([a-z])([A-Z])/g, '$1 $2') // Insert space before uppercase letters
       .split(/[\s\-_]+/)
-      .filter((word) => word.length > 0)
-      .map((word) => word.toLowerCase())
+      .filter(word => word.length > 0)
+      .map(word => word.toLowerCase())
       .join(' ');
   }
 
@@ -107,39 +109,10 @@ export class CaseConverter {
 
     // If it's a reserved word, suffix with underscore
     const reservedWords = [
-      'break',
-      'case',
-      'catch',
-      'class',
-      'const',
-      'continue',
-      'debugger',
-      'default',
-      'delete',
-      'do',
-      'else',
-      'export',
-      'extends',
-      'finally',
-      'for',
-      'function',
-      'if',
-      'import',
-      'in',
-      'instanceof',
-      'new',
-      'return',
-      'super',
-      'switch',
-      'this',
-      'throw',
-      'try',
-      'typeof',
-      'var',
-      'void',
-      'while',
-      'with',
-      'yield',
+      'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default',
+      'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function',
+      'if', 'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch',
+      'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield'
     ];
 
     if (reservedWords.includes(camelCase)) {
