@@ -78,6 +78,38 @@ export class ProjectsController {
 
   @Patch(':slug')
   @RequireScopes('projects:write')
+  @SdkContract({
+    command: 'projects update',
+    description: 'Update project name, description and settings',
+    category: 'Projects',
+    requiredScopes: ['projects:write'],
+    inputType: 'UpdateProjectDto',
+    outputType: 'Project',
+    options: {
+      name: { description: 'Project name', type: 'string' },
+      description: { description: 'Project description', type: 'string' },
+      environment: {
+        description: 'Project environment',
+        choices: ['development', 'staging', 'production'],
+        type: 'string'
+      },
+      isDefault: { description: 'Set as default project', type: 'boolean' }
+    },
+    examples: [
+      {
+        description: 'Update project name',
+        command: 'gatekit projects update my-project --name "New Project Name"'
+      },
+      {
+        description: 'Update project description',
+        command: 'gatekit projects update my-project --description "Updated project description"'
+      },
+      {
+        description: 'Update both name and description',
+        command: 'gatekit projects update my-project --name "New Name" --description "New description"'
+      }
+    ]
+  })
   update(@Param('slug') slug: string, @Body() updateProjectDto: UpdateProjectDto) {
     return this.projectsService.update(slug, updateProjectDto);
   }
