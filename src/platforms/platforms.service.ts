@@ -11,7 +11,7 @@ import { UpdatePlatformDto } from './dto/update-platform.dto';
 import { CryptoUtil } from '../common/utils/crypto.util';
 import { CredentialValidationService } from './services/credential-validation.service';
 import { PlatformRegistry } from './services/platform-registry.service';
-import * as TelegramBot from 'node-telegram-bot-api';
+import TelegramBot = require('node-telegram-bot-api');
 
 @Injectable()
 export class PlatformsService {

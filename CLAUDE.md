@@ -55,6 +55,11 @@ Dual authentication support:
 - **NEVER** write dependencies directly in package.json
 - **ALWAYS** use CLI commands to install packages
 
+### Commit Messages
+
+- **NEVER** include "Generated with [Claude Code]" messages in commits
+- **Keep Co-Authored-By: Claude <noreply@anthropic.com>** for attribution
+
 ## Current Implementation
 
 ### Core Endpoints

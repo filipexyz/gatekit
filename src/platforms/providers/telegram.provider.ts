@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException, Inject } from '@nestjs/common';
-import * as TelegramBot from 'node-telegram-bot-api';
+import TelegramBot = require('node-telegram-bot-api');
 import {
   PlatformProvider,
   WebhookConfig,
