@@ -46,7 +46,7 @@ describe('CredentialValidationService', () => {
 
     it('should not throw for valid Discord credentials', () => {
       const validCredentials = {
-        token: 'MTAxNDk4NjIyNDMzNzI4NTEyMA.Gk-J6g.AbCdEfGhIjKlMnOpQrStUvWxYz123456789012',
+        token: 'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
       };
 
       expect(() => {

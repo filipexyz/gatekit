@@ -89,7 +89,7 @@ export class DiscordCredentialsValidator implements PlatformCredentialValidator 
 
   getExampleCredentials(): Record<string, any> {
     return {
-      token: 'MTAxNDk4NjIyNDMzNzI4NTEyMA.Gk-J6g.AbCdEfGhIjKlMnOpQrStUvWxYz123456789012',
+      token: 'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
       clientId: '1014986224337285120',
       intents: ['GuildMessages', 'MessageContent'],
       permissions: '8',

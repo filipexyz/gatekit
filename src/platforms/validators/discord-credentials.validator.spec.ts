@@ -10,7 +10,7 @@ describe('DiscordCredentialsValidator', () => {
   describe('validateCredentials', () => {
     it('should validate correct Discord credentials', () => {
       const validCredentials = {
-        token: 'MTAxNDk4NjIyNDMzNzI4NTEyMA.Gk-J6g.AbCdEfGhIjKlMnOpQrStUvWxYz123456789012',
+        token: 'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
         clientId: '1014986224337285120',
         intents: ['GuildMessages', 'MessageContent'],
       };
@@ -56,7 +56,7 @@ describe('DiscordCredentialsValidator', () => {
 
     it('should validate client ID format if provided', () => {
       const credentialsWithInvalidClientId = {
-        token: 'MTAxNDk4NjIyNDMzNzI4NTEyMA.Gk-J6g.AbCdEfGhIjKlMnOpQrStUvWxYz123456789012',
+        token: 'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
         clientId: 'not-a-valid-id',
       };
 
@@ -68,7 +68,7 @@ describe('DiscordCredentialsValidator', () => {
 
     it('should validate guild ID format if provided', () => {
       const credentialsWithInvalidGuildId = {
-        token: 'MTAxNDk4NjIyNDMzNzI4NTEyMA.Gk-J6g.AbCdEfGhIjKlMnOpQrStUvWxYz123456789012',
+        token: 'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
         guildId: 'invalid-guild-id',
       };
 
@@ -80,7 +80,7 @@ describe('DiscordCredentialsValidator', () => {
 
     it('should validate intents array if provided', () => {
       const credentialsWithInvalidIntents = {
-        token: 'MTAxNDk4NjIyNDMzNzI4NTEyMA.Gk-J6g.AbCdEfGhIjKlMnOpQrStUvWxYz123456789012',
+        token: 'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
         intents: ['GuildMessages', 'InvalidIntent'],
       };
 
@@ -92,7 +92,7 @@ describe('DiscordCredentialsValidator', () => {
 
     it('should accept numeric intents', () => {
       const credentialsWithNumericIntents = {
-        token: 'MTAxNDk4NjIyNDMzNzI4NTEyMA.Gk-J6g.AbCdEfGhIjKlMnOpQrStUvWxYz123456789012',
+        token: 'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
         intents: 3276800, // GuildMessages + MessageContent
       };
 
