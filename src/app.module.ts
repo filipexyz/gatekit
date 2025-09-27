@@ -55,7 +55,9 @@ import { sentryConfig } from './config/sentry.config';
           password: config.get<string>('REDIS_PASSWORD'),
           db: config.get<number>('REDIS_DB', 0),
           // Add TLS for Upstash Redis
-          tls: config.get<string>('REDIS_HOST', '').includes('upstash.io') ? {} : undefined,
+          tls: config.get<string>('REDIS_HOST', '').includes('upstash.io')
+            ? {}
+            : undefined,
           maxRetriesPerRequest: 3,
           retryDelayOnFailover: 100,
           lazyConnect: true,
@@ -79,7 +81,7 @@ import { sentryConfig } from './config/sentry.config';
               delay: 2000,
             },
             removeOnComplete: 100, // Keep last 100 completed jobs
-            removeOnFail: false,   // Keep failed jobs for debugging
+            removeOnFail: false, // Keep failed jobs for debugging
           },
         };
       },

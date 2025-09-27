@@ -72,10 +72,14 @@ describe('TelegramCredentialsValidator', () => {
         allowedUpdates: ['message', 'invalid_update_type'],
       };
 
-      const result = validator.validateCredentials(credentialsWithInvalidUpdates);
+      const result = validator.validateCredentials(
+        credentialsWithInvalidUpdates,
+      );
 
       expect(result.isValid).toBe(false);
-      expect(result.errors[0]).toContain('Invalid update types: invalid_update_type');
+      expect(result.errors[0]).toContain(
+        'Invalid update types: invalid_update_type',
+      );
     });
 
     it('should warn about test tokens', () => {
@@ -86,7 +90,9 @@ describe('TelegramCredentialsValidator', () => {
       const result = validator.validateCredentials(testCredentials);
 
       expect(result.isValid).toBe(true);
-      expect(result.warnings).toContain('This appears to be a Telegram test token - ensure you use a real bot token in production');
+      expect(result.warnings).toContain(
+        'This appears to be a Telegram test token - ensure you use a real bot token in production',
+      );
     });
 
     it('should warn about bot username not ending with bot', () => {
@@ -95,10 +101,14 @@ describe('TelegramCredentialsValidator', () => {
         botUsername: 'my_awesome_service',
       };
 
-      const result = validator.validateCredentials(credentialsWithWeirdUsername);
+      const result = validator.validateCredentials(
+        credentialsWithWeirdUsername,
+      );
 
       expect(result.isValid).toBe(true);
-      expect(result.warnings).toContain('Telegram bot usernames typically end with "bot"');
+      expect(result.warnings).toContain(
+        'Telegram bot usernames typically end with "bot"',
+      );
     });
   });
 

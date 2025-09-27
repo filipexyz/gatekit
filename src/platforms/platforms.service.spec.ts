@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { CryptoUtil } from '../common/utils/crypto.util';
 import { CredentialValidationService } from './services/credential-validation.service';
+import { PlatformRegistry } from './services/platform-registry.service';
 
 jest.mock('../common/utils/crypto.util', () => ({
   CryptoUtil: {
@@ -34,6 +35,10 @@ describe('PlatformsService', () => {
     validate: jest.fn().mockReturnValue({ isValid: true, errors: [] }),
   };
 
+  const mockPlatformRegistry = {
+    getProvider: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -45,6 +50,10 @@ describe('PlatformsService', () => {
         {
           provide: CredentialValidationService,
           useValue: mockCredentialValidationService,
+        },
+        {
+          provide: PlatformRegistry,
+          useValue: mockPlatformRegistry,
         },
       ],
     }).compile();
@@ -83,14 +92,19 @@ describe('PlatformsService', () => {
       expect(result).toHaveProperty('id', 'platform-id');
       expect(result).toHaveProperty('platform', 'discord');
       expect(result).toHaveProperty('isActive', true);
-      expect(CryptoUtil.encrypt).toHaveBeenCalledWith(JSON.stringify(createDto.credentials));
+      expect(CryptoUtil.encrypt).toHaveBeenCalledWith(
+        JSON.stringify(createDto.credentials),
+      );
     });
 
     it('should throw NotFoundException when project does not exist', async () => {
       mockPrismaService.project.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.create('non-existent', { platform: 'discord' as any, credentials: {} }),
+        service.create('non-existent', {
+          platform: 'discord' as any,
+          credentials: {},
+        }),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -109,7 +123,10 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      const result = await service.create('test-project', { platform: 'discord' as any, credentials: {} });
+      const result = await service.create('test-project', {
+        platform: 'discord' as any,
+        credentials: {},
+      });
 
       expect(result).toHaveProperty('platform', 'discord');
       expect(result).toHaveProperty('id', 'second-discord-instance');
@@ -154,7 +171,9 @@ describe('PlatformsService', () => {
     it('should throw NotFoundException when project does not exist', async () => {
       mockPrismaService.project.findUnique.mockResolvedValue(null);
 
-      await expect(service.findAll('non-existent')).rejects.toThrow(NotFoundException);
+      await expect(service.findAll('non-existent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -164,7 +183,9 @@ describe('PlatformsService', () => {
       const platformId = 'platform-id';
       const mockCredentials = { token: 'discord-token' };
 
-      mockPrismaService.project.findUnique.mockResolvedValue({ id: 'project-id' });
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
       mockPrismaService.projectPlatform.findFirst.mockResolvedValue({
         id: platformId,
         platform: 'discord',
@@ -192,7 +213,9 @@ describe('PlatformsService', () => {
         isActive: false,
       };
 
-      mockPrismaService.project.findUnique.mockResolvedValue({ id: 'project-id' });
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
       mockPrismaService.projectPlatform.findFirst.mockResolvedValue({
         id: platformId,
       });
@@ -223,7 +246,9 @@ describe('PlatformsService', () => {
       const projectSlug = 'test-project';
       const platformId = 'platform-id';
 
-      mockPrismaService.project.findUnique.mockResolvedValue({ id: 'project-id' });
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
       mockPrismaService.projectPlatform.findFirst.mockResolvedValue({
         id: platformId,
       });

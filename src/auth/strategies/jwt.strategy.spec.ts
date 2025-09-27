@@ -102,7 +102,9 @@ describe('JwtStrategy', () => {
     });
 
     it('should throw UnauthorizedException for invalid payload', async () => {
-      await expect(strategy.validate(null)).rejects.toThrow(UnauthorizedException);
+      await expect(strategy.validate(null)).rejects.toThrow(
+        UnauthorizedException,
+      );
       await expect(strategy.validate(null)).rejects.toThrow('Invalid token');
     });
   });
@@ -145,7 +147,7 @@ describe('JwtStrategy', () => {
       configService = module.get<ConfigService>(ConfigService);
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'Auth0 configuration not found. JWT authentication will be disabled.'
+        'Auth0 configuration not found. JWT authentication will be disabled.',
       );
       consoleWarnSpy.mockRestore();
     });
@@ -160,8 +162,12 @@ describe('JwtStrategy', () => {
         email: 'test@example.com',
       };
 
-      await expect(strategy.validate(payload)).rejects.toThrow(UnauthorizedException);
-      await expect(strategy.validate(payload)).rejects.toThrow('Auth0 not configured');
+      await expect(strategy.validate(payload)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(strategy.validate(payload)).rejects.toThrow(
+        'Auth0 not configured',
+      );
     });
   });
 });

@@ -37,7 +37,9 @@ describe('GateKit API (e2e)', () => {
     await prisma.project.deleteMany();
 
     // Create test project and API key with proper scopes
-    const project = await createTestProject(prisma, { name: 'E2E Test Project' });
+    const project = await createTestProject(prisma, {
+      name: 'E2E Test Project',
+    });
     testProjectId = project.id;
 
     const { rawKey } = await createTestApiKey(prisma, project.id, {
@@ -47,7 +49,7 @@ describe('GateKit API (e2e)', () => {
         'projects:read',
         'projects:write',
         'keys:manage',
-        'keys:read'
+        'keys:read',
       ],
     });
     testApiKey = rawKey;
@@ -75,7 +77,10 @@ describe('GateKit API (e2e)', () => {
         .get('/api/v1/projects')
         .expect(401)
         .expect((res) => {
-          expect(res.body).toHaveProperty('message', 'Authentication required. Provide either an API key or Bearer token.');
+          expect(res.body).toHaveProperty(
+            'message',
+            'Authentication required. Provide either an API key or Bearer token.',
+          );
         });
     });
 
@@ -112,9 +117,7 @@ describe('GateKit API (e2e)', () => {
       });
 
       it('should return 401 without API key', () => {
-        return request(app.getHttpServer())
-          .get('/api/v1/projects')
-          .expect(401);
+        return request(app.getHttpServer()).get('/api/v1/projects').expect(401);
       });
     });
 
@@ -298,7 +301,10 @@ describe('GateKit API (e2e)', () => {
           .set('X-API-Key', testApiKey)
           .expect(200)
           .expect((res) => {
-            expect(res.body).toHaveProperty('message', 'API key revoked successfully');
+            expect(res.body).toHaveProperty(
+              'message',
+              'API key revoked successfully',
+            );
           });
       });
 

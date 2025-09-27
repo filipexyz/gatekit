@@ -10,13 +10,17 @@ export class DocsController {
   @Public()
   async getOpenAPISpec(@Res() res: Response) {
     try {
-      const openApiPath = path.join(process.cwd(), 'generated/openapi/openapi.json');
+      const openApiPath = path.join(
+        process.cwd(),
+        'generated/openapi/openapi.json',
+      );
 
       if (!fs.existsSync(openApiPath)) {
         return res.status(404).json({
-          message: 'OpenAPI specification not found. Run npm run generate:openapi to generate it.',
+          message:
+            'OpenAPI specification not found. Run npm run generate:openapi to generate it.',
           error: 'Not Found',
-          statusCode: 404
+          statusCode: 404,
         });
       }
 
@@ -30,7 +34,7 @@ export class DocsController {
       return res.status(500).json({
         message: 'Failed to load OpenAPI specification',
         error: 'Internal Server Error',
-        statusCode: 500
+        statusCode: 500,
       });
     }
   }
@@ -39,13 +43,17 @@ export class DocsController {
   @Public()
   async getOpenAPIYAML(@Res() res: Response) {
     try {
-      const openApiPath = path.join(process.cwd(), 'generated/openapi/openapi.yaml');
+      const openApiPath = path.join(
+        process.cwd(),
+        'generated/openapi/openapi.yaml',
+      );
 
       if (!fs.existsSync(openApiPath)) {
         return res.status(404).json({
-          message: 'OpenAPI YAML specification not found. Run npm run generate:openapi to generate it.',
+          message:
+            'OpenAPI YAML specification not found. Run npm run generate:openapi to generate it.',
           error: 'Not Found',
-          statusCode: 404
+          statusCode: 404,
         });
       }
 
@@ -59,7 +67,7 @@ export class DocsController {
       return res.status(500).json({
         message: 'Failed to load OpenAPI YAML specification',
         error: 'Internal Server Error',
-        statusCode: 500
+        statusCode: 500,
       });
     }
   }
@@ -79,19 +87,21 @@ export class DocsController {
       title: 'GateKit API Documentation',
       description: 'Universal messaging gateway API documentation',
       endpoints: {
-        'openapi.json': '/docs/openapi.json - OpenAPI 3.0.3 specification (JSON)',
-        'openapi.yaml': '/docs/openapi.yaml - OpenAPI 3.0.3 specification (YAML)',
-        'swagger': '/docs/swagger - Swagger UI documentation'
+        'openapi.json':
+          '/docs/openapi.json - OpenAPI 3.0.3 specification (JSON)',
+        'openapi.yaml':
+          '/docs/openapi.yaml - OpenAPI 3.0.3 specification (YAML)',
+        swagger: '/docs/swagger - Swagger UI documentation',
       },
       tools: {
         'Swagger UI': 'https://swagger.io/tools/swagger-ui/',
-        'Postman': 'Import /docs/openapi.json into Postman',
-        'Insomnia': 'Load /docs/openapi.json for API testing'
+        Postman: 'Import /docs/openapi.json into Postman',
+        Insomnia: 'Load /docs/openapi.json for API testing',
       },
       generation: {
         command: 'npm run generate:openapi',
-        description: 'Regenerate OpenAPI specification from backend contracts'
-      }
+        description: 'Regenerate OpenAPI specification from backend contracts',
+      },
     });
   }
 }
