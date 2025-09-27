@@ -452,8 +452,25 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
         parse_mode: 'HTML',
       });
 
+      // Enhanced logging for successful message send
+      const platformLogger = this.createPlatformLogger(env.projectId, platformId);
+      platformLogger.logMessage(`Message sent successfully to chat ${chatId}`, {
+        messageId: sentMessage.message_id.toString(),
+        chatId,
+        messageLength: reply.text?.length || 0,
+        parseMode: 'HTML',
+      });
+
       return { providerMessageId: sentMessage.message_id.toString() };
     } catch (error) {
+      // Enhanced logging for message send failure
+      const platformLogger = this.createPlatformLogger(env.projectId, platformId);
+      platformLogger.errorMessage(`Failed to send Telegram message to chat ${reply.threadId ?? env.threadId}`, error, {
+        chatId: reply.threadId ?? env.threadId,
+        messageText: reply.text?.substring(0, 100), // First 100 chars for debugging
+        errorType: error.name || 'Unknown',
+      });
+
       this.logger.error('Failed to send Telegram message:', error.message);
       return { providerMessageId: 'telegram-send-failed' };
     }
