@@ -18,9 +18,7 @@ import { Public } from '../../common/decorators/public.decorator';
 export class DynamicWebhookController {
   private readonly logger = new Logger(DynamicWebhookController.name);
 
-  constructor(
-    private readonly platformRegistry: PlatformRegistry,
-  ) {}
+  constructor(private readonly platformRegistry: PlatformRegistry) {}
 
   /**
    * Dynamic webhook handler that routes to the appropriate platform provider
@@ -36,11 +34,17 @@ export class DynamicWebhookController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    this.logger.log(`🔔 WEBHOOK RECEIVED! Platform: ${platform}, Method: ${req.method}, IP: ${req.ip}`);
+    this.logger.log(
+      `🔔 WEBHOOK RECEIVED! Platform: ${platform}, Method: ${req.method}, IP: ${req.ip}`,
+    );
     this.logger.log(`🎯 Webhook token: ${webhookToken.substring(0, 8)}...`);
     this.logger.log(`📨 Body size: ${JSON.stringify(body).length} bytes`);
-    this.logger.log(`🔗 Headers: User-Agent: ${headers['user-agent'] || 'none'}`);
-    this.logger.log(`📍 Full URL: ${req.protocol}://${req.get('host')}${req.originalUrl}`);
+    this.logger.log(
+      `🔗 Headers: User-Agent: ${headers['user-agent'] || 'none'}`,
+    );
+    this.logger.log(
+      `📍 Full URL: ${req.protocol}://${req.get('host')}${req.originalUrl}`,
+    );
 
     // Get the platform provider
     const provider = this.platformRegistry.getProvider(platform);
@@ -54,14 +58,18 @@ export class DynamicWebhookController {
 
     // Check if this platform supports webhooks
     if (provider.connectionType !== 'webhook') {
-      this.logger.warn(`Platform ${platform} does not support webhooks (type: ${provider.connectionType})`);
+      this.logger.warn(
+        `Platform ${platform} does not support webhooks (type: ${provider.connectionType})`,
+      );
       return res.status(HttpStatus.BAD_REQUEST).json({
         error: 'Platform does not support webhooks',
       });
     }
 
     if (!provider.getWebhookConfig) {
-      this.logger.error(`Platform ${platform} has webhook type but no webhook config`);
+      this.logger.error(
+        `Platform ${platform} has webhook type but no webhook config`,
+      );
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         error: 'Platform webhook configuration missing',
       });
@@ -81,7 +89,10 @@ export class DynamicWebhookController {
       // Return the result
       return res.status(HttpStatus.OK).json(result);
     } catch (error) {
-      this.logger.error(`Webhook handler error for ${platform}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Webhook handler error for ${platform}: ${error.message}`,
+        error.stack,
+      );
 
       // Check for specific error types
       if (error.name === 'NotFoundException') {
@@ -116,11 +127,13 @@ export class DynamicWebhookController {
   @Post('health')
   async webhookHealth() {
     const providers = this.platformRegistry.getAllProviders();
-    const webhookProviders = providers.filter(p => p.connectionType === 'webhook');
+    const webhookProviders = providers.filter(
+      (p) => p.connectionType === 'webhook',
+    );
 
     return {
       status: 'healthy',
-      webhookProviders: webhookProviders.map(p => ({
+      webhookProviders: webhookProviders.map((p) => ({
         name: p.name,
         displayName: p.displayName,
       })),

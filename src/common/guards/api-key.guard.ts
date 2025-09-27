@@ -1,4 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ApiKeysService } from '../../api-keys/api-keys.service';
 
@@ -32,14 +38,15 @@ export class ApiKeyGuard implements CanActivate {
       throw new UnauthorizedException('Invalid API key');
     }
 
-    const requiredScopes = this.reflector.getAllAndOverride<string[]>('scopes', [
-      context.getHandler(),
-      context.getClass(),
-    ]) || [];
+    const requiredScopes =
+      this.reflector.getAllAndOverride<string[]>('scopes', [
+        context.getHandler(),
+        context.getClass(),
+      ]) || [];
 
     if (requiredScopes.length > 0) {
-      const hasRequiredScopes = requiredScopes.every(scope =>
-        validatedKey.scopes.includes(scope)
+      const hasRequiredScopes = requiredScopes.every((scope) =>
+        validatedKey.scopes.includes(scope),
       );
 
       if (!hasRequiredScopes) {

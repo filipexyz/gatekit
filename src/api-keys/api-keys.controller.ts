@@ -1,10 +1,23 @@
-import { Controller, Get, Post, Body, Param, Delete, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  HttpCode,
+} from '@nestjs/common';
 import { ApiKeysService } from './api-keys.service';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { RequireScopes } from '../common/decorators/scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { Throttle } from '@nestjs/throttler';
-import { ApiKeyResponse, ApiKeyListResponse, ApiKeyRollResponse, MessageResponse } from '../common/types/api-responses';
+import {
+  ApiKeyResponse,
+  ApiKeyListResponse,
+  ApiKeyRollResponse,
+  MessageResponse,
+} from '../common/types/api-responses';
 
 @Controller('api/v1/projects/:projectSlug/keys')
 export class ApiKeysController {
@@ -22,15 +35,20 @@ export class ApiKeysController {
     outputType: 'ApiKeyResponse',
     options: {
       name: { required: true, description: 'API key name', type: 'string' },
-      scopes: { required: true, description: 'Comma-separated scopes', type: 'string' },
-      expiresInDays: { description: 'Expiration in days', type: 'number' }
+      scopes: {
+        required: true,
+        description: 'Comma-separated scopes',
+        type: 'string',
+      },
+      expiresInDays: { description: 'Expiration in days', type: 'number' },
     },
     examples: [
       {
         description: 'Create messaging API key',
-        command: 'gatekit keys create --name "Bot Key" --scopes "messages:send,messages:read"'
-      }
-    ]
+        command:
+          'gatekit keys create --name "Bot Key" --scopes "messages:send,messages:read"',
+      },
+    ],
   })
   create(
     @Param('projectSlug') projectSlug: string,
@@ -50,9 +68,9 @@ export class ApiKeysController {
     examples: [
       {
         description: 'List all API keys',
-        command: 'gatekit keys list'
-      }
-    ]
+        command: 'gatekit keys list',
+      },
+    ],
   })
   findAll(@Param('projectSlug') projectSlug: string) {
     return this.apiKeysService.findAll(projectSlug);
@@ -67,14 +85,18 @@ export class ApiKeysController {
     requiredScopes: ['keys:manage'],
     outputType: 'MessageResponse',
     options: {
-      keyId: { required: true, description: 'API key ID to revoke', type: 'string' }
+      keyId: {
+        required: true,
+        description: 'API key ID to revoke',
+        type: 'string',
+      },
     },
     examples: [
       {
         description: 'Revoke an API key',
-        command: 'gatekit keys revoke --keyId "key-123"'
-      }
-    ]
+        command: 'gatekit keys revoke --keyId "key-123"',
+      },
+    ],
   })
   revoke(
     @Param('projectSlug') projectSlug: string,
@@ -94,14 +116,18 @@ export class ApiKeysController {
     requiredScopes: ['keys:manage'],
     outputType: 'ApiKeyRollResponse',
     options: {
-      keyId: { required: true, description: 'API key ID to roll', type: 'string' }
+      keyId: {
+        required: true,
+        description: 'API key ID to roll',
+        type: 'string',
+      },
     },
     examples: [
       {
         description: 'Roll an API key',
-        command: 'gatekit keys roll --keyId "key-123"'
-      }
-    ]
+        command: 'gatekit keys roll --keyId "key-123"',
+      },
+    ],
   })
   roll(
     @Param('projectSlug') projectSlug: string,
