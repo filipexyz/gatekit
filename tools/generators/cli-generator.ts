@@ -485,7 +485,16 @@ ${example?.command || `gatekit ${contract.contractMetadata.command} --help`}
 
     return `# @gatekit/cli
 
-Official CLI for GateKit - Universal messaging gateway.
+> **Official CLI for GateKit - AI-assisted conversational infrastructure for AI agents**
+
+🧠 **Built with AI assistance under human supervision**
+🔗 **Main Repository**: [filipexyz/gatekit](https://github.com/filipexyz/gatekit)
+🖥️ **CLI Repository**: [filipexyz/gatekit-cli](https://github.com/filipexyz/gatekit-cli)
+📦 **TypeScript SDK**: [@gatekit/sdk](https://npmjs.com/package/@gatekit/sdk)
+
+GateKit provides conversational infrastructure that any AI agent can plug into. This CLI is the primary interface for managing projects, platforms, and messaging.
+
+**📊 Dashboard Status**: Under development - use CLI for all operations.
 
 ## Installation
 
