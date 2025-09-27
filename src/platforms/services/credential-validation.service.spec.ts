@@ -3,11 +3,13 @@ import { BadRequestException } from '@nestjs/common';
 import { CredentialValidationService } from './credential-validation.service';
 import { TelegramCredentialsValidator } from '../validators/telegram-credentials.validator';
 import { DiscordCredentialsValidator } from '../validators/discord-credentials.validator';
+import { WhatsAppCredentialsValidator } from '../validators/whatsapp-credentials.validator';
 
 describe('CredentialValidationService', () => {
   let service: CredentialValidationService;
   let telegramValidator: TelegramCredentialsValidator;
   let discordValidator: DiscordCredentialsValidator;
+  let whatsappValidator: WhatsAppCredentialsValidator;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -15,12 +17,22 @@ describe('CredentialValidationService', () => {
         CredentialValidationService,
         TelegramCredentialsValidator,
         DiscordCredentialsValidator,
+        WhatsAppCredentialsValidator,
       ],
     }).compile();
 
-    service = module.get<CredentialValidationService>(CredentialValidationService);
-    telegramValidator = module.get<TelegramCredentialsValidator>(TelegramCredentialsValidator);
-    discordValidator = module.get<DiscordCredentialsValidator>(DiscordCredentialsValidator);
+    service = module.get<CredentialValidationService>(
+      CredentialValidationService,
+    );
+    telegramValidator = module.get<TelegramCredentialsValidator>(
+      TelegramCredentialsValidator,
+    );
+    discordValidator = module.get<DiscordCredentialsValidator>(
+      DiscordCredentialsValidator,
+    );
+    whatsappValidator = module.get<WhatsAppCredentialsValidator>(
+      WhatsAppCredentialsValidator,
+    );
   });
 
   describe('validateAndThrow', () => {
@@ -46,7 +58,8 @@ describe('CredentialValidationService', () => {
 
     it('should not throw for valid Discord credentials', () => {
       const validCredentials = {
-        token: 'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
+        token:
+          'MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789',
       };
 
       expect(() => {
@@ -102,7 +115,9 @@ describe('CredentialValidationService', () => {
       const result = service.validate('unsupported', credentials);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('No validator found for platform: unsupported');
+      expect(result.errors).toContain(
+        'No validator found for platform: unsupported',
+      );
     });
   });
 
@@ -115,6 +130,11 @@ describe('CredentialValidationService', () => {
     it('should return Discord required fields', () => {
       const fields = service.getRequiredFields('discord');
       expect(fields).toEqual(['token']);
+    });
+
+    it('should return WhatsApp-Evo required fields', () => {
+      const fields = service.getRequiredFields('whatsapp-evo');
+      expect(fields).toEqual(['evolutionApiUrl', 'evolutionApiKey']);
     });
 
     it('should return empty array for unsupported platform', () => {
@@ -141,9 +161,16 @@ describe('CredentialValidationService', () => {
       const discordExample = service.getExampleCredentials('discord');
       expect(discordExample).toHaveProperty('token');
 
+      const whatsappExample = service.getExampleCredentials('whatsapp-evo');
+      expect(whatsappExample).toHaveProperty('evolutionApiUrl');
+      expect(whatsappExample).toHaveProperty('evolutionApiKey');
+
       // Examples should pass validation
       expect(service.validate('telegram', telegramExample).isValid).toBe(true);
       expect(service.validate('discord', discordExample).isValid).toBe(true);
+      expect(service.validate('whatsapp-evo', whatsappExample).isValid).toBe(
+        true,
+      );
     });
   });
 
@@ -152,6 +179,7 @@ describe('CredentialValidationService', () => {
       const platforms = service.getSupportedPlatforms();
       expect(platforms).toContain('telegram');
       expect(platforms).toContain('discord');
+      expect(platforms).toContain('whatsapp-evo');
     });
   });
 
@@ -177,9 +205,10 @@ describe('CredentialValidationService', () => {
     it('should return schemas for all platforms', () => {
       const schemas = service.getAllValidationSchemas();
 
-      expect(schemas).toHaveLength(2);
-      expect(schemas.map(s => s.platform)).toContain('telegram');
-      expect(schemas.map(s => s.platform)).toContain('discord');
+      expect(schemas).toHaveLength(3);
+      expect(schemas.map((s) => s.platform)).toContain('telegram');
+      expect(schemas.map((s) => s.platform)).toContain('discord');
+      expect(schemas.map((s) => s.platform)).toContain('whatsapp-evo');
     });
   });
 });

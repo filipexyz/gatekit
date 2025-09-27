@@ -528,7 +528,14 @@ ${this.generateSDKExample(contract)}
 
     return `# @gatekit/sdk
 
-TypeScript SDK for GateKit - Universal messaging gateway API.
+> **TypeScript SDK for GateKit - AI-assisted conversational infrastructure for AI agents**
+
+🧠 **Built with AI assistance under human supervision**
+🔗 **Main Repository**: [filipexyz/gatekit](https://github.com/filipexyz/gatekit)
+📦 **SDK Repository**: [filipexyz/gatekit-sdk](https://github.com/filipexyz/gatekit-sdk)
+🖥️ **CLI Tool**: [@gatekit/cli](https://npmjs.com/package/@gatekit/cli)
+
+GateKit provides conversational infrastructure that any AI agent can plug into. Store conversations, send messages across Discord/Telegram, and integrate with any agentic workflow.
 
 ## Installation
 

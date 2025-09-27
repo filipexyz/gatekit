@@ -40,7 +40,8 @@ export class SeedService implements OnModuleInit {
         const defaultProject = await this.prisma.project.create({
           data: {
             name: 'Default Project',
-            description: 'Default development project for testing and initial setup',
+            description:
+              'Default development project for testing and initial setup',
             slug: 'default',
             environment: 'development',
             isDefault: true,
@@ -54,7 +55,9 @@ export class SeedService implements OnModuleInit {
           },
         });
 
-        const testApiKey = CryptoUtil.generateApiKey(defaultProject.environment);
+        const testApiKey = CryptoUtil.generateApiKey(
+          defaultProject.environment,
+        );
         const keyHash = CryptoUtil.hashApiKey(testApiKey);
         const keyPrefix = CryptoUtil.getKeyPrefix(testApiKey);
         const keySuffix = CryptoUtil.getKeySuffix(testApiKey);

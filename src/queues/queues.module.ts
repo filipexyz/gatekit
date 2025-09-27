@@ -21,9 +21,15 @@ export class QueuesModule implements OnModuleInit {
   private readonly logger = new Logger(QueuesModule.name);
 
   async onModuleInit() {
-    this.logger.log('🚀 QueuesModule initialized - registering message queue and processor');
+    this.logger.log(
+      '🚀 QueuesModule initialized - registering message queue and processor',
+    );
     this.logger.log('📦 Queue name: "messages" | Job type: "send-message"');
-    this.logger.log('🔄 Default job options: 3 attempts, exponential backoff, keep failed jobs');
-    this.logger.log('⚙️ Processor: DynamicMessageProcessor should be connected to Redis');
+    this.logger.log(
+      '🔄 Default job options: 3 attempts, exponential backoff, keep failed jobs',
+    );
+    this.logger.log(
+      '⚙️ Processor: DynamicMessageProcessor should be connected to Redis',
+    );
   }
 }

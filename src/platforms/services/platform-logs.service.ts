@@ -40,7 +40,9 @@ export class PlatformLogsService {
           message: options.message,
           metadata: options.metadata,
           error: options.error
-            ? (options.error instanceof Error ? options.error.stack : options.error)
+            ? options.error instanceof Error
+              ? options.error.stack
+              : options.error
             : null,
         },
       });
@@ -123,7 +125,7 @@ export class PlatformLogsService {
     });
 
     return {
-      summary: stats.map(stat => ({
+      summary: stats.map((stat) => ({
         level: stat.level,
         category: stat.category,
         count: stat._count,

@@ -1,4 +1,12 @@
-import { IsString, IsEnum, IsOptional, ValidateNested, IsArray, IsBoolean, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  ValidateNested,
+  IsArray,
+  IsBoolean,
+  IsDateString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum TargetType {
@@ -10,6 +18,7 @@ export enum TargetType {
 export enum Platform {
   DISCORD = 'discord',
   TELEGRAM = 'telegram',
+  WHATSAPP_EVO = 'whatsapp-evo',
 }
 
 export enum Priority {

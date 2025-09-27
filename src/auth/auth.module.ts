@@ -5,10 +5,7 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [
-    PassportModule.register({ defaultStrategy: 'jwt' }),
-    UsersModule,
-  ],
+  imports: [PassportModule.register({ defaultStrategy: 'jwt' }), UsersModule],
   controllers: [AuthController],
   providers: [JwtStrategy],
   exports: [PassportModule],

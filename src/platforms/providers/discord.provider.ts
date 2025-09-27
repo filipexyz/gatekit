@@ -53,7 +53,10 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
     this.logger.log('Discord provider shut down');
   }
 
-  async createAdapter(connectionKey: string, credentials: any): Promise<PlatformAdapter> {
+  async createAdapter(
+    connectionKey: string,
+    credentials: any,
+  ): Promise<PlatformAdapter> {
     const existingConnection = this.connections.get(connectionKey);
 
     if (existingConnection) {
@@ -63,7 +66,9 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
         return this;
       } else {
         // Token changed, recreate connection
-        this.logger.log(`Token changed for connection ${connectionKey}, recreating`);
+        this.logger.log(
+          `Token changed for connection ${connectionKey}, recreating`,
+        );
         await this.removeAdapter(connectionKey);
       }
     }
@@ -107,8 +112,8 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
       await Promise.race([
         client.login(credentials.token),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Discord login timeout')), 5000)
-        )
+          setTimeout(() => reject(new Error('Discord login timeout')), 5000),
+        ),
       ]);
 
       connection.isConnected = true;
@@ -116,7 +121,9 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
       this.logger.log(`Discord connection established for ${connectionKey}`);
       return this; // Provider IS the adapter
     } catch (error) {
-      this.logger.error(`Failed to create Discord connection for ${connectionKey}: ${error.message}`);
+      this.logger.error(
+        `Failed to create Discord connection for ${connectionKey}: ${error.message}`,
+      );
 
       // Clean up on failure
       this.connections.delete(connectionKey);
@@ -153,7 +160,9 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
       await connection.client.destroy();
       this.logger.debug(`Discord client destroyed for ${connectionKey}`);
     } catch (error) {
-      this.logger.error(`Error closing Discord connection for ${connectionKey}: ${error.message}`);
+      this.logger.error(
+        `Error closing Discord connection for ${connectionKey}: ${error.message}`,
+      );
     }
   }
 
@@ -209,13 +218,15 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
     return {
       totalConnections: this.connections.size,
       maxConnections: this.MAX_CONNECTIONS,
-      connections: Array.from(this.connections.entries()).map(([projectId, conn]) => ({
-        projectId,
-        isConnected: conn.isConnected,
-        lastActivity: conn.lastActivity,
-        guilds: conn.client.guilds?.cache.size || 0,
-        uptime: conn.client.uptime || 0,
-      })),
+      connections: Array.from(this.connections.entries()).map(
+        ([projectId, conn]) => ({
+          projectId,
+          isConnected: conn.isConnected,
+          lastActivity: conn.lastActivity,
+          guilds: conn.client.guilds?.cache.size || 0,
+          uptime: conn.client.uptime || 0,
+        }),
+      ),
     };
   }
 
@@ -237,8 +248,10 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
     const toRemove: string[] = [];
 
     for (const [projectId, connection] of this.connections) {
-      if (!connection.isConnected &&
-          now - connection.lastActivity.getTime() > thresholdMs) {
+      if (
+        !connection.isConnected &&
+        now - connection.lastActivity.getTime() > thresholdMs
+      ) {
         toRemove.push(projectId);
       }
     }
@@ -248,7 +261,9 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
     }
 
     if (toRemove.length > 0) {
-      this.logger.log(`Cleaned up ${toRemove.length} inactive Discord connections`);
+      this.logger.log(
+        `Cleaned up ${toRemove.length} inactive Discord connections`,
+      );
     }
   }
 
@@ -282,7 +297,15 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
 
   async sendMessage(
     env: MessageEnvelopeV1,
-    reply: { text?: string; attachments?: any[]; buttons?: any[]; embeds?: any[]; threadId?: string; replyTo?: string; silent?: boolean },
+    reply: {
+      text?: string;
+      attachments?: any[];
+      buttons?: any[];
+      embeds?: any[];
+      threadId?: string;
+      replyTo?: string;
+      silent?: boolean;
+    },
   ): Promise<{ providerMessageId: string }> {
     // Extract platformId from envelope to construct connection key
     const platformId = (env.provider?.raw as any)?.platformId;
@@ -295,7 +318,9 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
     const connection = this.connections.get(connectionKey);
 
     if (!connection || !connection.client.isReady()) {
-      this.logger.warn(`Discord client not ready for ${connectionKey}, cannot send message`);
+      this.logger.warn(
+        `Discord client not ready for ${connectionKey}, cannot send message`,
+      );
       return { providerMessageId: 'discord-not-ready' };
     }
 
