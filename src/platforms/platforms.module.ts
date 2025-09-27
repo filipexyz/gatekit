@@ -7,8 +7,10 @@ import { PlatformsController } from './platforms.controller';
 import { MessagesService } from './messages/messages.service';
 import { DynamicWebhookController } from './webhooks/dynamic-webhook.controller';
 import { PlatformHealthController } from './controllers/platform-health.controller';
+import { PlatformLogsController } from './controllers/platform-logs.controller';
 import { EventBusService } from './services/event-bus.service';
 import { PlatformRegistry } from './services/platform-registry.service';
+import { PlatformLogsService } from './services/platform-logs.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { EVENT_BUS } from './interfaces/event-bus.interface';
 import { MessageQueue } from '../queues/message.queue';
@@ -38,12 +40,14 @@ import { TelegramProvider } from './providers/telegram.provider';
     PlatformsController,
     DynamicWebhookController,
     PlatformHealthController,
+    PlatformLogsController,
   ],
   providers: [
     PlatformsService,
     MessagesService,
     EventBusService,
     PlatformRegistry,
+    PlatformLogsService,
     MessageQueue,
     {
       provide: EVENT_BUS,
@@ -53,6 +57,6 @@ import { TelegramProvider } from './providers/telegram.provider';
     DiscordProvider,
     TelegramProvider,
   ],
-  exports: [PlatformsService, MessagesService, PlatformRegistry],
+  exports: [PlatformsService, MessagesService, PlatformRegistry, PlatformLogsService],
 })
 export class PlatformsModule {}

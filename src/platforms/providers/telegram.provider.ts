@@ -9,6 +9,8 @@ import { PlatformProviderDecorator } from '../decorators/platform-provider.decor
 import { MessageEnvelopeV1 } from '../interfaces/message-envelope.interface';
 import { makeEnvelope } from '../utils/envelope.factory';
 import { CryptoUtil } from '../../common/utils/crypto.util';
+import { PlatformLogsService } from '../services/platform-logs.service';
+import { PlatformLogger } from '../utils/platform-logger';
 
 interface TelegramConnection {
   connectionKey: string; // projectId:platformId
@@ -33,10 +35,19 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
   constructor(
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
     private readonly prisma: PrismaService,
+    private readonly platformLogsService: PlatformLogsService,
   ) {}
 
   async initialize(): Promise<void> {
     this.logger.log('Telegram provider initialized');
+  }
+
+  private createPlatformLogger(projectId: string, platformId?: string): PlatformLogger {
+    return PlatformLogger.create(this.platformLogsService, {
+      projectId,
+      platformId,
+      platform: this.name,
+    });
   }
 
   async shutdown(): Promise<void> {
@@ -84,9 +95,24 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
 
       connection.isActive = true;
 
+      // Enhanced logging for connection success
+      const platformLogger = this.createPlatformLogger(projectId, platformId);
+      platformLogger.logConnection(`Telegram connection created for ${connectionKey}`, {
+        connectionKey,
+        botUsername: credentials.botUsername,
+        hasWebhook: !!credentials.webhookToken,
+      });
+
       this.logger.log(`Telegram connection created for ${connectionKey}`);
       return this; // Provider IS the adapter
     } catch (error) {
+      // Enhanced logging for connection failure
+      const platformLogger = this.createPlatformLogger(projectId, platformId);
+      platformLogger.errorConnection(`Failed to create Telegram connection for ${connectionKey}`, error, {
+        connectionKey,
+        botToken: credentials.token ? 'present' : 'missing',
+      });
+
       this.logger.error(`Failed to create Telegram connection for ${connectionKey}: ${error.message}`);
 
       // Clean up on failure
@@ -158,6 +184,16 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
 
         // Process the webhook update directly with platform ID
         await this.processWebhookUpdate(platformConfig.projectId, body as TelegramBot.Update, platformConfig.id);
+
+        // Enhanced logging for webhook processing
+        const platformLogger = this.createPlatformLogger(platformConfig.projectId, platformConfig.id);
+        const update = body as TelegramBot.Update;
+        platformLogger.logWebhook(`Processed Telegram webhook for project: ${platformConfig.project.slug}`, {
+          updateType: update.message ? 'message' : update.callback_query ? 'callback' : 'other',
+          messageId: update.message?.message_id,
+          callbackId: update.callback_query?.id,
+          chatId: update.message?.chat?.id || update.callback_query?.message?.chat?.id,
+        });
 
         this.logger.log(`Processed Telegram webhook for project: ${platformConfig.project.slug}`);
 

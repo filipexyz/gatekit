@@ -58,6 +58,7 @@ model Project {
   projectPlatforms  ProjectPlatform[]
   receivedMessages  ReceivedMessage[]
   sentMessages      SentMessage[]
+  platformLogs      PlatformLog[]
 
   // New sharing relationships
   members          ProjectMember[]
@@ -130,6 +131,7 @@ model ProjectPlatform {
   project              Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   receivedMessages     ReceivedMessage[]
   sentMessages         SentMessage[]
+  platformLogs         PlatformLog[]
 
   @@index([projectId])
   @@index([webhookToken])
@@ -208,4 +210,27 @@ model SentMessage {
   @@index([targetChatId])
   @@index([targetUserId])
   @@map("sent_messages")
+}
+
+model PlatformLog {
+  id          String   @id @default(uuid())
+  projectId   String   @map("project_id")
+  platformId  String?  @map("platform_id") // nullable for project-wide logs
+  platform    String   // telegram, discord, etc.
+  level       String   // info, warn, error, debug
+  category    String   // connection, webhook, message, error
+  message     String   @db.Text
+  metadata    Json?    // additional structured data
+  error       String?  @db.Text // error stack trace if applicable
+  timestamp   DateTime @default(now())
+
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  platformConfig ProjectPlatform? @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([platformId])
+  @@index([timestamp])
+  @@index([level])
+  @@index([category])
+  @@map("platform_logs")
 }

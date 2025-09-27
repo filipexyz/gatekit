@@ -141,3 +141,46 @@ export interface AddMemberDto {
 export interface UpdateMemberRoleDto {
   role: ProjectRole;
 }
+
+// Platform Logs DTOs and Responses
+export interface PlatformLog {
+  id: string;
+  projectId: string;
+  platformId?: string;
+  platform: string;
+  level: 'info' | 'warn' | 'error' | 'debug';
+  category: 'connection' | 'webhook' | 'message' | 'error' | 'auth' | 'general';
+  message: string;
+  metadata?: Record<string, any>;
+  error?: string;
+  timestamp: string;
+  platformConfig?: {
+    id: string;
+    platform: string;
+    isActive: boolean;
+  };
+}
+
+export interface PlatformLogsResponse {
+  logs: PlatformLog[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
+
+export interface PlatformLogStatsResponse {
+  summary: Array<{
+    level: string;
+    category: string;
+    count: number;
+  }>;
+  recentErrors: Array<{
+    message: string;
+    category: string;
+    timestamp: string;
+    platform: string;
+  }>;
+}

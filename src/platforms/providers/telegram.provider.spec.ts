@@ -3,6 +3,7 @@ import TelegramBot = require('node-telegram-bot-api');
 import { TelegramProvider } from './telegram.provider';
 import { EVENT_BUS } from '../interfaces/event-bus.interface';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlatformLogsService } from '../services/platform-logs.service';
 
 describe('TelegramProvider', () => {
   let provider: TelegramProvider;
@@ -19,6 +20,10 @@ describe('TelegramProvider', () => {
     },
   };
 
+  const mockPlatformLogsService = {
+    logActivity: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -30,6 +35,10 @@ describe('TelegramProvider', () => {
         {
           provide: PrismaService,
           useValue: mockPrisma,
+        },
+        {
+          provide: PlatformLogsService,
+          useValue: mockPlatformLogsService,
         },
       ],
     }).compile();
