@@ -1,4 +1,15 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreatePlatformDto } from './create-platform.dto';
+import { IsObject, IsOptional, IsBoolean } from 'class-validator';
 
-export class UpdatePlatformDto extends PartialType(CreatePlatformDto) {}
+export class UpdatePlatformDto {
+  @IsOptional()
+  @IsObject()
+  credentials?: Record<string, any>;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  testMode?: boolean;
+}

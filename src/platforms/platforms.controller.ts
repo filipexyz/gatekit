@@ -113,14 +113,26 @@ export class PlatformsController {
     inputType: 'UpdatePlatformDto',
     outputType: 'PlatformResponse',
     options: {
-      credentials: { description: 'Updated credentials', type: 'object' },
+      credentials: { description: 'Updated credentials (JSON object)', type: 'object' },
       isActive: { description: 'Enable/disable platform', type: 'boolean' },
       testMode: { description: 'Enable/disable test mode', type: 'boolean' }
     },
     examples: [
       {
+        description: 'Update Telegram bot token',
+        command: 'gatekit platforms update my-project platform-123 --credentials \'{"token":"7654321:AAFmi_newtoken_here"}\''
+      },
+      {
+        description: 'Update Discord bot token',
+        command: 'gatekit platforms update my-project platform-456 --credentials \'{"token":"MTA1new.discord.token"}\''
+      },
+      {
         description: 'Disable platform',
-        command: 'gatekit platforms update --id "platform-123" --isActive false'
+        command: 'gatekit platforms update my-project platform-123 --isActive false'
+      },
+      {
+        description: 'Enable test mode',
+        command: 'gatekit platforms update my-project platform-123 --testMode true'
       }
     ]
   })
