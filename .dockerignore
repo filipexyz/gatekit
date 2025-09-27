@@ -18,3 +18,5 @@ Dockerfile
 docker-compose.yml
 .dockerignore
 generated/
+test-sdk.ts
+tools/
