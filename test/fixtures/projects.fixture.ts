@@ -9,10 +9,27 @@ export const createTestProject = async (
     environment: ProjectEnvironment;
     isDefault: boolean;
     settings: any;
+    ownerId: string;
   }> = {},
 ) => {
   const name = overrides.name || 'Test Project';
   const slug = overrides.slug || CryptoUtil.generateSlug(name);
+
+  // Create or get test owner user
+  let ownerId = overrides.ownerId;
+  if (!ownerId) {
+    const testOwner = await prisma.user.upsert({
+      where: { email: 'test-owner@gatekit.dev' },
+      update: {},
+      create: {
+        email: 'test-owner@gatekit.dev',
+        auth0Id: 'test-owner-auth0-id',
+        name: 'Test Owner',
+        isAdmin: false,
+      },
+    });
+    ownerId = testOwner.id;
+  }
 
   return await prisma.project.create({
     data: {
@@ -26,6 +43,10 @@ export const createTestProject = async (
           production: 1000,
         },
       },
+      ownerId,
+    },
+    include: {
+      owner: true,
     },
   });
 };
