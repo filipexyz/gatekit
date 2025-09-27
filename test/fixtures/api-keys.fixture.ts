@@ -17,9 +17,7 @@ export const createTestApiKey = async (
     where: { id: projectId },
   });
 
-  const apiKey = CryptoUtil.generateApiKey(
-    project?.environment || 'development',
-  );
+  const apiKey = CryptoUtil.generateApiKey(project?.environment || 'development');
   const keyHash = CryptoUtil.hashApiKey(apiKey);
   const keyPrefix = CryptoUtil.getKeyPrefix(apiKey);
   const keySuffix = CryptoUtil.getKeySuffix(apiKey);
@@ -37,7 +35,7 @@ export const createTestApiKey = async (
       revokedAt: overrides.revokedAt || null,
       createdBy: overrides.createdBy || null,
       scopes: {
-        create: scopes.map((scope) => ({ scope })),
+        create: scopes.map(scope => ({ scope })),
       },
     },
     include: {

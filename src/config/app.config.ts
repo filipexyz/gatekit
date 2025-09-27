@@ -25,37 +25,29 @@ export interface AppConfig {
   };
 }
 
-export const appConfig = registerAs(
-  'app',
-  (): AppConfig => ({
-    nodeEnv: process.env.NODE_ENV || 'development',
-    port: parseInt(process.env.PORT || '3000', 10),
-    encryptionKey: process.env.ENCRYPTION_KEY || '',
-    corsOrigins: process.env.CORS_ORIGINS?.split(',') || [
-      'http://localhost:3000',
-    ],
-    database: {
-      url: process.env.DATABASE_URL || '',
-    },
-    redis: {
-      url: process.env.REDIS_URL || '',
-    },
-    auth0: {
-      domain: process.env.AUTH0_DOMAIN || '',
-      audience: process.env.AUTH0_AUDIENCE || '',
-      clientId: process.env.AUTH0_CLIENT_ID || '',
-      clientSecret: process.env.AUTH0_CLIENT_SECRET || '',
-    },
-    rateLimit: {
-      ttl: parseInt(process.env.RATE_LIMIT_TTL || '60', 10),
-      limit: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
-      apiKeyValidationLimit: parseInt(
-        process.env.API_KEY_VALIDATION_LIMIT || '10',
-        10,
-      ),
-    },
-  }),
-);
+export const appConfig = registerAs('app', (): AppConfig => ({
+  nodeEnv: process.env.NODE_ENV || 'development',
+  port: parseInt(process.env.PORT || '3000', 10),
+  encryptionKey: process.env.ENCRYPTION_KEY || '',
+  corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
+  database: {
+    url: process.env.DATABASE_URL || '',
+  },
+  redis: {
+    url: process.env.REDIS_URL || '',
+  },
+  auth0: {
+    domain: process.env.AUTH0_DOMAIN || '',
+    audience: process.env.AUTH0_AUDIENCE || '',
+    clientId: process.env.AUTH0_CLIENT_ID || '',
+    clientSecret: process.env.AUTH0_CLIENT_SECRET || '',
+  },
+  rateLimit: {
+    ttl: parseInt(process.env.RATE_LIMIT_TTL || '60', 10),
+    limit: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
+    apiKeyValidationLimit: parseInt(process.env.API_KEY_VALIDATION_LIMIT || '10', 10),
+  },
+}));
 
 export const configValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
@@ -63,8 +55,7 @@ export const configValidationSchema = Joi.object({
     .default('development'),
   PORT: Joi.number().default(3000),
   ENCRYPTION_KEY: Joi.string().min(32).required().messages({
-    'string.min':
-      'ENCRYPTION_KEY must be at least 32 characters. Generate using: openssl rand -hex 32',
+    'string.min': 'ENCRYPTION_KEY must be at least 32 characters. Generate using: openssl rand -hex 32',
     'any.required': 'ENCRYPTION_KEY is required for securing sensitive data',
   }),
   CORS_ORIGINS: Joi.string().optional(),

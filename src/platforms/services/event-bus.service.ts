@@ -10,9 +10,7 @@ export class EventBusService implements IEventBus {
   constructor(private readonly eventEmitter: EventEmitter2) {}
 
   async publish(envelope: MessageEnvelopeV1): Promise<void> {
-    this.logger.debug(
-      `Publishing message from ${envelope.channel}: ${envelope.id}`,
-    );
+    this.logger.debug(`Publishing message from ${envelope.channel}: ${envelope.id}`);
     this.eventEmitter.emit('message.received', envelope);
   }
 

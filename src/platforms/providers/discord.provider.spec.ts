@@ -137,15 +137,12 @@ describe('DiscordProvider', () => {
 
       // Should succeed for MAX_CONNECTIONS
       for (let i = 0; i < MAX_CONNECTIONS; i++) {
-        await expect(
-          provider.createAdapter(`project-${i}`, { token: 'test' }),
-        ).resolves.toBeDefined();
+        await expect(provider.createAdapter(`project-${i}`, { token: 'test' })).resolves.toBeDefined();
       }
 
       // Should fail for MAX_CONNECTIONS + 1
-      await expect(
-        provider.createAdapter('overflow-project', { token: 'test' }),
-      ).rejects.toThrow('Connection limit reached');
+      await expect(provider.createAdapter('overflow-project', { token: 'test' }))
+        .rejects.toThrow('Connection limit reached');
     });
 
     it('should reuse connections for same token', async () => {

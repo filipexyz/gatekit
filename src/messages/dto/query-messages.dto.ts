@@ -1,12 +1,4 @@
-import {
-  IsOptional,
-  IsString,
-  IsNumber,
-  Min,
-  Max,
-  IsISO8601,
-  IsEnum,
-} from 'class-validator';
+import { IsOptional, IsString, IsNumber, Min, Max, IsISO8601, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class QueryMessagesDto {
