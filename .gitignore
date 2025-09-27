@@ -48,3 +48,6 @@ redis_data/
 
 # Generated packages (build artifacts)
 /generated
+
+# Codex CLI session data
+sessions.db
