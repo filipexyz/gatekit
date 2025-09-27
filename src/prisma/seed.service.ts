@@ -70,8 +70,11 @@ export class SeedService implements OnModuleInit {
               create: [
                 { scope: 'messages:send' },
                 { scope: 'messages:read' },
+                { scope: 'messages:write' },
                 { scope: 'projects:read' },
                 { scope: 'projects:write' },
+                { scope: 'members:read' },
+                { scope: 'members:write' },
                 { scope: 'keys:manage' },
                 { scope: 'keys:read' },
                 { scope: 'platforms:read' },

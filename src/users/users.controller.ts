@@ -20,12 +20,12 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @RequireScopes('projects:read')
+  @RequireScopes('members:read')
   @SdkContract({
     command: 'members list',
     description: 'List all members of a project',
     category: 'Members',
-    requiredScopes: ['projects:read'],
+    requiredScopes: ['members:read'],
     outputType: 'ProjectMember[]',
     examples: [
       {
@@ -42,12 +42,12 @@ export class UsersController {
   }
 
   @Post()
-  @RequireScopes('projects:admin')
+  @RequireScopes('members:write')
   @SdkContract({
     command: 'members add',
     description: 'Add a member to a project',
     category: 'Members',
-    requiredScopes: ['projects:admin'],
+    requiredScopes: ['members:write'],
     inputType: 'AddMemberDto',
     outputType: 'ProjectMember',
     options: {
@@ -84,12 +84,12 @@ export class UsersController {
   }
 
   @Patch(':userId')
-  @RequireScopes('projects:admin')
+  @RequireScopes('members:write')
   @SdkContract({
     command: 'members update',
     description: 'Update a member role in a project',
     category: 'Members',
-    requiredScopes: ['projects:admin'],
+    requiredScopes: ['members:write'],
     inputType: 'UpdateMemberRoleDto',
     outputType: 'ProjectMember',
     options: {
@@ -127,12 +127,12 @@ export class UsersController {
   }
 
   @Delete(':userId')
-  @RequireScopes('projects:admin')
+  @RequireScopes('members:write')
   @SdkContract({
     command: 'members remove',
     description: 'Remove a member from a project',
     category: 'Members',
-    requiredScopes: ['projects:admin'],
+    requiredScopes: ['members:write'],
     outputType: 'MessageResponse',
     options: {
       userId: { required: true, description: 'User ID of the member to remove', type: 'string' }
