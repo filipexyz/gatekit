@@ -32,15 +32,15 @@ describe('TelegramCredentialsValidator', () => {
       expect(result.errors).toContain('Bot token is required');
     });
 
-    it('should reject invalid token format', () => {
+    it('should reject empty token', () => {
       const invalidCredentials = {
-        token: 'invalid-token-format',
+        token: '   ',
       };
 
       const result = validator.validateCredentials(invalidCredentials);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors[0]).toContain('Invalid Telegram bot token format');
+      expect(result.errors[0]).toContain('Bot token cannot be empty');
     });
 
     it('should reject non-string token', () => {
