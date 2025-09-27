@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException, Inject } from '@nestjs/common';
-import TelegramBot = require('node-telegram-bot-api');
+import * as TelegramBot from 'node-telegram-bot-api';
 import {
   PlatformProvider,
   WebhookConfig,
@@ -39,7 +39,9 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
     private readonly prisma: PrismaService,
     private readonly platformLogsService: PlatformLogsService,
-  ) {}
+  ) {
+    // Constructor uses dependency injection - no initialization needed
+  }
 
   async initialize(): Promise<void> {
     this.logger.log('Telegram provider initialized');
@@ -59,10 +61,8 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
   async shutdown(): Promise<void> {
     this.logger.log('Shutting down Telegram provider...');
 
-    const promises: Promise<void>[] = [];
-    for (const projectId of this.connections.keys()) {
-      promises.push(this.removeAdapter(projectId));
-    }
+    const connectionKeys = Array.from(this.connections.keys());
+    const promises = connectionKeys.map((key) => this.removeAdapter(key));
 
     await Promise.all(promises);
     this.logger.log('Telegram provider shut down');

@@ -12,12 +12,6 @@ import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { RequireScopes } from '../common/decorators/scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { Throttle } from '@nestjs/throttler';
-import {
-  ApiKeyResponse,
-  ApiKeyListResponse,
-  ApiKeyRollResponse,
-  MessageResponse,
-} from '../common/types/api-responses';
 
 @Controller('api/v1/projects/:projectSlug/keys')
 export class ApiKeysController {

@@ -6,7 +6,6 @@ import { UsersService } from '../../users/users.service';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
-  let configService: ConfigService;
   let usersService: UsersService;
 
   const mockUser = {
@@ -50,7 +49,6 @@ describe('JwtStrategy', () => {
       }).compile();
 
       strategy = module.get<JwtStrategy>(JwtStrategy);
-      configService = module.get<ConfigService>(ConfigService);
       usersService = module.get<UsersService>(UsersService);
     });
 
@@ -67,7 +65,7 @@ describe('JwtStrategy', () => {
         scope: 'openid profile email',
       };
 
-      const result = await strategy.validate(payload);
+      const result = (await strategy.validate(payload)) as any;
 
       expect(usersService.upsertFromAuth0).toHaveBeenCalledWith({
         sub: 'auth0|123456',
@@ -90,7 +88,7 @@ describe('JwtStrategy', () => {
         email: 'test@example.com',
       };
 
-      const result = await strategy.validate(payload);
+      const result = (await strategy.validate(payload)) as any;
 
       expect(result).toEqual({
         userId: 'auth0|123456',
@@ -144,7 +142,6 @@ describe('JwtStrategy', () => {
       }).compile();
 
       strategy = module.get<JwtStrategy>(JwtStrategy);
-      configService = module.get<ConfigService>(ConfigService);
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         'Auth0 configuration not found. JWT authentication will be disabled.',

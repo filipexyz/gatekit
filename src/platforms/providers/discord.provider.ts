@@ -129,7 +129,13 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
       this.connections.delete(connectionKey);
       try {
         await client.destroy();
-      } catch {}
+      } catch (destroyError) {
+        this.logger.warn(
+          `Discord client destroy failed for ${connectionKey}: ${
+            destroyError instanceof Error ? destroyError.message : destroyError
+          }`,
+        );
+      }
 
       throw error;
     }

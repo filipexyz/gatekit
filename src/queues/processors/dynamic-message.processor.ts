@@ -285,15 +285,16 @@ export class DynamicMessageProcessor
     );
 
     // Let the platform registry handle cleanup
-    await this.platformRegistry.getAllProviders().forEach(async (provider) => {
+    const providers = this.platformRegistry.getAllProviders();
+    for (const provider of providers) {
       try {
         await provider.shutdown();
       } catch (error) {
         this.logger.warn(
-          `Failed to shutdown provider ${provider.name}: ${error.message}`,
+          `Failed to shutdown provider ${provider.name}: ${error instanceof Error ? error.message : error}`,
         );
       }
-    });
+    }
 
     this.logger.log('Message processor cleanup complete');
   }

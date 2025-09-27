@@ -66,14 +66,12 @@ describe('DiscordProvider', () => {
       } as Message;
 
       // Process messages concurrently
-      const promises = [
+      const envelopes = [
         provider.toEnvelope(mockMessage1, project1),
         provider.toEnvelope(mockMessage2, project2),
         provider.toEnvelope(mockMessage1, project1),
         provider.toEnvelope(mockMessage2, project2),
       ];
-
-      const envelopes = await Promise.all(promises);
 
       // Verify each envelope has correct projectId (no race conditions)
       expect(envelopes[0].projectId).toBe(project1);

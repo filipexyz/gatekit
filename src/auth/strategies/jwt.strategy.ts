@@ -44,7 +44,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     this.usersService = usersService;
   }
 
-  async validate(payload: any): Promise<any> {
+  async validate(payload: {
+    sub: string;
+    email?: string;
+    name?: string;
+    permissions?: string[];
+    scope?: string;
+  }): Promise<{
+    userId: string;
+    email?: string;
+    permissions: string[];
+    scope?: string;
+    user: any;
+  }> {
     if (!this.isConfigured) {
       throw new UnauthorizedException('Auth0 not configured');
     }

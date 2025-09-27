@@ -19,34 +19,65 @@ export interface PermissionResponse {
   };
 }
 
+interface ApiKeyRequest {
+  authType: 'api-key';
+  apiKey: {
+    id: string;
+    name: string;
+    scopes: string[];
+  };
+  project: {
+    id: string;
+    slug: string;
+    name: string;
+  };
+}
+
+interface JwtRequest {
+  authType: 'jwt';
+  user: {
+    userId: string;
+    email?: string;
+    permissions?: string[];
+    scope?: string;
+  };
+}
+
+type AuthenticatedRequest = ApiKeyRequest | JwtRequest;
+
 @Controller('api/v1/auth')
 @UseGuards(AppAuthGuard)
 export class AuthController {
   @Get('whoami')
-  async getPermissions(@Request() req: any): Promise<PermissionResponse> {
+  getPermissions(
+    @Request() req: { user: AuthenticatedRequest },
+  ): PermissionResponse {
+    const authReq = req.user;
     const response: PermissionResponse = {
-      authType: req.authType,
+      authType: authReq.authType,
       permissions: [],
     };
 
-    if (req.authType === 'api-key' && req.apiKey) {
-      response.permissions = req.apiKey.scopes || [];
+    if (authReq.authType === 'api-key') {
+      response.permissions = authReq.apiKey.scopes || [];
       response.project = {
-        id: req.project.id,
-        slug: req.project.slug,
-        name: req.project.name,
+        id: authReq.project.id,
+        slug: authReq.project.slug,
+        name: authReq.project.name,
       };
       response.apiKey = {
-        id: req.apiKey.id,
-        name: req.apiKey.name,
+        id: authReq.apiKey.id,
+        name: authReq.apiKey.name,
       };
-    } else if (req.authType === 'jwt' && req.user) {
-      const userPermissions = req.user.permissions || [];
-      const userScopes = req.user.scope ? req.user.scope.split(' ') : [];
+    } else if (authReq.authType === 'jwt') {
+      const userPermissions = authReq.user.permissions || [];
+      const userScopes = authReq.user.scope
+        ? authReq.user.scope.split(' ')
+        : [];
       response.permissions = [...userPermissions, ...userScopes];
       response.user = {
-        userId: req.user.userId,
-        email: req.user.email,
+        userId: authReq.user.userId,
+        email: authReq.user.email,
       };
     }
 

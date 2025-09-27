@@ -16,7 +16,6 @@ jest.mock('../common/utils/crypto.util', () => ({
 
 describe('ApiKeysService', () => {
   let service: ApiKeysService;
-  let prisma: PrismaService;
 
   const mockPrismaService = {
     project: {
@@ -44,7 +43,6 @@ describe('ApiKeysService', () => {
     }).compile();
 
     service = module.get<ApiKeysService>(ApiKeysService);
-    prisma = module.get<PrismaService>(PrismaService);
 
     // Reset all mocks
     jest.clearAllMocks();
@@ -144,7 +142,7 @@ describe('ApiKeysService', () => {
       expect(mockPrismaService.apiKey.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           expiresAt: expect.any(Date),
-        }),
+        }) as Record<string, unknown>,
         include: { scopes: true },
       });
     });
@@ -209,7 +207,7 @@ describe('ApiKeysService', () => {
 
       expect(mockPrismaService.apiKey.update).toHaveBeenCalledWith({
         where: { id: keyId },
-        data: { revokedAt: expect.any(Date) },
+        data: { revokedAt: expect.any(Date) as Date },
       });
       expect(result.message).toBe('API key revoked successfully');
     });
@@ -274,7 +272,7 @@ describe('ApiKeysService', () => {
 
       expect(mockPrismaService.apiKey.update).toHaveBeenCalledWith({
         where: { id: 'key-id' },
-        data: { lastUsedAt: expect.any(Date) },
+        data: { lastUsedAt: expect.any(Date) as Date },
       });
     });
 

@@ -174,7 +174,7 @@ export class CaseConverter {
     if (!input) return '';
 
     return CaseConverter.toKebabCase(input)
-      .replace(/[^a-z0-9\-]/g, '') // Remove any non-alphanumeric or hyphen chars
+      .replace(/[^a-z0-9-]/g, '') // Remove any non-alphanumeric or hyphen chars
       .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
       .replace(/-+/g, '-'); // Collapse multiple hyphens
   }
