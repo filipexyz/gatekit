@@ -32,6 +32,7 @@ describe('GateKit API (e2e)', () => {
     prisma = moduleFixture.get<PrismaService>(PrismaService);
 
     // Clean database in correct order (respecting foreign keys)
+    await prisma.apiKeyUsage.deleteMany();
     await prisma.apiKeyScope.deleteMany();
     await prisma.apiKey.deleteMany();
     await prisma.receivedMessage.deleteMany();

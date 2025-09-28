@@ -35,8 +35,12 @@ describe('Auth0 Authentication (e2e)', () => {
     configService = moduleFixture.get<ConfigService>(ConfigService);
 
     // Clean database in correct order (respecting foreign keys)
+    await prisma.apiKeyUsage.deleteMany();
     await prisma.apiKeyScope.deleteMany();
     await prisma.apiKey.deleteMany();
+    await prisma.receivedMessage.deleteMany();
+    await prisma.sentMessage.deleteMany();
+    await prisma.platformLog.deleteMany();
     await prisma.projectPlatform.deleteMany();
     await prisma.projectMember.deleteMany();
     await prisma.project.deleteMany();

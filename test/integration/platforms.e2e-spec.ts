@@ -33,6 +33,7 @@ describe('Platforms (e2e)', () => {
     await app.init();
 
     // Clean database in correct order (respecting foreign keys)
+    await prisma.apiKeyUsage.deleteMany();
     await prisma.apiKeyScope.deleteMany();
     await prisma.apiKey.deleteMany();
     await prisma.receivedMessage.deleteMany();
