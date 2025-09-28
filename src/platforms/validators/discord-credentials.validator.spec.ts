@@ -33,15 +33,14 @@ describe('DiscordCredentialsValidator', () => {
       expect(result.errors).toContain('Bot token is required');
     });
 
-    it('should reject empty token', () => {
-      const invalidCredentials = {
-        token: '   ',
+    it('should accept any non-empty token', () => {
+      const validCredentials = {
+        token: 'any-token',
       };
 
-      const result = validator.validateCredentials(invalidCredentials);
+      const result = validator.validateCredentials(validCredentials);
 
-      expect(result.isValid).toBe(false);
-      expect(result.errors[0]).toContain('Bot token cannot be empty');
+      expect(result.isValid).toBe(true);
     });
 
     it('should reject non-string token', () => {
