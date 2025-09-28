@@ -205,13 +205,14 @@ model SentMessage {
   project           Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   platformConfig    ProjectPlatform  @relation(fields: [platformId], references: [id], onDelete: Cascade)
 
-  @@unique([jobId])
+  @@unique([jobId, platformId, targetChatId])
   @@index([projectId])
   @@index([platformId])
   @@index([status])
   @@index([createdAt])
   @@index([targetChatId])
   @@index([targetUserId])
+  @@index([jobId])
   @@map("sent_messages")
 }
 
