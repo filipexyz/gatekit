@@ -317,7 +317,8 @@ describe('PlatformsService', () => {
       const result = await service.findOne(projectSlug, platformId);
 
       expect(result).toHaveProperty('credentials');
-      expect(result.credentials).toEqual(mockCredentials);
+      // Credentials should be masked in response
+      expect(result.credentials).toEqual({ token: '*****' });
       expect(CryptoUtil.decrypt).toHaveBeenCalled();
     });
   });
