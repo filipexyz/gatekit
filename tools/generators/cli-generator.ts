@@ -85,14 +85,16 @@ ${this.generateCommandHelpers()}
     const pathParams = this.extractPathParameters(path);
 
     const options = Object.entries(contractMetadata.options || {}).map(([name, opt]) => {
-      const optionDef = `    .option('--${name} <value>', '${opt.description}'${opt.default ? `, '${opt.default}'` : ''})`;
+      const defaultStr = opt.default ? `, '${String(opt.default)}'` : '';
+      const optionDef = `    .option('--${name} <value>', '${opt.description}'${defaultStr})`;
       return optionDef;
     }).join('\n');
 
     // Add path parameter options
-    const pathParamOptions = pathParams.map(param =>
-      `    .option('--${param} <value>', '${param} parameter', ${param === 'projectSlug' ? "'default'" : 'undefined'})`
-    ).join('\n');
+    const pathParamOptions = pathParams.map(param => {
+      const defaultValue = param === 'projectSlug' ? "'default'" : 'undefined';
+      return `    .option('--${param} <value>', '${param} parameter', ${defaultValue})`;
+    }).join('\n');
 
     const allOptions = [options, pathParamOptions].filter(Boolean).join('\n');
 
@@ -109,12 +111,12 @@ ${allOptions}
       try {
         const config = await loadConfig();
 
-        // Check permissions
+        // Check permissions${contractMetadata.requiredScopes && contractMetadata.requiredScopes.length > 0 ? `
         const hasPermission = await checkPermissions(config, ${JSON.stringify(contractMetadata.requiredScopes)});
         if (!hasPermission) {
           console.error('❌ Insufficient permissions. Required: ${contractMetadata.requiredScopes?.join(', ')}');
           process.exit(1);
-        }
+        }` : '\n        // No permissions required for this command'}
 
         const gk = new GateKit(config);
 
