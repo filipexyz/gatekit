@@ -248,9 +248,19 @@ export class PlatformsService {
     }
 
     // Fire platform event with updated credentials
-    const credentials =
-      updatePlatformDto.credentials ||
-      JSON.parse(CryptoUtil.decrypt(existingPlatform.credentialsEncrypted));
+    let credentials = updatePlatformDto.credentials;
+    if (!credentials) {
+      try {
+        credentials = JSON.parse(
+          CryptoUtil.decrypt(existingPlatform.credentialsEncrypted),
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Failed to decrypt credentials for platform ${platform.id}: ${error.message}`,
+        );
+        credentials = {}; // Use empty credentials if decryption fails
+      }
+    }
 
     await this.firePlatformEvent(
       eventType,
@@ -295,9 +305,17 @@ export class PlatformsService {
     }
 
     // Get credentials before deletion for cleanup event
-    const credentials = JSON.parse(
-      CryptoUtil.decrypt(platform.credentialsEncrypted),
-    );
+    let credentials: any = {};
+    try {
+      credentials = JSON.parse(
+        CryptoUtil.decrypt(platform.credentialsEncrypted),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to decrypt credentials for platform ${platform.id} during deletion: ${error.message}`,
+      );
+      // Continue with empty credentials to allow cleanup
+    }
 
     // Fire platform deleted event before removal
     await this.firePlatformEvent(
