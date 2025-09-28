@@ -29,7 +29,7 @@ RUN npm run build
 RUN npm run extract:contracts:standalone
 RUN npm run generate:openapi
 
-RUN npm ci --only=production && npm cache clean --force
+RUN NODE_ENV=production npm ci --only=production && npm cache clean --force
 
 RUN npx prisma generate
 
