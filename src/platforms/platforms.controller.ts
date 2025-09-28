@@ -12,11 +12,14 @@ import { PlatformsService } from './platforms.service';
 import { CreatePlatformDto } from './dto/create-platform.dto';
 import { UpdatePlatformDto } from './dto/update-platform.dto';
 import { AppAuthGuard } from '../common/guards/app-auth.guard';
+import { ProjectAccessGuard } from '../common/guards/project-access.guard';
 import { RequireScopes } from '../common/decorators/require-scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
+import { AuthContextParam } from '../common/decorators/auth-context.decorator';
+import type { AuthContext } from '../common/utils/security.util';
 
 @Controller('api/v1/projects/:projectSlug/platforms')
-@UseGuards(AppAuthGuard)
+@UseGuards(AppAuthGuard, ProjectAccessGuard)
 export class PlatformsController {
   constructor(private readonly platformsService: PlatformsService) {}
 
@@ -74,8 +77,13 @@ export class PlatformsController {
   create(
     @Param('projectSlug') projectSlug: string,
     @Body() createPlatformDto: CreatePlatformDto,
+    @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.platformsService.create(projectSlug, createPlatformDto);
+    return this.platformsService.create(
+      projectSlug,
+      createPlatformDto,
+      authContext,
+    );
   }
 
   @Get()

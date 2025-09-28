@@ -1,20 +1,24 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueryMessagesDto } from './dto/query-messages.dto';
+import { SecurityUtil, AuthContext } from '../common/utils/security.util';
 
 @Injectable()
 export class MessagesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getMessages(projectSlug: string, query: QueryMessagesDto) {
-    // Get project
-    const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
-    });
-
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }
+  async getMessages(
+    projectSlug: string,
+    query: QueryMessagesDto,
+    authContext: AuthContext,
+  ) {
+    // Get project and validate access in one step
+    const project = await SecurityUtil.getProjectWithAccess(
+      this.prisma,
+      projectSlug,
+      authContext,
+      'message retrieval',
+    );
 
     // Build where clause
     const where: any = {

@@ -6,14 +6,20 @@ import {
   Param,
   Delete,
   HttpCode,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiKeysService } from './api-keys.service';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
+import { AppAuthGuard } from '../common/guards/app-auth.guard';
+import { ProjectAccessGuard } from '../common/guards/project-access.guard';
 import { RequireScopes } from '../common/decorators/scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
+import { AuthContextParam } from '../common/decorators/auth-context.decorator';
+import { AuthContext } from '../common/utils/security.util';
 import { Throttle } from '@nestjs/throttler';
 
 @Controller('api/v1/projects/:projectSlug/keys')
+@UseGuards(AppAuthGuard, ProjectAccessGuard)
 export class ApiKeysController {
   constructor(private readonly apiKeysService: ApiKeysService) {}
 

@@ -15,11 +15,14 @@ import type { QueryMessagesDto as QueryMessagesInterface } from './interfaces/qu
 import { SendMessageDto } from '../platforms/dto/send-message.dto';
 import { MessagesService as PlatformMessagesService } from '../platforms/messages/messages.service';
 import { AppAuthGuard } from '../common/guards/app-auth.guard';
+import { ProjectAccessGuard } from '../common/guards/project-access.guard';
 import { RequireScopes } from '../common/decorators/require-scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
+import { AuthContextParam } from '../common/decorators/auth-context.decorator';
+import type { AuthContext } from '../common/utils/security.util';
 
 @Controller('api/v1/projects/:projectSlug/messages')
-@UseGuards(AppAuthGuard)
+@UseGuards(AppAuthGuard, ProjectAccessGuard)
 export class MessagesController {
   constructor(
     private readonly messagesService: MessagesService,
@@ -93,8 +96,9 @@ export class MessagesController {
   async getMessages(
     @Param('projectSlug') projectSlug: string,
     @Query() query: QueryMessagesDto,
+    @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.messagesService.getMessages(projectSlug, query);
+    return this.messagesService.getMessages(projectSlug, query, authContext);
   }
 
   @Get('stats')
