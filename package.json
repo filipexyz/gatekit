@@ -27,7 +27,7 @@
     "generate:cli": "ts-node -r tsconfig-paths/register tools/generators/cli-generator.ts",
     "generate:n8n": "ts-node -r tsconfig-paths/register tools/generators/n8n-generator.ts",
     "generate:openapi": "ts-node -r tsconfig-paths/register tools/generators/openapi-generator.ts",
-    "prepare": "husky"
+    "prepare": "[ \"$NODE_ENV\" = \"production\" ] || husky || true"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.3",
