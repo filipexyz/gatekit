@@ -10,6 +10,7 @@ import { CreatePlatformDto } from './dto/create-platform.dto';
 import { UpdatePlatformDto } from './dto/update-platform.dto';
 import { CryptoUtil } from '../common/utils/crypto.util';
 import { SecurityUtil, AuthContext } from '../common/utils/security.util';
+import { CredentialMaskUtil } from '../common/utils/credential-mask.util';
 import { CredentialValidationService } from './services/credential-validation.service';
 import { PlatformRegistry } from './services/platform-registry.service';
 import { PlatformLifecycleEvent } from './interfaces/platform-provider.interface';
@@ -174,17 +175,19 @@ export class PlatformsService {
       throw new NotFoundException(`Platform with id '${platformId}' not found`);
     }
 
-    // Decrypt credentials for response
+    // Decrypt credentials and mask sensitive values
     const decryptedCredentials = JSON.parse(
       CryptoUtil.decrypt(platform.credentialsEncrypted),
     );
+    const maskedCredentials =
+      CredentialMaskUtil.maskCredentials(decryptedCredentials);
 
     return {
       id: platform.id,
       platform: platform.platform,
       name: platform.name,
       description: platform.description,
-      credentials: decryptedCredentials,
+      credentials: maskedCredentials,
       isActive: platform.isActive,
       testMode: platform.testMode,
       webhookUrl: this.getWebhookUrl(platform.platform, platform.webhookToken),
