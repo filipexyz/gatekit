@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, Inject } from '@nestjs/common';
 import {
   PlatformProvider,
   WebhookConfig,
+  PlatformLifecycleEvent,
 } from '../interfaces/platform-provider.interface';
 import { PlatformAdapter } from '../interfaces/platform-adapter.interface';
 import type { IEventBus } from '../interfaces/event-bus.interface';
@@ -62,6 +63,90 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
 
   async initialize(): Promise<void> {
     this.logger.log('WhatsApp provider initialized');
+  }
+
+  async onPlatformEvent(event: PlatformLifecycleEvent): Promise<void> {
+    this.logger.log(
+      `WhatsApp platform event: ${event.type} for ${event.projectId}:${event.platformId}`,
+    );
+
+    if (event.type === 'created' || event.type === 'activated') {
+      // Automatically set up webhook when platform is created or activated
+      await this.setupWebhookForPlatform(event);
+    } else if (event.type === 'updated') {
+      // Re-setup webhook in case credentials changed
+      await this.setupWebhookForPlatform(event);
+    } else if (event.type === 'deactivated' || event.type === 'deleted') {
+      // Clean up connection if it exists
+      const connectionKey = `${event.projectId}:${event.platformId}`;
+      await this.removeAdapter(connectionKey);
+    }
+  }
+
+  private async setupWebhookForPlatform(
+    event: PlatformLifecycleEvent,
+  ): Promise<void> {
+    if (!event.webhookToken) {
+      this.logger.warn(
+        `No webhook token provided for platform ${event.platformId}`,
+      );
+      return;
+    }
+
+    try {
+      const connectionKey = `${event.projectId}:${event.platformId}`;
+
+      // Create a temporary connection object for webhook setup
+      const tempConnection: WhatsAppConnection = {
+        connectionKey,
+        projectId: event.projectId,
+        platformId: event.platformId,
+        instanceName: 'gatekit', // Use shared instance
+        evolutionApiUrl: event.credentials.evolutionApiUrl,
+        evolutionApiKey: event.credentials.evolutionApiKey,
+        isConnected: false,
+        connectionState: 'close',
+        lastActivity: new Date(),
+      };
+
+      // Set up webhook without creating full adapter
+      await this.setupWebhook(tempConnection, event.webhookToken);
+
+      const platformLogger = this.createPlatformLogger(
+        event.projectId,
+        event.platformId,
+      );
+      platformLogger.logConnection(
+        `WhatsApp webhook automatically configured on platform ${event.type}`,
+        {
+          connectionKey,
+          webhookToken: event.webhookToken,
+          evolutionApiUrl: event.credentials.evolutionApiUrl,
+        },
+      );
+
+      this.logger.log(
+        `WhatsApp webhook automatically set up for ${connectionKey} on ${event.type}`,
+      );
+    } catch (error) {
+      const platformLogger = this.createPlatformLogger(
+        event.projectId,
+        event.platformId,
+      );
+      platformLogger.errorConnection(
+        `Failed to auto-setup WhatsApp webhook on platform ${event.type}`,
+        error,
+        {
+          platformId: event.platformId,
+          eventType: event.type,
+        },
+      );
+
+      this.logger.error(
+        `Failed to auto-setup WhatsApp webhook: ${error.message}`,
+      );
+      // Don't throw - webhook setup failure shouldn't prevent platform creation
+    }
   }
 
   private createPlatformLogger(

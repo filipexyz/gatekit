@@ -6,6 +6,15 @@ export interface WebhookConfig {
   handler: (params: any, body: any, headers: any) => Promise<any>;
 }
 
+export interface PlatformLifecycleEvent {
+  type: 'created' | 'updated' | 'activated' | 'deactivated' | 'deleted';
+  projectId: string;
+  platformId: string;
+  platform: string;
+  credentials: any;
+  webhookToken?: string;
+}
+
 export interface PlatformProvider {
   // Platform metadata
   readonly name: string; // e.g., 'discord', 'telegram'
@@ -32,4 +41,7 @@ export interface PlatformProvider {
 
   // Health check
   isHealthy(): Promise<boolean>;
+
+  // Platform lifecycle events (optional)
+  onPlatformEvent?(event: PlatformLifecycleEvent): Promise<void>;
 }
