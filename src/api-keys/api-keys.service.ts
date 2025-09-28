@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { CryptoUtil } from '../common/utils/crypto.util';
+import { SecurityUtil, AuthContext } from '../common/utils/security.util';
 
 @Injectable()
 export class ApiKeysService {
@@ -10,17 +11,16 @@ export class ApiKeysService {
   async create(
     projectSlug: string,
     createApiKeyDto: CreateApiKeyDto,
+    authContext: AuthContext,
     createdBy?: string,
   ) {
-    const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
-    });
-
-    if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
-    }
+    // Get project and validate access in one step
+    const project = await SecurityUtil.getProjectWithAccess(
+      this.prisma,
+      projectSlug,
+      authContext,
+      'API key creation',
+    );
 
     const apiKey = CryptoUtil.generateApiKey(project.environment);
     const keyHash = CryptoUtil.hashApiKey(apiKey);
@@ -64,16 +64,14 @@ export class ApiKeysService {
     };
   }
 
-  async findAll(projectSlug: string) {
-    const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
-    });
-
-    if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
-    }
+  async findAll(projectSlug: string, authContext: AuthContext) {
+    // Get project and validate access in one step
+    const project = await SecurityUtil.getProjectWithAccess(
+      this.prisma,
+      projectSlug,
+      authContext,
+      'API key listing',
+    );
 
     const apiKeys = await this.prisma.apiKey.findMany({
       where: {
@@ -96,16 +94,14 @@ export class ApiKeysService {
     }));
   }
 
-  async revoke(projectSlug: string, keyId: string) {
-    const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
-    });
-
-    if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
-    }
+  async revoke(projectSlug: string, keyId: string, authContext: AuthContext) {
+    // Get project and validate access in one step
+    const project = await SecurityUtil.getProjectWithAccess(
+      this.prisma,
+      projectSlug,
+      authContext,
+      'API key revocation',
+    );
 
     const apiKey = await this.prisma.apiKey.findFirst({
       where: {
@@ -130,16 +126,19 @@ export class ApiKeysService {
     return { message: 'API key revoked successfully' };
   }
 
-  async roll(projectSlug: string, keyId: string, createdBy?: string) {
-    const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
-    });
-
-    if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
-    }
+  async roll(
+    projectSlug: string,
+    keyId: string,
+    authContext: AuthContext,
+    createdBy?: string,
+  ) {
+    // Get project and validate access in one step
+    const project = await SecurityUtil.getProjectWithAccess(
+      this.prisma,
+      projectSlug,
+      authContext,
+      'API key rolling',
+    );
 
     const oldKey = await this.prisma.apiKey.findFirst({
       where: {

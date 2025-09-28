@@ -1,9 +1,20 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ProjectEnvironment } from '@prisma/client';
 
 export interface AuthContext {
   authType: 'api-key' | 'jwt';
   project?: { id: string; slug: string };
   user?: { userId: string; email?: string };
+}
+
+export interface ProjectWithAccess {
+  id: string;
+  slug: string;
+  name: string;
+  environment: ProjectEnvironment;
+  ownerId: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export class SecurityUtil {
@@ -16,7 +27,7 @@ export class SecurityUtil {
     projectSlug: string,
     authContext: AuthContext,
     operation: string,
-  ): Promise<{ id: string; slug: string }> {
+  ): Promise<ProjectWithAccess> {
     const project = await prisma.project.findUnique({
       where: { slug: projectSlug },
     });

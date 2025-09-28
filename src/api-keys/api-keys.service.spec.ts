@@ -17,6 +17,11 @@ jest.mock('../common/utils/crypto.util', () => ({
 describe('ApiKeysService', () => {
   let service: ApiKeysService;
 
+  const mockAuthContext = {
+    authType: 'api-key' as const,
+    project: { id: 'project-id', slug: 'test-project' },
+  };
+
   const mockPrismaService = {
     project: {
       findUnique: jest.fn(),
@@ -82,7 +87,11 @@ describe('ApiKeysService', () => {
         scopes: [{ scope: 'messages:send' }, { scope: 'messages:read' }],
       });
 
-      const result = await service.create(projectSlug, createDto);
+      const result = await service.create(
+        projectSlug,
+        createDto,
+        mockAuthContext,
+      );
 
       expect(result).toHaveProperty('key', mockApiKey);
       expect(result).toHaveProperty('id', 'key-id');
@@ -108,10 +117,14 @@ describe('ApiKeysService', () => {
       mockPrismaService.project.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.create('non-existent', {
-          name: 'Test',
-          scopes: ['messages:send'],
-        }),
+        service.create(
+          'non-existent',
+          {
+            name: 'Test',
+            scopes: ['messages:send'],
+          },
+          mockAuthContext,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -137,7 +150,7 @@ describe('ApiKeysService', () => {
         scopes: [],
       });
 
-      await service.create('test-project', createDto);
+      await service.create('test-project', createDto, mockAuthContext);
 
       expect(mockPrismaService.apiKey.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -172,7 +185,7 @@ describe('ApiKeysService', () => {
         },
       ]);
 
-      const result = await service.findAll(projectSlug);
+      const result = await service.findAll(projectSlug, mockAuthContext);
 
       expect(result).toHaveLength(1);
       expect(result[0]).toHaveProperty('maskedKey');
@@ -182,9 +195,9 @@ describe('ApiKeysService', () => {
     it('should throw NotFoundException when project does not exist', async () => {
       mockPrismaService.project.findUnique.mockResolvedValue(null);
 
-      await expect(service.findAll('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.findAll('non-existent', mockAuthContext),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -203,7 +216,7 @@ describe('ApiKeysService', () => {
       });
       mockPrismaService.apiKey.update.mockResolvedValue({});
 
-      const result = await service.revoke(projectSlug, keyId);
+      const result = await service.revoke(projectSlug, keyId, mockAuthContext);
 
       expect(mockPrismaService.apiKey.update).toHaveBeenCalledWith({
         where: { id: keyId },
@@ -222,7 +235,11 @@ describe('ApiKeysService', () => {
         revokedAt: new Date(),
       });
 
-      const result = await service.revoke('test-project', 'key-id');
+      const result = await service.revoke(
+        'test-project',
+        'key-id',
+        mockAuthContext,
+      );
 
       expect(result.message).toBe('API key already revoked');
       expect(mockPrismaService.apiKey.update).not.toHaveBeenCalled();
@@ -236,7 +253,7 @@ describe('ApiKeysService', () => {
       mockPrismaService.apiKey.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.revoke('test-project', 'non-existent'),
+        service.revoke('test-project', 'non-existent', mockAuthContext),
       ).rejects.toThrow(NotFoundException);
     });
   });
