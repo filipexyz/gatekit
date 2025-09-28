@@ -82,7 +82,7 @@ export class TypeExtractorService {
     ) {
       return {
         name: typeName,
-        definition: declaration.getText(),
+        definition: this.cleanTypeDefinition(declaration.getText()),
       };
     }
 
@@ -330,11 +330,41 @@ export interface GateKitConfig {
       const symbolType = declaration
         ? symbol.getTypeAtLocation(declaration)
         : checker.getTypeOfSymbolAtLocation(symbol, context);
-      const typeText = symbolType.getText(declaration ?? context);
+      const typeText = this.cleanTypeText(
+        symbolType.getText(declaration ?? context),
+      );
       const optional = symbol.isOptional();
       lines.push(`  ${name}${optional ? '?' : ''}: ${typeText};`);
     });
 
     return lines.join('\n');
+  }
+
+  private cleanTypeText(typeText: string): string {
+    // Remove Prisma import paths and replace with clean enum types
+    return typeText
+      .replace(
+        /import\("[^"]*\.prisma[^"]*"\)\.\$Enums\.ProjectRole/g,
+        'ProjectRole',
+      )
+      .replace(
+        /import\("[^"]*\.prisma[^"]*"\)\.\$Enums\.ProjectEnvironment/g,
+        'ProjectEnvironment',
+      )
+      .replace(/import\("[^"]*\.prisma[^"]*"\)\.\$Enums\.(\w+)/g, '$1');
+  }
+
+  private cleanTypeDefinition(definition: string): string {
+    // Remove Prisma imports from type definitions
+    return definition
+      .replace(
+        /import\("[^"]*\.prisma[^"]*"\)\.\$Enums\.ProjectRole/g,
+        'ProjectRole',
+      )
+      .replace(
+        /import\("[^"]*\.prisma[^"]*"\)\.\$Enums\.ProjectEnvironment/g,
+        'ProjectEnvironment',
+      )
+      .replace(/import\("[^"]*\.prisma[^"]*"\)\.\$Enums\.(\w+)/g, '$1');
   }
 }
