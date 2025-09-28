@@ -77,6 +77,10 @@ jobs:
         echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/gatekit_test" >> .env.test
         echo "REDIS_URL=redis://localhost:6379" >> .env.test
         echo "ENCRYPTION_KEY=603ce4d06f761f2ace4ae4eda60987f404644414032d1ef216e9a306277afb00" >> .env.test
+        echo "AUTH0_DOMAIN=" >> .env.test
+        echo "AUTH0_AUDIENCE=" >> .env.test
+        echo "AUTH0_CLIENT_ID=" >> .env.test
+        echo "AUTH0_CLIENT_SECRET=" >> .env.test
 
     - name: Run database migrations
       run: npx prisma migrate deploy
