@@ -76,6 +76,7 @@ jobs:
         cp .env.example .env.test
         echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/gatekit_test" >> .env.test
         echo "REDIS_URL=redis://localhost:6379" >> .env.test
+        echo "ENCRYPTION_KEY=603ce4d06f761f2ace4ae4eda60987f404644414032d1ef216e9a306277afb00" >> .env.test
 
     - name: Run database migrations
       run: npx prisma migrate deploy
@@ -87,12 +88,14 @@ jobs:
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gatekit_test
         REDIS_URL: redis://localhost:6379
+        ENCRYPTION_KEY: 603ce4d06f761f2ace4ae4eda60987f404644414032d1ef216e9a306277afb00
 
     - name: Run integration tests
       run: npm run test:e2e
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gatekit_test
         REDIS_URL: redis://localhost:6379
+        ENCRYPTION_KEY: 603ce4d06f761f2ace4ae4eda60987f404644414032d1ef216e9a306277afb00
 
   build:
     name: Build Check
