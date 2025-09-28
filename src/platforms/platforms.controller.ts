@@ -14,10 +14,6 @@ import { UpdatePlatformDto } from './dto/update-platform.dto';
 import { AppAuthGuard } from '../common/guards/app-auth.guard';
 import { RequireScopes } from '../common/decorators/require-scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
-import {
-  PlatformResponse,
-  MessageResponse,
-} from '../common/types/api-responses';
 
 @Controller('api/v1/projects/:projectSlug/platforms')
 @UseGuards(AppAuthGuard)
@@ -42,7 +38,8 @@ export class PlatformsController {
       },
       credentials: {
         required: true,
-        description: 'Platform credentials (JSON object)',
+        description:
+          'Platform credentials (JSON object). Use "gatekit platforms supported" to see required fields for each platform.',
         type: 'object',
       },
       isActive: {
@@ -60,12 +57,17 @@ export class PlatformsController {
       {
         description: 'Add Discord bot',
         command:
-          'gatekit platforms create --platform discord --token "bot-token"',
+          'gatekit platforms create --platform discord --credentials \'{"token":"MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789"}\'',
       },
       {
         description: 'Add Telegram bot in test mode',
         command:
-          'gatekit platforms create --platform telegram --token "bot-token" --testMode true',
+          'gatekit platforms create --platform telegram --credentials \'{"token":"7654321:AAFmi_SampleTelegramBotTokenHere_abcdefg"}\' --testMode true',
+      },
+      {
+        description: 'Add WhatsApp Evolution API',
+        command:
+          'gatekit platforms create --platform whatsapp-evo --credentials \'{"evolutionApiUrl":"https://evo.example.com","evolutionApiKey":"your-api-key"}\'',
       },
     ],
   })

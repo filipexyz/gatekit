@@ -30,8 +30,20 @@ export class CredentialValidationService {
     const result = this.validate(platform, credentials);
 
     if (!result.isValid) {
+      const validator = this.validators.get(platform.toLowerCase());
+      const required = validator?.getRequiredFields() || [];
+      const optional = validator?.getOptionalFields() || [];
+
       const errorMessage = `Invalid ${platform} credentials: ${result.errors.join(', ')}`;
-      throw new BadRequestException(errorMessage);
+      const helpMessage =
+        required.length > 0
+          ? `\n\nRequired fields: ${required.join(', ')}` +
+            (optional.length > 0
+              ? `\nOptional fields: ${optional.join(', ')}`
+              : '')
+          : '';
+
+      throw new BadRequestException(errorMessage + helpMessage);
     }
 
     // Log warnings if any
