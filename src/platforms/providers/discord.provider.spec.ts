@@ -3,6 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Client, Message, User, TextChannel } from 'discord.js';
 import { DiscordProvider } from './discord.provider';
 import { EVENT_BUS } from '../interfaces/event-bus.interface';
+import { PrismaService } from '../../prisma/prisma.service';
 
 describe('DiscordProvider', () => {
   let provider: DiscordProvider;
@@ -17,6 +18,20 @@ describe('DiscordProvider', () => {
     emit: jest.fn(),
   };
 
+  const mockPrismaService = {
+    projectPlatform: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    receivedMessage: {
+      create: jest.fn().mockResolvedValue({
+        id: 'stored-message-id',
+        projectId: 'test-project',
+        platformId: 'test-platform',
+        platform: 'discord',
+      }),
+    },
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -28,6 +43,10 @@ describe('DiscordProvider', () => {
         {
           provide: EventEmitter2,
           useValue: mockEventEmitter,
+        },
+        {
+          provide: PrismaService,
+          useValue: mockPrismaService,
         },
       ],
     }).compile();
@@ -189,6 +208,163 @@ describe('DiscordProvider', () => {
       expect(stats).toHaveProperty('maxConnections');
       expect(stats).toHaveProperty('connections');
       expect(Array.isArray(stats.connections)).toBe(true);
+    });
+  });
+
+  describe('Platform Lifecycle Events', () => {
+    let originalCreateAdapter: any;
+    let originalRemoveAdapter: any;
+    let createAdapterSpy: jest.SpyInstance;
+    let removeAdapterSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      // Mock createAdapter and removeAdapter to avoid real Discord connections
+      originalCreateAdapter = provider.createAdapter;
+      originalRemoveAdapter = provider.removeAdapter;
+
+      createAdapterSpy = jest
+        .spyOn(provider, 'createAdapter')
+        .mockResolvedValue(provider);
+      removeAdapterSpy = jest
+        .spyOn(provider, 'removeAdapter')
+        .mockResolvedValue();
+    });
+
+    afterEach(() => {
+      // Restore original methods
+      createAdapterSpy.mockRestore();
+      removeAdapterSpy.mockRestore();
+    });
+
+    it('should auto-connect on platform created event', async () => {
+      const event = {
+        type: 'created' as const,
+        projectId: 'project1',
+        platformId: 'platform1',
+        platform: 'discord',
+        credentials: { token: 'test-discord-token' },
+        webhookToken: 'webhook-123',
+      };
+
+      await provider.onPlatformEvent(event);
+
+      const connectionKey = 'project1:platform1';
+      expect(createAdapterSpy).toHaveBeenCalledWith(
+        connectionKey,
+        event.credentials,
+      );
+    });
+
+    it('should auto-connect on platform activated event', async () => {
+      const event = {
+        type: 'activated' as const,
+        projectId: 'project2',
+        platformId: 'platform2',
+        platform: 'discord',
+        credentials: { token: 'test-discord-token-2' },
+        webhookToken: 'webhook-456',
+      };
+
+      await provider.onPlatformEvent(event);
+
+      const connectionKey = 'project2:platform2';
+      expect(createAdapterSpy).toHaveBeenCalledWith(
+        connectionKey,
+        event.credentials,
+      );
+    });
+
+    it('should disconnect on platform deactivated event', async () => {
+      const connectionKey = 'project3:platform3';
+
+      const event = {
+        type: 'deactivated' as const,
+        projectId: 'project3',
+        platformId: 'platform3',
+        platform: 'discord',
+        credentials: { token: 'test-token' },
+        webhookToken: 'webhook-789',
+      };
+
+      await provider.onPlatformEvent(event);
+
+      expect(removeAdapterSpy).toHaveBeenCalledWith(connectionKey);
+    });
+
+    it('should reconnect on platform updated event', async () => {
+      const connectionKey = 'project4:platform4';
+
+      // Mock that connection already exists
+      jest.spyOn(provider['connections'], 'has').mockReturnValue(true);
+
+      const event = {
+        type: 'updated' as const,
+        projectId: 'project4',
+        platformId: 'platform4',
+        platform: 'discord',
+        credentials: { token: 'new-token' },
+        webhookToken: 'webhook-updated',
+      };
+
+      await provider.onPlatformEvent(event);
+
+      // Should remove old connection and create new one
+      expect(removeAdapterSpy).toHaveBeenCalledWith(connectionKey);
+      expect(createAdapterSpy).toHaveBeenCalledWith(
+        connectionKey,
+        event.credentials,
+      );
+    });
+
+    it('should handle platform event errors gracefully', async () => {
+      // Mock createAdapter to throw error
+      createAdapterSpy.mockRejectedValue(new Error('Connection failed'));
+
+      const event = {
+        type: 'created' as const,
+        projectId: 'project5',
+        platformId: 'platform5',
+        platform: 'discord',
+        credentials: { token: 'test-token' },
+        webhookToken: 'webhook-error',
+      };
+
+      // Should not throw even if connection fails
+      await expect(provider.onPlatformEvent(event)).resolves.not.toThrow();
+      expect(createAdapterSpy).toHaveBeenCalledWith(
+        'project5:platform5',
+        event.credentials,
+      );
+    });
+  });
+
+  describe('App Startup Initialization', () => {
+    it('should query for active Discord platforms on module init', async () => {
+      await provider.onModuleInit();
+
+      expect(mockPrismaService.projectPlatform.findMany).toHaveBeenCalledWith({
+        where: {
+          platform: 'discord',
+          isActive: true,
+        },
+        include: {
+          project: {
+            select: {
+              id: true,
+              slug: true,
+            },
+          },
+        },
+      });
+    });
+
+    it('should handle module init errors gracefully', async () => {
+      mockPrismaService.projectPlatform.findMany.mockRejectedValue(
+        new Error('Database error'),
+      );
+
+      // Should not throw even if database query fails
+      await expect(provider.onModuleInit()).resolves.not.toThrow();
     });
   });
 });

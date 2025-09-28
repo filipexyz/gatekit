@@ -1,13 +1,18 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import { Injectable, Logger, Inject, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Client, GatewayIntentBits, Message } from 'discord.js';
-import { PlatformProvider } from '../interfaces/platform-provider.interface';
+import {
+  PlatformProvider,
+  PlatformLifecycleEvent,
+} from '../interfaces/platform-provider.interface';
 import { PlatformAdapter } from '../interfaces/platform-adapter.interface';
 import type { IEventBus } from '../interfaces/event-bus.interface';
 import { EVENT_BUS } from '../interfaces/event-bus.interface';
 import { PlatformProviderDecorator } from '../decorators/platform-provider.decorator';
 import { MessageEnvelopeV1 } from '../interfaces/message-envelope.interface';
 import { makeEnvelope } from '../utils/envelope.factory';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CryptoUtil } from '../../common/utils/crypto.util';
 
 interface DiscordConnection {
   connectionKey: string; // projectId:platformId
@@ -22,7 +27,9 @@ interface DiscordConnection {
 
 @Injectable()
 @PlatformProviderDecorator('discord')
-export class DiscordProvider implements PlatformProvider, PlatformAdapter {
+export class DiscordProvider
+  implements PlatformProvider, PlatformAdapter, OnModuleInit
+{
   private readonly logger = new Logger(DiscordProvider.name);
   private readonly connections = new Map<string, DiscordConnection>();
   private readonly MAX_CONNECTIONS = 100;
@@ -35,10 +42,112 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
   constructor(
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
     private readonly eventEmitter: EventEmitter2,
+    private readonly prisma: PrismaService,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    this.logger.log(
+      'Discord provider module initialized - checking for active platforms...',
+    );
+
+    try {
+      // Query for all active Discord platforms
+      const activePlatforms = await this.prisma.projectPlatform.findMany({
+        where: {
+          platform: 'discord',
+          isActive: true,
+        },
+        include: {
+          project: {
+            select: {
+              id: true,
+              slug: true,
+            },
+          },
+        },
+      });
+
+      this.logger.log(
+        `Found ${activePlatforms.length} active Discord platforms to initialize`,
+      );
+
+      // Connect all active Discord platforms
+      const connectionPromises = activePlatforms.map(async (platform) => {
+        const connectionKey = `${platform.projectId}:${platform.id}`;
+
+        try {
+          // Decrypt credentials
+          const credentials = JSON.parse(
+            CryptoUtil.decrypt(platform.credentialsEncrypted),
+          );
+
+          await this.createAdapter(connectionKey, credentials);
+          this.logger.log(
+            `Discord bot auto-connected for project ${platform.project.slug} (${connectionKey})`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `Failed to auto-connect Discord bot for ${connectionKey}: ${error.message}`,
+          );
+        }
+      });
+
+      // Connect all platforms in parallel
+      await Promise.allSettled(connectionPromises);
+
+      this.logger.log(`Discord provider startup initialization completed`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to initialize Discord platforms on startup: ${error.message}`,
+      );
+    }
+  }
 
   async initialize(): Promise<void> {
     this.logger.log('Discord provider initialized');
+  }
+
+  async onPlatformEvent(event: PlatformLifecycleEvent): Promise<void> {
+    this.logger.log(
+      `Discord platform event: ${event.type} for ${event.projectId}:${event.platformId}`,
+    );
+
+    const connectionKey = `${event.projectId}:${event.platformId}`;
+
+    if (event.type === 'created' || event.type === 'activated') {
+      // Auto-connect Discord bot when platform is created or activated
+      try {
+        await this.createAdapter(connectionKey, event.credentials);
+        this.logger.log(`Discord bot auto-connected for ${connectionKey}`);
+      } catch (error) {
+        this.logger.error(
+          `Failed to auto-connect Discord bot for ${connectionKey}: ${error.message}`,
+        );
+      }
+    } else if (event.type === 'updated') {
+      // Reconnect with new credentials if they changed
+      try {
+        if (this.connections.has(connectionKey)) {
+          await this.removeAdapter(connectionKey);
+        }
+        await this.createAdapter(connectionKey, event.credentials);
+        this.logger.log(`Discord bot reconnected for ${connectionKey}`);
+      } catch (error) {
+        this.logger.error(
+          `Failed to reconnect Discord bot for ${connectionKey}: ${error.message}`,
+        );
+      }
+    } else if (event.type === 'deactivated' || event.type === 'deleted') {
+      // Disconnect Discord bot when platform is deactivated or deleted
+      try {
+        await this.removeAdapter(connectionKey);
+        this.logger.log(`Discord bot disconnected for ${connectionKey}`);
+      } catch (error) {
+        this.logger.error(
+          `Failed to disconnect Discord bot for ${connectionKey}: ${error.message}`,
+        );
+      }
+    }
   }
 
   async shutdown(): Promise<void> {
@@ -177,6 +286,7 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
 
     // Store handler functions for proper cleanup
     const onReady = () => {
+      connection.isConnected = true;
       this.logger.log(`Discord ready for ${projectId}: ${client.user?.tag}`);
     };
 
@@ -204,7 +314,7 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
     };
 
     // Register event listeners
-    client.on('ready', onReady);
+    client.on('clientReady', onReady);
     client.on('messageCreate', onMessageCreate);
     client.on('interactionCreate', onInteractionCreate);
     client.on('error', onError);
@@ -212,7 +322,7 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
 
     // Store cleanup function to remove ALL listeners
     connection.eventCleanup = () => {
-      client.off('ready', onReady);
+      client.off('clientReady', onReady);
       client.off('messageCreate', onMessageCreate);
       client.off('interactionCreate', onInteractionCreate);
       client.off('error', onError);
@@ -336,15 +446,34 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
         throw new Error('No channel ID provided');
       }
 
+      // Validate message content
+      const messageText = reply.text?.trim();
+      if (!messageText) {
+        this.logger.error(
+          `Discord message has no content - reply.text: "${reply.text}"`,
+        );
+        throw new Error('Message text is required and cannot be empty');
+      }
+
+      this.logger.debug(
+        `Sending Discord message to channel ${channelId}: "${messageText}"`,
+      );
+
       const channel = await connection.client.channels.fetch(channelId);
       if (!channel || !('send' in channel)) {
         throw new Error('Invalid channel or channel type');
       }
 
-      const sent = await (channel as any).send(reply.text ?? '');
+      const sent = await (channel as any).send(messageText);
+      this.logger.log(
+        `Discord message sent successfully to ${channelId}: ${sent.id}`,
+      );
       return { providerMessageId: sent.id };
     } catch (error) {
-      this.logger.error('Failed to send Discord message:', error.message);
+      this.logger.error(
+        `Failed to send Discord message to ${env.threadId}:`,
+        error.message,
+      );
       return { providerMessageId: 'discord-send-failed' };
     }
   }
@@ -352,6 +481,59 @@ export class DiscordProvider implements PlatformProvider, PlatformAdapter {
   private async handleMessage(msg: Message, projectId: string) {
     if (msg.author.bot) return;
 
+    // Find the platform ID for this connection
+    const connection = Array.from(this.connections.values()).find(
+      (conn) => conn.projectId === projectId,
+    );
+
+    if (!connection) {
+      this.logger.error(`No Discord connection found for project ${projectId}`);
+      return;
+    }
+
+    try {
+      // Store message in database
+      const storedMessage = await this.prisma.receivedMessage.create({
+        data: {
+          projectId,
+          platformId: connection.platformId,
+          platform: 'discord',
+          providerMessageId: msg.id,
+          providerChatId: msg.channelId,
+          providerUserId: msg.author.id,
+          userDisplay: msg.author.displayName || msg.author.username,
+          messageText: msg.content,
+          messageType: 'text',
+          rawData: {
+            id: msg.id,
+            channelId: msg.channelId,
+            guildId: msg.guildId,
+            author: {
+              id: msg.author.id,
+              username: msg.author.username,
+              displayName: msg.author.displayName,
+              discriminator: msg.author.discriminator,
+            },
+            content: msg.content,
+            timestamp: msg.createdTimestamp,
+            attachments: msg.attachments.map((att) => ({
+              id: att.id,
+              url: att.url,
+              name: att.name,
+              size: att.size,
+            })),
+          },
+        },
+      });
+
+      this.logger.debug(
+        `Discord message stored: ${storedMessage.id} from ${msg.author.username}`,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to store Discord message: ${error.message}`);
+    }
+
+    // Also publish to EventBus for real-time processing
     const env = this.toEnvelope(msg, projectId);
     await this.eventBus.publish(env);
   }
