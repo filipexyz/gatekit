@@ -156,8 +156,8 @@ describe('WhatsAppProvider', () => {
       );
       expect(adapter2).toBe(provider);
 
-      // Should only call Evolution API once
-      expect(global.fetch).toHaveBeenCalledTimes(1);
+      // Should call Evolution API twice (webhook setup + connection status check)
+      expect(global.fetch).toHaveBeenCalledTimes(2);
     });
 
     it('should cleanup connection on adapter creation failure', async () => {
@@ -371,8 +371,11 @@ describe('WhatsAppProvider', () => {
       };
 
       // Connection exists but not connected
-      const result = await provider.sendMessage(envelope, { text: 'reply' });
-      expect(result.providerMessageId).toBe('whatsapp-evo-not-connected');
+      await expect(
+        provider.sendMessage(envelope, { text: 'reply' }),
+      ).rejects.toThrow(
+        'WhatsApp not connected for project1:platform1, cannot send message',
+      );
     });
 
     it('should handle Evolution API send message failure', async () => {
@@ -404,8 +407,9 @@ describe('WhatsAppProvider', () => {
         provider: { raw: { platformId: 'platform1' } },
       };
 
-      const result = await provider.sendMessage(envelope, { text: 'reply' });
-      expect(result.providerMessageId).toBe('whatsapp-evo-send-failed');
+      await expect(
+        provider.sendMessage(envelope, { text: 'reply' }),
+      ).rejects.toThrow('Evolution API error: Rate Limited');
     });
   });
 
