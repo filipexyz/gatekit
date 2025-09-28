@@ -51,6 +51,21 @@ export class MessagesService {
       }
     }
 
+    // Build select clause based on raw data requirement
+    const select = {
+      id: true,
+      platform: true,
+      platformId: true,
+      providerMessageId: true,
+      providerChatId: true,
+      providerUserId: true,
+      userDisplay: true,
+      messageText: true,
+      messageType: true,
+      receivedAt: true,
+      rawData: query.raw || false,
+    };
+
     // Get messages
     const [messages, total] = await Promise.all([
       this.prisma.receivedMessage.findMany({
@@ -58,18 +73,7 @@ export class MessagesService {
         orderBy: { receivedAt: query.order },
         take: query.limit,
         skip: query.offset,
-        select: {
-          id: true,
-          platform: true,
-          providerMessageId: true,
-          providerChatId: true,
-          providerUserId: true,
-          userDisplay: true,
-          messageText: true,
-          messageType: true,
-          receivedAt: true,
-          rawData: true,
-        },
+        select,
       }),
       this.prisma.receivedMessage.count({ where }),
     ]);
@@ -94,10 +98,9 @@ export class MessagesService {
       throw new NotFoundException('Project not found');
     }
 
-    const message = await this.prisma.receivedMessage.findFirst({
+    const message = await this.prisma.receivedMessage.findUnique({
       where: {
         id: messageId,
-        projectId: project.id,
       },
       include: {
         platformConfig: {
@@ -111,7 +114,7 @@ export class MessagesService {
       },
     });
 
-    if (!message) {
+    if (!message || message.projectId !== project.id) {
       throw new NotFoundException('Message not found');
     }
 

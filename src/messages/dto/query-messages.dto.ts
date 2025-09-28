@@ -6,6 +6,7 @@ import {
   Max,
   IsISO8601,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -50,4 +51,9 @@ export class QueryMessagesDto {
   @IsOptional()
   @IsEnum(['asc', 'desc'])
   order?: 'asc' | 'desc' = 'desc';
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  raw?: boolean = false;
 }
