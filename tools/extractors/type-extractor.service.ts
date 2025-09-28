@@ -1,6 +1,14 @@
-import * as fs from 'fs/promises';
 import * as path from 'path';
-import { glob } from 'glob';
+import {
+  ArrayTypeNode,
+  ClassDeclaration,
+  Node,
+  Project,
+  Symbol,
+  Type,
+  TypeChecker,
+  TypeReferenceNode,
+} from 'ts-morph';
 
 export interface ExtractedType {
   name: string;
@@ -8,11 +16,18 @@ export interface ExtractedType {
 }
 
 export class TypeExtractorService {
+  private project: Project | null = null;
+  private typeChecker: TypeChecker | null = null;
+  private exportMap: Map<string, Node> | null = null;
+
   async extractTypes(typeNames: string[]): Promise<ExtractedType[]> {
     console.log(`🔍 Extracting backend types: ${typeNames.join(', ')}`);
 
-    const extractedTypes: ExtractedType[] = [];
-    const typesToProcess = new Set(typeNames);
+    const extractedTypes = new Map<string, ExtractedType>();
+    const seedTypes = typeNames
+      .map((name) => this.getCanonicalTypeName(name))
+      .filter((name) => name && !this.isPrimitiveType(name));
+    const typesToProcess = new Set(seedTypes);
     const processedTypes = new Set<string>();
 
     // Recursive type extraction - automatically find dependencies
@@ -23,14 +38,19 @@ export class TypeExtractorService {
       if (processedTypes.has(typeName)) continue;
       processedTypes.add(typeName);
 
-      const extracted = await this.findAndExtractType(typeName);
+      const extracted = this.findAndExtractType(typeName);
       if (extracted) {
-        extractedTypes.push(extracted);
-        console.log(`✅ Found type: ${typeName}`);
+        if (!extractedTypes.has(extracted.name)) {
+          extractedTypes.set(extracted.name, extracted);
+          console.log(`✅ Found type: ${typeName}`);
+        }
 
         // Auto-discover nested type references
-        const nestedTypes = this.findReferencedTypes(extracted.definition);
-        nestedTypes.forEach(nestedType => {
+        const declaration = this.getDeclaration(typeName);
+        const nestedTypes = declaration
+          ? this.findReferencedTypesFromDeclaration(declaration)
+          : [];
+        nestedTypes.forEach((nestedType) => {
           if (!processedTypes.has(nestedType)) {
             typesToProcess.add(nestedType);
             console.log(`🔗 Auto-discovered dependency: ${nestedType}`);
@@ -38,159 +58,207 @@ export class TypeExtractorService {
         });
       } else {
         console.error(`❌ CRITICAL: Type not found: ${typeName}`);
-        throw new Error(`Required type '${typeName}' not found in backend source. Check type definitions.`);
+        throw new Error(
+          `Required type '${typeName}' not found in backend source. Check type definitions.`,
+        );
       }
     }
 
-    return extractedTypes;
+    return Array.from(extractedTypes.values()).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
   }
 
-  private async findAndExtractType(typeName: string): Promise<ExtractedType | null> {
-    // Handle array types
-    const isArray = typeName.endsWith('[]');
-    const baseTypeName = isArray ? typeName.slice(0, -2) : typeName;
+  private findAndExtractType(typeName: string): ExtractedType | null {
+    const declaration = this.getDeclaration(typeName);
 
-    // Search for the type in backend source files - prioritize clean SDK models
-    const searchPaths = [
-      'src/**/sdk-models.ts',      // First priority: clean SDK model interfaces
-      'src/**/api-responses.ts',   // Second priority: response types
-      'src/**/*.dto.ts',           // Last resort: complex backend DTOs
-      'src/**/*.entity.ts',
-      'src/**/*.interface.ts',
-      'src/**/*.types.ts'
-    ];
+    if (!declaration) {
+      return null;
+    }
 
-    for (const pattern of searchPaths) {
-      const files = await glob(pattern, { cwd: path.join(__dirname, '../../') });
+    if (
+      Node.isInterfaceDeclaration(declaration) ||
+      Node.isTypeAliasDeclaration(declaration)
+    ) {
+      return {
+        name: typeName,
+        definition: declaration.getText(),
+      };
+    }
 
-      for (const file of files) {
-        const filePath = path.join(__dirname, '../../', file);
-        const content = await fs.readFile(filePath, 'utf-8');
+    if (Node.isClassDeclaration(declaration)) {
+      return {
+        name: typeName,
+        definition: this.convertClassToInterface(declaration, typeName),
+      };
+    }
 
-        const typeDefinition = this.extractTypeFromFile(content, baseTypeName);
-        if (typeDefinition) {
-          return {
-            name: typeName,
-            definition: typeDefinition
-          };
+    return null;
+  }
+
+  private getDeclaration(typeName: string) {
+    const project = this.getProject();
+    this.populateExportMap();
+    const canonicalName = this.getCanonicalTypeName(typeName);
+
+    return this.exportMap?.get(canonicalName) || null;
+  }
+
+  private getProject(): Project {
+    if (!this.project) {
+      this.project = new Project({
+        tsConfigFilePath: path.join(__dirname, '../../tsconfig.json'),
+        skipAddingFilesFromTsConfig: false,
+      });
+    }
+
+    return this.project;
+  }
+
+  private getTypeChecker(): TypeChecker {
+    if (!this.typeChecker) {
+      this.typeChecker = this.getProject().getTypeChecker();
+    }
+    return this.typeChecker;
+  }
+
+  private populateExportMap(): void {
+    if (this.exportMap) return;
+
+    const map = new Map<string, Node>();
+    for (const sourceFile of this.getProject().getSourceFiles('src/**/*.ts')) {
+      const exported = sourceFile.getExportedDeclarations();
+      exported.forEach((declarations, name) => {
+        if (map.has(name)) {
+          return;
         }
-      }
+        const matching = declarations.find(
+          (declaration) =>
+            Node.isInterfaceDeclaration(declaration) ||
+            Node.isTypeAliasDeclaration(declaration) ||
+            Node.isClassDeclaration(declaration),
+        );
+        if (matching) {
+          map.set(name, matching);
+        }
+      });
     }
-
-    return null;
+    this.exportMap = map;
   }
 
-  private extractTypeFromFile(content: string, typeName: string): string | null {
-    // Extract class definitions (DTOs)
-    const classRegex = new RegExp(`export class ${typeName}[\\s\\S]*?^}`, 'gm');
-    const classMatch = content.match(classRegex);
-    if (classMatch) {
-      return this.convertClassToInterface(classMatch[0]);
-    }
+  private findReferencedTypesFromDeclaration(declaration: Node): string[] {
+    const references = new Set<string>();
 
-    // Extract interface definitions
-    const interfaceRegex = new RegExp(`export interface ${typeName}\\s*{[\\s\\S]*?^}`, 'gm');
-    const interfaceMatch = content.match(interfaceRegex);
-    if (interfaceMatch) {
-      return this.cleanTypeDefinition(interfaceMatch[0]);
-    }
-
-    // Extract type aliases
-    const typeRegex = new RegExp(`export type ${typeName}\\s*=\\s*[^;]+;`, 'gm');
-    const typeMatch = content.match(typeRegex);
-    if (typeMatch) {
-      return typeMatch[0];
-    }
-
-    return null;
-  }
-
-  private cleanTypeDefinition(definition: string): string {
-    // Split into lines and process each line
-    const lines = definition.split('\n');
-    const cleanedLines: string[] = [];
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const trimmed = line.trim();
-
-      // Skip decorator lines
-      if (trimmed.startsWith('@')) {
-        continue;
+    const visit = (node: Node): void => {
+      if (Node.isTypeReference(node)) {
+        this.collectFromTypeReferenceNode(node, references);
+      } else if (Node.isArrayTypeNode(node)) {
+        const elementType = node.getElementTypeNode();
+        visit(elementType);
+      } else if (
+        Node.isUnionTypeNode(node) ||
+        Node.isIntersectionTypeNode(node)
+      ) {
+        node.getTypeNodes().forEach(visit);
       }
 
-      // Skip lines with decorator artifacts
-      if (trimmed.match(/^=>\s*[A-Za-z]+\)/) || trimmed === '=> Number)') {
-        continue;
-      }
+      node.forEachChild(visit);
+    };
 
-      // Clean the line of any inline decorators
-      let cleanedLine = line
-        .replace(/@[A-Za-z]+\([^)]*(?:\([^)]*\)[^)]*)*\)/g, '')
-        .replace(/@[A-Za-z]+/g, '')
-        .replace(/=>\s*[A-Za-z]+\)/g, '');
+    visit(declaration);
 
-      // Only include non-empty lines
-      if (cleanedLine.trim()) {
-        cleanedLines.push(cleanedLine);
-      }
-    }
-
-    return cleanedLines.join('\n');
-  }
-
-  private findReferencedTypes(typeDefinition: string): string[] {
-    const typeReferences: string[] = [];
-
-    // Find property type references: "property: SomeType" or "property?: SomeType"
-    const propertyRegex = /:\s*([A-Z][A-Za-z0-9]*)/g;
-    let match;
-    while ((match = propertyRegex.exec(typeDefinition)) !== null) {
-      const typeName = match[1];
-      if (!this.isPrimitiveType(typeName)) {
-        typeReferences.push(typeName);
-      }
-    }
-
-    // Find generic type parameters: "Array<SomeType>" or "Record<string, SomeType>"
-    const genericRegex = /<([A-Z][A-Za-z0-9]*)/g;
-    while ((match = genericRegex.exec(typeDefinition)) !== null) {
-      const typeName = match[1];
-      if (!this.isPrimitiveType(typeName)) {
-        typeReferences.push(typeName);
-      }
-    }
-
-    return [...new Set(typeReferences)];
+    return Array.from(references);
   }
 
   private isPrimitiveType(typeName: string): boolean {
     const primitives = [
-      'string', 'number', 'boolean', 'Date', 'any', 'unknown', 'object',
-      'Array', 'Record', 'Promise', 'Function', 'Error'
+      'string',
+      'number',
+      'boolean',
+      'Date',
+      'any',
+      'unknown',
+      'object',
+      'Array',
+      'Record',
+      'Promise',
+      'Function',
+      'Error',
+      'Partial',
+      'Pick',
+      'Omit',
+      'Readonly',
+      'Set',
+      'Map',
     ];
     return primitives.includes(typeName);
   }
 
-  private convertClassToInterface(classDefinition: string): string {
-    // Convert DTO class to TypeScript interface - more sophisticated handling
-    return classDefinition
-      .replace(/export class/g, 'export interface')
-      .replace(/@[A-Za-z][A-Za-z0-9]*(\([^)]*(\([^)]*\))*[^)]*\))?\s*/g, '') // Remove complex decorators
-      .replace(/(private|public|protected)\s+/g, '')         // Remove access modifiers
-      .replace(/\s*constructor\([^)]*\)\s*{[^}]*}/g, '')     // Remove constructors
-      .replace(/\s*[a-zA-Z_][a-zA-Z0-9_]*\([^)]*\)\s*{[^}]*}/g, '') // Remove methods
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line && !line.startsWith('//'))       // Remove empty lines and comments
-      .join('\n')
-      .trim();
+  private convertClassToInterface(
+    classDeclaration: ClassDeclaration,
+    interfaceName: string,
+  ): string {
+    const type = classDeclaration.getType();
+    const properties = this.printPropertiesFromType(type, classDeclaration);
+    return `export interface ${interfaceName} {\n${properties}\n}`;
+  }
+
+  private collectFromTypeReferenceNode(
+    node: TypeReferenceNode,
+    accumulator: Set<string>,
+  ): void {
+    const typeName = node.getTypeName().getText();
+    this.addReference(typeName, accumulator);
+
+    node.getTypeArguments().forEach((arg) => {
+      if (Node.isTypeReference(arg)) {
+        this.collectFromTypeReferenceNode(arg, accumulator);
+      } else if (Node.isArrayTypeNode(arg)) {
+        this.collectFromArrayTypeNode(arg, accumulator);
+      } else {
+        this.addReference(arg.getText(), accumulator);
+      }
+    });
+  }
+
+  private collectFromArrayTypeNode(
+    node: ArrayTypeNode,
+    accumulator: Set<string>,
+  ): void {
+    const elementType = node.getElementTypeNode();
+    if (Node.isTypeReference(elementType)) {
+      this.collectFromTypeReferenceNode(elementType, accumulator);
+    } else {
+      this.addReference(elementType.getText(), accumulator);
+    }
+  }
+
+  private addReference(rawName: string, accumulator: Set<string>): void {
+    const withoutQuotes = rawName.replace(/^['"`]|['"`]$/g, '');
+    const cleaned = this.getCanonicalTypeName(withoutQuotes);
+    if (
+      !cleaned ||
+      this.isPrimitiveType(cleaned) ||
+      cleaned === 'Array' ||
+      !/^[A-Z_]/.test(cleaned)
+    ) {
+      return;
+    }
+
+    accumulator.add(cleaned);
+  }
+
+  private getCanonicalTypeName(typeName: string): string {
+    const noGenerics = typeName.split('<')[0];
+    const noArray = noGenerics.replace(/\[\]$/, '');
+    const segment = noArray.split('.').pop();
+    return segment ? segment.trim() : noArray.trim();
   }
 
   generateTypesFile(extractedTypes: ExtractedType[]): string {
     const typeDefinitions = extractedTypes
-      .map(t => t.definition)
-      .filter(def => def && !def.includes('=> '))  // Filter out malformed definitions
+      .map((t) => t.definition)
+      .filter((def) => def && !def.includes('=> ')) // Filter out malformed definitions
       .join('\n\n');
 
     return `// Generated TypeScript types for GateKit SDK
@@ -242,5 +310,31 @@ export interface GateKitConfig {
   retries?: number;
 }
 `;
+  }
+
+  private printPropertiesFromType(
+    type: Type,
+    context: ClassDeclaration,
+  ): string {
+    const checker = this.getTypeChecker();
+    const lines: string[] = [];
+
+    type.getProperties().forEach((symbol: Symbol) => {
+      const name = symbol.getName();
+      if (name.startsWith('__')) {
+        return;
+      }
+
+      const declaration =
+        symbol.getValueDeclaration() || symbol.getDeclarations()?.[0];
+      const symbolType = declaration
+        ? symbol.getTypeAtLocation(declaration)
+        : checker.getTypeOfSymbolAtLocation(symbol, context);
+      const typeText = symbolType.getText(declaration ?? context);
+      const optional = symbol.isOptional();
+      lines.push(`  ${name}${optional ? '?' : ''}: ${typeText};`);
+    });
+
+    return lines.join('\n');
   }
 }

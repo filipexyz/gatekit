@@ -3,6 +3,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { glob } from 'glob';
+import { TypeExtractorService } from './extractors/type-extractor.service';
 
 // Standalone contract extraction without NestJS context
 // This avoids database dependencies in CI/CD environments
@@ -50,7 +51,7 @@ async function extractContractsStandalone() {
     );
 
     // Extract type definitions
-    const typeDefinitions = await extractAllTypes(allContracts);
+    const typeDefinitions = await extractTypeDefinitions(allContracts);
 
     // Add type definitions to first contract
     if (allContracts.length > 0) {
@@ -245,15 +246,12 @@ function combinePaths(controllerPath: string, methodPath: string): string {
   return fullPath.startsWith('/') ? fullPath : `/${fullPath}`;
 }
 
-async function extractAllTypes(
+async function extractTypeDefinitions(
   contracts: ExtractedContract[],
 ): Promise<Record<string, string>> {
   console.log('🔍 Extracting types for contracts...');
 
-  const typeDefinitions: Record<string, string> = {};
   const typeNames = new Set<string>();
-
-  // Collect all referenced types
   contracts.forEach((contract) => {
     if (contract.contractMetadata.inputType) {
       typeNames.add(contract.contractMetadata.inputType);
@@ -261,203 +259,25 @@ async function extractAllTypes(
     if (contract.contractMetadata.outputType) {
       const outputType = contract.contractMetadata.outputType;
       typeNames.add(outputType);
-
-      // Also add base type for arrays
       if (outputType.endsWith('[]')) {
         typeNames.add(outputType.slice(0, -2));
       }
     }
   });
 
-  console.log(`🔍 Looking for types:`, Array.from(typeNames));
+  const extractor = new TypeExtractorService();
+  const extractedTypes = await extractor.extractTypes(Array.from(typeNames));
 
-  // Extract type definitions from all sources
-  const typeFiles = await glob('src/**/sdk-models.ts');
-  const responseFiles = await glob('src/**/api-responses.ts');
-  const dtoFiles = await glob('src/**/*.dto.ts');
-  const interfaceFiles = await glob('src/**/interfaces/*.interface.ts');
-  const allTypeFiles = [
-    ...typeFiles,
-    ...responseFiles,
-    ...interfaceFiles,
-    ...dtoFiles,
-  ];
-
-  console.log(
-    `🔍 Searching in ${allTypeFiles.length} type files:`,
-    allTypeFiles,
-  );
-
-  // Recursive type extraction - automatically find dependencies
-  const typesToProcess = new Set(
-    Array.from(typeNames).filter((name) => !name.endsWith('[]')),
-  );
-  const processedTypes = new Set<string>();
-
-  while (typesToProcess.size > 0) {
-    const typeName = typesToProcess.values().next().value;
-    typesToProcess.delete(typeName);
-
-    if (processedTypes.has(typeName)) continue;
-    processedTypes.add(typeName);
-
-    // Search in order of preference
-    let found = false;
-    for (const file of allTypeFiles) {
-      const content = await fs.readFile(file, 'utf-8');
-      const typeDefinition = extractTypeFromContent(content, typeName);
-
-      if (typeDefinition) {
-        typeDefinitions[typeName] = typeDefinition;
-        console.log(`✅ Found type: ${typeName}`);
-
-        // Auto-discover nested type references
-        const nestedTypes = findReferencedTypes(typeDefinition);
-        nestedTypes.forEach((nestedType) => {
-          if (!processedTypes.has(nestedType)) {
-            typesToProcess.add(nestedType);
-            console.log(`🔗 Auto-discovered dependency: ${nestedType}`);
-          }
-        });
-
-        found = true;
-        break;
-      }
-    }
-
-    if (!found) {
-      console.warn(`⚠️ Type not found: ${typeName}`);
-    }
-  }
+  const typeDefinitions: Record<string, string> = {};
+  extractedTypes.forEach((type) => {
+    typeDefinitions[type.name] = type.definition;
+  });
 
   console.log(
     `📝 Extracted ${Object.keys(typeDefinitions).length} TypeScript types`,
   );
+
   return typeDefinitions;
-}
-
-function extractTypeFromContent(
-  content: string,
-  typeName: string,
-): string | null {
-  // Extract interface definitions
-  const interfaceRegex = new RegExp(
-    `export interface ${typeName}[\\s\\S]*?^}`,
-    'gm',
-  );
-  const interfaceMatch = content.match(interfaceRegex);
-  if (interfaceMatch) {
-    return interfaceMatch[0];
-  }
-
-  // Extract class definitions (DTOs) and convert to interfaces
-  const classRegex = new RegExp(`export class ${typeName}[\\s\\S]*?^}`, 'gm');
-  const classMatch = content.match(classRegex);
-  if (classMatch) {
-    return convertClassToInterface(classMatch[0]);
-  }
-
-  // Extract type aliases
-  const typeRegex = new RegExp(`export type ${typeName}\\s*=\\s*[^;]+;`, 'gm');
-  const typeMatch = content.match(typeRegex);
-  if (typeMatch) {
-    return typeMatch[0];
-  }
-
-  return null;
-}
-
-function convertClassToInterface(classDefinition: string): string {
-  // Convert DTO class to TypeScript interface
-  const lines = classDefinition.split('\n');
-  const processedLines: string[] = [];
-  let inDecorator = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    let line = lines[i].trim();
-
-    // Skip decorator lines entirely - handle multiline decorators
-    if (line.startsWith('@')) {
-      inDecorator = true;
-      // Check if decorator ends on this line (no opening parenthesis or balanced parentheses)
-      const openParens = (line.match(/\(/g) || []).length;
-      const closeParens = (line.match(/\)/g) || []).length;
-      if (openParens === closeParens) {
-        inDecorator = false;
-      }
-      continue;
-    }
-
-    // If we're in a multiline decorator, skip until we find the closing parenthesis
-    if (inDecorator) {
-      const openParens = (line.match(/\(/g) || []).length;
-      const closeParens = (line.match(/\)/g) || []).length;
-      if (closeParens > openParens) {
-        inDecorator = false;
-      }
-      continue;
-    }
-
-    // Skip comments and empty lines
-    if (!line || line.startsWith('//')) {
-      continue;
-    }
-
-    // Convert class to interface
-    if (line.includes('export class')) {
-      line = line.replace(/export class/g, 'export interface');
-    }
-
-    // Remove access modifiers
-    line = line.replace(/(private|public|protected)\s+/g, '');
-
-    processedLines.push(line);
-  }
-
-  return processedLines.join('\n').trim();
-}
-
-function findReferencedTypes(typeDefinition: string): string[] {
-  const typeReferences: string[] = [];
-
-  // Find property type references: "property: SomeType" or "property?: SomeType"
-  const propertyRegex = /:\s*([A-Z][A-Za-z0-9]*)/g;
-  let match;
-  while ((match = propertyRegex.exec(typeDefinition)) !== null) {
-    const typeName = match[1];
-    if (!isPrimitiveType(typeName)) {
-      typeReferences.push(typeName);
-    }
-  }
-
-  // Find generic type parameters: "Array<SomeType>" or "Record<string, SomeType>"
-  const genericRegex = /<([A-Z][A-Za-z0-9]*)/g;
-  while ((match = genericRegex.exec(typeDefinition)) !== null) {
-    const typeName = match[1];
-    if (!isPrimitiveType(typeName)) {
-      typeReferences.push(typeName);
-    }
-  }
-
-  return [...new Set(typeReferences)];
-}
-
-function isPrimitiveType(typeName: string): boolean {
-  const primitives = [
-    'string',
-    'number',
-    'boolean',
-    'Date',
-    'any',
-    'unknown',
-    'object',
-    'Array',
-    'Record',
-    'Promise',
-    'Function',
-    'Error',
-  ];
-  return primitives.includes(typeName);
 }
 
 // Run extraction

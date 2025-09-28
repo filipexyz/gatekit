@@ -408,7 +408,7 @@ Backend Controllers (@SdkContract decorators)
 ```bash
 # 1. Add @SdkContract decorators to controllers
 # 2. Regenerate all packages (quintuple generation)
-npm run generate:all:standalone
+npm run generate:all
 # 3. Test and publish all packages
 cd generated/sdk && npm publish
 cd ../cli && npm publish
