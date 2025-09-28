@@ -74,6 +74,8 @@ describe('PlatformsService', () => {
       const projectSlug = 'test-project';
       const createDto = {
         platform: 'discord' as any,
+        name: 'Test Discord Bot',
+        description: 'Bot for testing purposes',
         credentials: { token: 'discord-token' },
         isActive: true,
         testMode: false,
@@ -85,6 +87,8 @@ describe('PlatformsService', () => {
       mockPrismaService.projectPlatform.create.mockResolvedValue({
         id: 'platform-id',
         platform: 'discord',
+        name: 'Test Discord Bot',
+        description: 'Bot for testing purposes',
         credentialsEncrypted: 'encrypted_credentials',
         isActive: true,
         testMode: false,
@@ -100,10 +104,18 @@ describe('PlatformsService', () => {
 
       expect(result).toHaveProperty('id', 'platform-id');
       expect(result).toHaveProperty('platform', 'discord');
+      expect(result).toHaveProperty('name', 'Test Discord Bot');
+      expect(result).toHaveProperty('description', 'Bot for testing purposes');
       expect(result).toHaveProperty('isActive', true);
       expect(CryptoUtil.encrypt).toHaveBeenCalledWith(
         JSON.stringify(createDto.credentials),
       );
+      expect(mockPrismaService.projectPlatform.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: 'Test Discord Bot',
+          description: 'Bot for testing purposes',
+        }),
+      });
     });
 
     it('should throw NotFoundException when project does not exist', async () => {
@@ -114,6 +126,7 @@ describe('PlatformsService', () => {
           'non-existent',
           {
             platform: 'discord' as any,
+            name: 'Test Bot',
             credentials: {},
           },
           mockAuthContext,
@@ -140,6 +153,7 @@ describe('PlatformsService', () => {
         'test-project',
         {
           platform: 'discord' as any,
+          name: 'Second Discord Instance',
           credentials: {},
         },
         mockAuthContext,
@@ -147,6 +161,82 @@ describe('PlatformsService', () => {
 
       expect(result).toHaveProperty('platform', 'discord');
       expect(result).toHaveProperty('id', 'second-discord-instance');
+    });
+
+    it('should create platform with valid name characters', async () => {
+      const createDto = {
+        platform: 'discord' as any,
+        name: 'test-bot.v1',
+        credentials: { token: 'discord-token' },
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
+      mockPrismaService.projectPlatform.create.mockResolvedValue({
+        id: 'platform-id',
+        platform: 'discord',
+        name: 'test-bot.v1',
+        description: null,
+        credentialsEncrypted: 'encrypted_credentials',
+        isActive: true,
+        testMode: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        webhookToken: 'webhook-token',
+      });
+
+      const result = await service.create(
+        'test-project',
+        createDto,
+        mockAuthContext,
+      );
+
+      expect(result).toHaveProperty('name', 'test-bot.v1');
+      expect(mockPrismaService.projectPlatform.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: 'test-bot.v1',
+        }),
+      });
+    });
+
+    it('should create platform with name only (no description)', async () => {
+      const createDto = {
+        platform: 'telegram' as any,
+        name: 'Simple Telegram Bot',
+        credentials: { token: 'telegram-token' },
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
+      mockPrismaService.projectPlatform.create.mockResolvedValue({
+        id: 'platform-id',
+        platform: 'telegram',
+        name: 'Simple Telegram Bot',
+        description: null,
+        credentialsEncrypted: 'encrypted_credentials',
+        isActive: true,
+        testMode: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        webhookToken: 'webhook-token',
+      });
+
+      const result = await service.create(
+        'test-project',
+        createDto,
+        mockAuthContext,
+      );
+
+      expect(result).toHaveProperty('name', 'Simple Telegram Bot');
+      expect(result).toHaveProperty('description', null);
+      expect(mockPrismaService.projectPlatform.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: 'Simple Telegram Bot',
+          description: undefined,
+        }),
+      });
     });
   });
 
@@ -160,6 +250,8 @@ describe('PlatformsService', () => {
           {
             id: 'platform-1',
             platform: 'discord',
+            name: 'Main Discord Bot',
+            description: 'Primary Discord integration',
             isActive: true,
             testMode: false,
             createdAt: new Date(),
@@ -168,6 +260,8 @@ describe('PlatformsService', () => {
           {
             id: 'platform-2',
             platform: 'telegram',
+            name: 'Test Telegram Bot',
+            description: null,
             isActive: false,
             testMode: true,
             createdAt: new Date(),
@@ -182,7 +276,14 @@ describe('PlatformsService', () => {
 
       expect(result).toHaveLength(2);
       expect(result[0]).toHaveProperty('platform', 'discord');
+      expect(result[0]).toHaveProperty('name', 'Main Discord Bot');
+      expect(result[0]).toHaveProperty(
+        'description',
+        'Primary Discord integration',
+      );
       expect(result[1]).toHaveProperty('platform', 'telegram');
+      expect(result[1]).toHaveProperty('name', 'Test Telegram Bot');
+      expect(result[1]).toHaveProperty('description', null);
     });
 
     it('should throw NotFoundException when project does not exist', async () => {
@@ -253,6 +354,88 @@ describe('PlatformsService', () => {
         data: expect.objectContaining({
           credentialsEncrypted: expect.stringContaining('encrypted_'),
           isActive: false,
+        }),
+      });
+    });
+
+    it('should update platform name and description', async () => {
+      const projectSlug = 'test-project';
+      const platformId = 'platform-id';
+      const updateDto = {
+        name: 'Updated Bot Name',
+        description: 'New description for the bot',
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
+      mockPrismaService.projectPlatform.findFirst.mockResolvedValue({
+        id: platformId,
+        platform: 'discord',
+        name: 'Old Name',
+        description: 'Old description',
+      });
+      mockPrismaService.projectPlatform.update.mockResolvedValue({
+        id: platformId,
+        platform: 'discord',
+        name: 'Updated Bot Name',
+        description: 'New description for the bot',
+        isActive: true,
+        testMode: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await service.update(projectSlug, platformId, updateDto);
+
+      expect(result).toHaveProperty('name', 'Updated Bot Name');
+      expect(result).toHaveProperty(
+        'description',
+        'New description for the bot',
+      );
+      expect(mockPrismaService.projectPlatform.update).toHaveBeenCalledWith({
+        where: { id: platformId },
+        data: expect.objectContaining({
+          name: 'Updated Bot Name',
+          description: 'New description for the bot',
+        }),
+      });
+    });
+
+    it('should update only name (clear description)', async () => {
+      const projectSlug = 'test-project';
+      const platformId = 'platform-id';
+      const updateDto = {
+        name: 'Simple Bot',
+        description: null,
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
+      mockPrismaService.projectPlatform.findFirst.mockResolvedValue({
+        id: platformId,
+      });
+      mockPrismaService.projectPlatform.update.mockResolvedValue({
+        id: platformId,
+        platform: 'telegram',
+        name: 'Simple Bot',
+        description: null,
+        isActive: true,
+        testMode: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await service.update(projectSlug, platformId, updateDto);
+
+      expect(result).toHaveProperty('name', 'Simple Bot');
+      expect(result).toHaveProperty('description', null);
+      expect(mockPrismaService.projectPlatform.update).toHaveBeenCalledWith({
+        where: { id: platformId },
+        data: expect.objectContaining({
+          name: 'Simple Bot',
+          description: null,
         }),
       });
     });

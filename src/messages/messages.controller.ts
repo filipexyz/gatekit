@@ -39,8 +39,13 @@ export class MessagesController {
     inputType: 'QueryMessagesDto',
     outputType: 'MessageListResponse',
     options: {
+      platformId: {
+        description: 'Filter by platform ID',
+        type: 'string',
+      },
       platform: {
-        description: 'Filter by platform (telegram, discord, whatsapp-evo)',
+        description:
+          'Filter by platform type (telegram, discord, whatsapp-evo)',
         type: 'string',
         choices: ['telegram', 'discord', 'whatsapp-evo'],
       },
@@ -76,6 +81,11 @@ export class MessagesController {
         choices: ['asc', 'desc'],
         default: 'desc',
       },
+      raw: {
+        description: 'Include raw platform message data',
+        type: 'boolean',
+        default: false,
+      },
     },
     examples: [
       {
@@ -83,13 +93,22 @@ export class MessagesController {
         command: 'gatekit messages list',
       },
       {
-        description: 'Get Telegram messages from specific chat',
+        description: 'Get messages from specific platform instance',
+        command:
+          'gatekit messages list --platformId "platform-abc123" --chatId "123456789"',
+      },
+      {
+        description: 'Get Telegram messages from any instance',
         command:
           'gatekit messages list --platform telegram --chatId "123456789"',
       },
       {
         description: 'Get messages from last 24 hours',
         command: 'gatekit messages list --startDate "2024-01-01T00:00:00Z"',
+      },
+      {
+        description: 'Get messages with raw platform data',
+        command: 'gatekit messages list --raw --limit 5',
       },
     ],
   })

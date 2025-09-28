@@ -121,6 +121,8 @@ model ProjectPlatform {
   id                   String   @id @default(uuid())
   projectId            String   @map("project_id")
   platform             String
+  name                 String   // Required friendly name for the platform
+  description          String?  // Optional description
   credentialsEncrypted String   @map("credentials_encrypted") @db.Text
   webhookToken         String   @unique @default(uuid()) @map("webhook_token") // UUID webhook endpoint
   isActive             Boolean  @default(true) @map("is_active")
@@ -136,6 +138,7 @@ model ProjectPlatform {
   @@index([projectId])
   @@index([webhookToken])
   @@index([projectId, platform])
+  @@index([projectId, name])
   @@map("project_platforms")
 }
 

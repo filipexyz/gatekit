@@ -69,16 +69,21 @@ describe('Platforms (e2e)', () => {
           .set('X-API-Key', testApiKey)
           .send({
             platform: 'discord',
+            name: 'Test Discord Bot',
             credentials: {
-              token: 'test-discord-bot-token',
+              token: 'Test Discord Bot-token',
             },
             isActive: true,
             testMode: false,
           })
-          .expect(201)
           .expect((res) => {
+            if (res.status !== 201) {
+              console.log('Discord creation error:', res.body);
+            }
+            expect(res.status).toBe(201);
             expect(res.body).toHaveProperty('id');
             expect(res.body).toHaveProperty('platform', 'discord');
+            expect(res.body).toHaveProperty('name', 'Test Discord Bot');
             expect(res.body).toHaveProperty('isActive', true);
             expect(res.body).not.toHaveProperty('credentials');
           });
@@ -90,8 +95,9 @@ describe('Platforms (e2e)', () => {
           .set('X-API-Key', testApiKey)
           .send({
             platform: 'telegram',
+            name: 'Test Telegram Bot',
             credentials: {
-              token: 'test-telegram-bot-token',
+              token: 'Test Telegram Bot-token',
             },
             isActive: true,
             testMode: true,
@@ -115,6 +121,7 @@ describe('Platforms (e2e)', () => {
           data: {
             projectId: testProjectId,
             platform: 'discord',
+            name: 'first-discord',
             credentialsEncrypted: 'encrypted',
             isActive: true,
             testMode: false,
@@ -127,7 +134,8 @@ describe('Platforms (e2e)', () => {
           .set('X-API-Key', testApiKey)
           .send({
             platform: 'discord',
-            credentials: { token: 'second-discord-token' },
+            name: 'Second Discord Bot',
+            credentials: { token: 'Second Discord Bot-token' },
           })
           .expect((res) => {
             if (res.status !== 201) {
@@ -145,6 +153,7 @@ describe('Platforms (e2e)', () => {
           .set('X-API-Key', 'invalid-key')
           .send({
             platform: 'discord',
+            name: 'Test Bot',
             credentials: { token: 'test-token' },
           })
           .expect(401);
@@ -156,6 +165,7 @@ describe('Platforms (e2e)', () => {
           .set('X-API-Key', testApiKey)
           .send({
             platform: 'invalid-platform',
+            name: 'invalid-bot',
             credentials: { token: 'test-token' },
           })
           .expect(400);
@@ -175,6 +185,7 @@ describe('Platforms (e2e)', () => {
             {
               projectId: testProjectId,
               platform: 'discord',
+              name: 'discord-bot',
               credentialsEncrypted: 'encrypted-discord',
               isActive: true,
               testMode: false,
@@ -182,6 +193,7 @@ describe('Platforms (e2e)', () => {
             {
               projectId: testProjectId,
               platform: 'telegram',
+              name: 'telegram-bot',
               credentialsEncrypted: 'encrypted-telegram',
               isActive: false,
               testMode: true,
@@ -230,6 +242,7 @@ describe('Platforms (e2e)', () => {
           data: {
             projectId: testProjectId,
             platform: 'discord',
+            name: 'Test Discord Platform',
             credentialsEncrypted: encryptedCredentials,
             isActive: true,
             testMode: false,
@@ -271,6 +284,7 @@ describe('Platforms (e2e)', () => {
           data: {
             projectId: testProjectId,
             platform: 'discord',
+            name: 'Update Test Platform',
             credentialsEncrypted: 'encrypted_old',
             isActive: true,
             testMode: false,
@@ -323,6 +337,7 @@ describe('Platforms (e2e)', () => {
           data: {
             projectId: testProjectId,
             platform: 'discord',
+            name: 'Delete Test Platform',
             credentialsEncrypted: 'encrypted',
             isActive: true,
             testMode: false,
@@ -366,6 +381,7 @@ describe('Platforms (e2e)', () => {
         data: {
           projectId: testProjectId,
           platform: 'discord',
+          name: 'Message Test Platform',
           credentialsEncrypted: CryptoUtil.encrypt(
             JSON.stringify({ token: 'test-token' }),
           ),

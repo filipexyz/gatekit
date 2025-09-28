@@ -70,6 +70,8 @@ export interface MessageStatus {
 
 // Update DTOs (simplified versions of backend DTOs)
 export interface UpdatePlatformDto {
+  name?: string;
+  description?: string;
   isActive?: boolean;
   testMode?: boolean;
   credentials?: Record<string, unknown>;

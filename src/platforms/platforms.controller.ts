@@ -39,6 +39,15 @@ export class PlatformsController {
         choices: ['discord', 'telegram', 'whatsapp-evo'],
         type: 'string',
       },
+      name: {
+        required: true,
+        description: 'Friendly name for the platform instance',
+        type: 'string',
+      },
+      description: {
+        description: 'Optional description for the platform instance',
+        type: 'string',
+      },
       credentials: {
         required: true,
         description:
@@ -60,17 +69,17 @@ export class PlatformsController {
       {
         description: 'Add Discord bot',
         command:
-          'gatekit platforms create --platform discord --credentials \'{"token":"MTExMjIzMzQ0NTU2Njc3ODg5MA.Xx-Xxx.FakeTokenForTestingPurposesOnly123456789"}\'',
+          'gatekit platforms create --platform discord --name "Main Discord Bot" --credentials \'{"token":"YOUR_DISCORD_BOT_TOKEN"}\'',
       },
       {
         description: 'Add Telegram bot in test mode',
         command:
-          'gatekit platforms create --platform telegram --credentials \'{"token":"7654321:AAFmi_SampleTelegramBotTokenHere_abcdefg"}\' --testMode true',
+          'gatekit platforms create --platform telegram --name "Test Telegram Bot" --description "Bot for testing purposes" --credentials \'{"token":"YOUR_TELEGRAM_BOT_TOKEN"}\' --testMode true',
       },
       {
         description: 'Add WhatsApp Evolution API',
         command:
-          'gatekit platforms create --platform whatsapp-evo --credentials \'{"evolutionApiUrl":"https://evo.example.com","evolutionApiKey":"your-api-key"}\'',
+          'gatekit platforms create --platform whatsapp-evo --name "Production WhatsApp" --credentials \'{"evolutionApiUrl":"https://your-evolution-api.com","evolutionApiKey":"YOUR_EVOLUTION_API_KEY"}\'',
       },
     ],
   })
@@ -137,6 +146,14 @@ export class PlatformsController {
     inputType: 'UpdatePlatformDto',
     outputType: 'PlatformResponse',
     options: {
+      name: {
+        description: 'Updated friendly name',
+        type: 'string',
+      },
+      description: {
+        description: 'Updated description',
+        type: 'string',
+      },
       credentials: {
         description: 'Updated credentials (JSON object)',
         type: 'object',
@@ -146,24 +163,24 @@ export class PlatformsController {
     },
     examples: [
       {
-        description: 'Update Telegram bot token',
+        description: 'Update platform name and description',
         command:
-          'gatekit platforms update my-project platform-123 --credentials \'{"token":"7654321:AAFmi_newtoken_here"}\'',
+          'gatekit platforms update --project my-project --id platform-123 --name "Updated Bot Name" --description "New description"',
       },
       {
-        description: 'Update Discord bot token',
+        description: 'Update Telegram bot token',
         command:
-          'gatekit platforms update my-project platform-456 --credentials \'{"token":"MTA1new.discord.token"}\'',
+          'gatekit platforms update --project my-project --id platform-123 --credentials \'{"token":"YOUR_NEW_TELEGRAM_TOKEN"}\'',
       },
       {
         description: 'Disable platform',
         command:
-          'gatekit platforms update my-project platform-123 --isActive false',
+          'gatekit platforms update --project my-project --id platform-123 --isActive false',
       },
       {
         description: 'Enable test mode',
         command:
-          'gatekit platforms update my-project platform-123 --testMode true',
+          'gatekit platforms update --project my-project --id platform-123 --testMode true',
       },
     ],
   })

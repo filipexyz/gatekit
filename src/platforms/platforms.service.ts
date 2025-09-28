@@ -92,6 +92,8 @@ export class PlatformsService {
       data: {
         projectId: project.id,
         platform: createPlatformDto.platform,
+        name: createPlatformDto.name,
+        description: createPlatformDto.description,
         credentialsEncrypted: encryptedCredentials,
         isActive: createPlatformDto.isActive ?? true,
         testMode: createPlatformDto.testMode ?? false,
@@ -113,6 +115,8 @@ export class PlatformsService {
     return {
       id: platform.id,
       platform: platform.platform,
+      name: platform.name,
+      description: platform.description,
       isActive: platform.isActive,
       testMode: platform.testMode,
       webhookUrl: this.getWebhookUrl(platform.platform, platform.webhookToken),
@@ -138,6 +142,8 @@ export class PlatformsService {
     return project.projectPlatforms.map((platform) => ({
       id: platform.id,
       platform: platform.platform,
+      name: platform.name,
+      description: platform.description,
       isActive: platform.isActive,
       testMode: platform.testMode,
       webhookUrl: this.getWebhookUrl(platform.platform, platform.webhookToken),
@@ -176,6 +182,8 @@ export class PlatformsService {
     return {
       id: platform.id,
       platform: platform.platform,
+      name: platform.name,
+      description: platform.description,
       credentials: decryptedCredentials,
       isActive: platform.isActive,
       testMode: platform.testMode,
@@ -212,6 +220,14 @@ export class PlatformsService {
     }
 
     const updateData: any = {};
+
+    if (updatePlatformDto.name !== undefined) {
+      updateData.name = updatePlatformDto.name;
+    }
+
+    if (updatePlatformDto.description !== undefined) {
+      updateData.description = updatePlatformDto.description;
+    }
 
     if (updatePlatformDto.credentials !== undefined) {
       // Validate credentials before updating
@@ -277,6 +293,8 @@ export class PlatformsService {
     return {
       id: platform.id,
       platform: platform.platform,
+      name: platform.name,
+      description: platform.description,
       isActive: platform.isActive,
       testMode: platform.testMode,
       webhookUrl: this.getWebhookUrl(platform.platform, platform.webhookToken),

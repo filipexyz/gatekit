@@ -8,4 +8,5 @@ export interface QueryMessagesDto {
   limit?: number;
   offset?: number;
   order?: 'asc' | 'desc';
+  raw?: boolean;
 }

@@ -45,7 +45,9 @@ async function extractContractsStandalone() {
       allContracts.push(...contracts);
     }
 
-    console.log(`✅ Found ${allContracts.length} contracts with @SdkContract decorators`);
+    console.log(
+      `✅ Found ${allContracts.length} contracts with @SdkContract decorators`,
+    );
 
     // Extract type definitions
     const typeDefinitions = await extractAllTypes(allContracts);
@@ -69,15 +71,22 @@ async function extractContractsStandalone() {
     const summary = {
       extractedAt: new Date().toISOString(),
       totalContracts: allContracts.length,
-      contractsByController: allContracts.reduce((acc, contract) => {
-        acc[contract.controller] = (acc[contract.controller] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
-      contractsByCategory: allContracts.reduce((acc, contract) => {
-        const category = contract.contractMetadata.category || 'Uncategorized';
-        acc[category] = (acc[category] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
+      contractsByController: allContracts.reduce(
+        (acc, contract) => {
+          acc[contract.controller] = (acc[contract.controller] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
+      contractsByCategory: allContracts.reduce(
+        (acc, contract) => {
+          const category =
+            contract.contractMetadata.category || 'Uncategorized';
+          acc[category] = (acc[category] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
     };
 
     const summaryFile = path.join(outputDir, 'extraction-summary.json');
@@ -85,24 +94,32 @@ async function extractContractsStandalone() {
 
     console.log(`📊 Extraction summary:`);
     console.log(`   Total contracts: ${summary.totalContracts}`);
-    console.log(`   Controllers: ${Object.keys(summary.contractsByController).join(', ')}`);
+    console.log(
+      `   Controllers: ${Object.keys(summary.contractsByController).join(', ')}`,
+    );
     console.log(`🎉 Contract extraction completed successfully!`);
-
   } catch (error) {
     console.error('❌ Contract extraction failed:', error);
     process.exit(1);
   }
 }
 
-function extractContractsFromFile(content: string, filePath: string): ExtractedContract[] {
+function extractContractsFromFile(
+  content: string,
+  filePath: string,
+): ExtractedContract[] {
   const contracts: ExtractedContract[] = [];
 
   // Extract proper controller class name
   const controllerClassMatch = content.match(/export class (\w+Controller)/);
-  const controllerName = controllerClassMatch ? controllerClassMatch[1] : path.basename(filePath, '.ts');
+  const controllerName = controllerClassMatch
+    ? controllerClassMatch[1]
+    : path.basename(filePath, '.ts');
 
   // Extract controller path
-  const controllerPathMatch = content.match(/@Controller\(['"`]([^'"`]+)['"`]\)/);
+  const controllerPathMatch = content.match(
+    /@Controller\(['"`]([^'"`]+)['"`]\)/,
+  );
   const controllerPath = controllerPathMatch ? controllerPathMatch[1] : '';
 
   // Find all @SdkContract decorators
@@ -113,14 +130,16 @@ function extractContractsFromFile(content: string, filePath: string): ExtractedC
     try {
       // Extract the contract metadata object
       const decoratorText = match[0];
-      const metadataText = decoratorText.replace('@SdkContract(', '').slice(0, -1);
+      const metadataText = decoratorText
+        .replace('@SdkContract(', '')
+        .slice(0, -1);
 
       // Parse the metadata (simplified - in real implementation, use proper AST parsing)
       const metadata = parseContractMetadata(metadataText);
 
       if (metadata) {
         // Extract method info
-        const methodInfo = extractMethodInfo(content, match.index!);
+        const methodInfo = extractMethodInfo(content, match.index);
 
         contracts.push({
           controller: controllerName,
@@ -148,14 +167,22 @@ function parseContractMetadata(metadataText: string): ContractMetadata | null {
   }
 }
 
-function extractMethodInfo(content: string, contractIndex: number): { name: string; httpMethod: string; path: string } {
+function extractMethodInfo(
+  content: string,
+  contractIndex: number,
+): { name: string; httpMethod: string; path: string } {
   // Look for method context around the @SdkContract decorator (before and after)
-  const beforeContract = content.substring(Math.max(0, contractIndex - 200), contractIndex);
+  const beforeContract = content.substring(
+    Math.max(0, contractIndex - 200),
+    contractIndex,
+  );
   const afterContract = content.substring(contractIndex);
   const methodSection = beforeContract + afterContract.substring(0, 300);
 
   // Extract HTTP method decorator - look more carefully
-  const httpMethodMatch = methodSection.match(/@(Get|Post|Put|Patch|Delete)\s*\(\s*['"`]?([^'"`)]*)['"`]?\s*\)/i);
+  const httpMethodMatch = methodSection.match(
+    /@(Get|Post|Put|Patch|Delete)\s*\(\s*['"`]?([^'"`)]*)['"`]?\s*\)/i,
+  );
   let httpMethod = 'GET';
   let methodPath = '';
 
@@ -164,24 +191,37 @@ function extractMethodInfo(content: string, contractIndex: number): { name: stri
     methodPath = httpMethodMatch[2] || '';
   } else {
     // Try without parentheses
-    const simpleHttpMatch = methodSection.match(/@(Get|Post|Put|Patch|Delete)(?!\w)/i);
+    const simpleHttpMatch = methodSection.match(
+      /@(Get|Post|Put|Patch|Delete)(?!\w)/i,
+    );
     if (simpleHttpMatch) {
       httpMethod = simpleHttpMatch[1].toUpperCase();
     }
   }
 
   // Extract method name - look for method definition after decorators
-  const methodNameMatch = methodSection.match(/(?:async\s+)?(\w+)\s*\([^)]*\)\s*[{:]/);
+  const methodNameMatch = methodSection.match(
+    /(?:async\s+)?(\w+)\s*\([^)]*\)\s*[{:]/,
+  );
   const methodName = methodNameMatch ? methodNameMatch[1] : 'unknown';
 
   // Fallback HTTP method detection from method name
   if (httpMethod === 'GET' && methodName !== 'unknown') {
     const name = methodName.toLowerCase();
-    if (name.includes('create') || name.includes('add') || name.includes('send') || name.includes('retry')) {
+    if (
+      name.includes('create') ||
+      name.includes('add') ||
+      name.includes('send') ||
+      name.includes('retry')
+    ) {
       httpMethod = 'POST';
     } else if (name.includes('update') || name.includes('edit')) {
       httpMethod = 'PATCH';
-    } else if (name.includes('delete') || name.includes('remove') || name.includes('revoke')) {
+    } else if (
+      name.includes('delete') ||
+      name.includes('remove') ||
+      name.includes('revoke')
+    ) {
       httpMethod = 'DELETE';
     }
   }
@@ -205,14 +245,16 @@ function combinePaths(controllerPath: string, methodPath: string): string {
   return fullPath.startsWith('/') ? fullPath : `/${fullPath}`;
 }
 
-async function extractAllTypes(contracts: ExtractedContract[]): Promise<Record<string, string>> {
+async function extractAllTypes(
+  contracts: ExtractedContract[],
+): Promise<Record<string, string>> {
   console.log('🔍 Extracting types for contracts...');
 
   const typeDefinitions: Record<string, string> = {};
   const typeNames = new Set<string>();
 
   // Collect all referenced types
-  contracts.forEach(contract => {
+  contracts.forEach((contract) => {
     if (contract.contractMetadata.inputType) {
       typeNames.add(contract.contractMetadata.inputType);
     }
@@ -234,12 +276,22 @@ async function extractAllTypes(contracts: ExtractedContract[]): Promise<Record<s
   const responseFiles = await glob('src/**/api-responses.ts');
   const dtoFiles = await glob('src/**/*.dto.ts');
   const interfaceFiles = await glob('src/**/interfaces/*.interface.ts');
-  const allTypeFiles = [...typeFiles, ...responseFiles, ...interfaceFiles, ...dtoFiles];
+  const allTypeFiles = [
+    ...typeFiles,
+    ...responseFiles,
+    ...interfaceFiles,
+    ...dtoFiles,
+  ];
 
-  console.log(`🔍 Searching in ${allTypeFiles.length} type files:`, allTypeFiles);
+  console.log(
+    `🔍 Searching in ${allTypeFiles.length} type files:`,
+    allTypeFiles,
+  );
 
   // Recursive type extraction - automatically find dependencies
-  const typesToProcess = new Set(Array.from(typeNames).filter(name => !name.endsWith('[]')));
+  const typesToProcess = new Set(
+    Array.from(typeNames).filter((name) => !name.endsWith('[]')),
+  );
   const processedTypes = new Set<string>();
 
   while (typesToProcess.size > 0) {
@@ -261,7 +313,7 @@ async function extractAllTypes(contracts: ExtractedContract[]): Promise<Record<s
 
         // Auto-discover nested type references
         const nestedTypes = findReferencedTypes(typeDefinition);
-        nestedTypes.forEach(nestedType => {
+        nestedTypes.forEach((nestedType) => {
           if (!processedTypes.has(nestedType)) {
             typesToProcess.add(nestedType);
             console.log(`🔗 Auto-discovered dependency: ${nestedType}`);
@@ -278,13 +330,21 @@ async function extractAllTypes(contracts: ExtractedContract[]): Promise<Record<s
     }
   }
 
-  console.log(`📝 Extracted ${Object.keys(typeDefinitions).length} TypeScript types`);
+  console.log(
+    `📝 Extracted ${Object.keys(typeDefinitions).length} TypeScript types`,
+  );
   return typeDefinitions;
 }
 
-function extractTypeFromContent(content: string, typeName: string): string | null {
+function extractTypeFromContent(
+  content: string,
+  typeName: string,
+): string | null {
   // Extract interface definitions
-  const interfaceRegex = new RegExp(`export interface ${typeName}[\\s\\S]*?^}`, 'gm');
+  const interfaceRegex = new RegExp(
+    `export interface ${typeName}[\\s\\S]*?^}`,
+    'gm',
+  );
   const interfaceMatch = content.match(interfaceRegex);
   if (interfaceMatch) {
     return interfaceMatch[0];
@@ -309,15 +369,52 @@ function extractTypeFromContent(content: string, typeName: string): string | nul
 
 function convertClassToInterface(classDefinition: string): string {
   // Convert DTO class to TypeScript interface
-  return classDefinition
-    .replace(/export class/g, 'export interface')
-    .replace(/@[A-Za-z][A-Za-z0-9]*(\([^)]*\))?\s*/g, '') // Remove decorators
-    .replace(/(private|public|protected)\s+/g, '')         // Remove access modifiers
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line && !line.startsWith('//'))       // Remove empty lines and comments
-    .join('\n')
-    .trim();
+  const lines = classDefinition.split('\n');
+  const processedLines: string[] = [];
+  let inDecorator = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim();
+
+    // Skip decorator lines entirely - handle multiline decorators
+    if (line.startsWith('@')) {
+      inDecorator = true;
+      // Check if decorator ends on this line (no opening parenthesis or balanced parentheses)
+      const openParens = (line.match(/\(/g) || []).length;
+      const closeParens = (line.match(/\)/g) || []).length;
+      if (openParens === closeParens) {
+        inDecorator = false;
+      }
+      continue;
+    }
+
+    // If we're in a multiline decorator, skip until we find the closing parenthesis
+    if (inDecorator) {
+      const openParens = (line.match(/\(/g) || []).length;
+      const closeParens = (line.match(/\)/g) || []).length;
+      if (closeParens > openParens) {
+        inDecorator = false;
+      }
+      continue;
+    }
+
+    // Skip comments and empty lines
+    if (!line || line.startsWith('//')) {
+      continue;
+    }
+
+    // Convert class to interface
+    if (line.includes('export class')) {
+      line = line.replace(/export class/g, 'export interface');
+    }
+
+    // Remove access modifiers
+    line = line.replace(/(private|public|protected)\s+/g, '');
+
+    processedLines.push(line);
+  }
+
+  return processedLines.join('\n').trim();
 }
 
 function findReferencedTypes(typeDefinition: string): string[] {
@@ -347,8 +444,18 @@ function findReferencedTypes(typeDefinition: string): string[] {
 
 function isPrimitiveType(typeName: string): boolean {
   const primitives = [
-    'string', 'number', 'boolean', 'Date', 'any', 'unknown', 'object',
-    'Array', 'Record', 'Promise', 'Function', 'Error'
+    'string',
+    'number',
+    'boolean',
+    'Date',
+    'any',
+    'unknown',
+    'object',
+    'Array',
+    'Record',
+    'Promise',
+    'Function',
+    'Error',
   ];
   return primitives.includes(typeName);
 }
