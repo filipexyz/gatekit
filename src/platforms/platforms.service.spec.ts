@@ -17,6 +17,11 @@ describe('PlatformsService', () => {
   let service: PlatformsService;
   let prisma: PrismaService;
 
+  const mockAuthContext = {
+    authType: 'api-key' as const,
+    project: { id: 'project-id', slug: 'test-project' },
+  };
+
   const mockPrismaService = {
     project: {
       findUnique: jest.fn(),
@@ -87,7 +92,11 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      const result = await service.create(projectSlug, createDto);
+      const result = await service.create(
+        projectSlug,
+        createDto,
+        mockAuthContext,
+      );
 
       expect(result).toHaveProperty('id', 'platform-id');
       expect(result).toHaveProperty('platform', 'discord');
@@ -101,10 +110,14 @@ describe('PlatformsService', () => {
       mockPrismaService.project.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.create('non-existent', {
-          platform: 'discord' as any,
-          credentials: {},
-        }),
+        service.create(
+          'non-existent',
+          {
+            platform: 'discord' as any,
+            credentials: {},
+          },
+          mockAuthContext,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -123,10 +136,14 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      const result = await service.create('test-project', {
-        platform: 'discord' as any,
-        credentials: {},
-      });
+      const result = await service.create(
+        'test-project',
+        {
+          platform: 'discord' as any,
+          credentials: {},
+        },
+        mockAuthContext,
+      );
 
       expect(result).toHaveProperty('platform', 'discord');
       expect(result).toHaveProperty('id', 'second-discord-instance');
@@ -299,7 +316,7 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      await service.create(projectSlug, createDto);
+      await service.create(projectSlug, createDto, mockAuthContext);
 
       expect(mockProvider.onPlatformEvent).toHaveBeenCalledWith({
         type: 'created',
@@ -334,7 +351,7 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      await service.create(projectSlug, createDto);
+      await service.create(projectSlug, createDto, mockAuthContext);
 
       expect(mockProvider.onPlatformEvent).not.toHaveBeenCalled();
     });
@@ -471,7 +488,7 @@ describe('PlatformsService', () => {
 
       // Should not throw even if provider doesn't exist
       await expect(
-        service.create(projectSlug, createDto),
+        service.create(projectSlug, createDto, mockAuthContext),
       ).resolves.toBeDefined();
     });
 
@@ -500,7 +517,7 @@ describe('PlatformsService', () => {
 
       // Should not throw even if provider doesn't support events
       await expect(
-        service.create(projectSlug, createDto),
+        service.create(projectSlug, createDto, mockAuthContext),
       ).resolves.toBeDefined();
     });
   });

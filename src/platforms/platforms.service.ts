@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlatformDto } from './dto/create-platform.dto';
 import { UpdatePlatformDto } from './dto/update-platform.dto';
 import { CryptoUtil } from '../common/utils/crypto.util';
+import { SecurityUtil, AuthContext } from '../common/utils/security.util';
 import { CredentialValidationService } from './services/credential-validation.service';
 import { PlatformRegistry } from './services/platform-registry.service';
 import { PlatformLifecycleEvent } from './interfaces/platform-provider.interface';
@@ -61,16 +62,18 @@ export class PlatformsService {
     }
   }
 
-  async create(projectSlug: string, createPlatformDto: CreatePlatformDto) {
-    const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
-    });
-
-    if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
-    }
+  async create(
+    projectSlug: string,
+    createPlatformDto: CreatePlatformDto,
+    authContext: AuthContext,
+  ) {
+    // Get project and validate access in one step
+    const project = await SecurityUtil.getProjectWithAccess(
+      this.prisma,
+      projectSlug,
+      authContext,
+      'platform creation',
+    );
 
     // Note: Multiple instances of the same platform are now allowed per project
 

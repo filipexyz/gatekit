@@ -18,9 +18,13 @@ Join our Discord community for support and discussions: https://discord.gg/bQPsv
 - **Queue**: Bull with Redis
 - **Cache**: Redis
 
-## Authentication
+## Authentication & Security
 
-Dual authentication support:
+### Industry-Grade Security Architecture
+
+GateKit implements **defense-in-depth security** with multiple overlapping layers to ensure bulletproof protection against unauthorized access.
+
+#### **Authentication Methods**
 
 1. **JWT Token (Auth0)**
    - Header: `Authorization: Bearer <jwt_token>`
@@ -31,6 +35,45 @@ Dual authentication support:
    - Header: `X-API-Key: <api_key>`
    - Primary authentication method
    - Works independently of Auth0 configuration
+
+#### **Multi-Layer Security Implementation**
+
+**Layer 1: Controller Guards**
+
+```typescript
+@UseGuards(AppAuthGuard, ProjectAccessGuard)
+```
+
+- `AppAuthGuard` - Validates API keys or JWT tokens
+- `ProjectAccessGuard` - Ensures authenticated user has access to target project
+
+**Layer 2: Service-Level Validation (Defense-in-Depth)**
+
+```typescript
+SecurityUtil.getProjectWithAccess(prisma, projectSlug, authContext, operation);
+```
+
+- Mandatory validation at service level prevents bypass scenarios
+- Validates project access even if guards are bypassed
+- Provides detailed security error messages for debugging
+
+**Layer 3: Type Safety**
+
+```typescript
+authContext: AuthContext; // Required, not optional
+```
+
+- TypeScript enforces security context passing
+- Prevents accidental omission of security validation
+- Compile-time safety for critical security operations
+
+#### **Security Features**
+
+- ✅ **Guard Bypass Detection** - Missing auth context triggers security errors
+- ✅ **Project Isolation** - API keys and JWT users can only access their projects
+- ✅ **Mandatory Validation** - No optional security parameters
+- ✅ **Comprehensive Logging** - All security events are logged
+- ✅ **Zero Single Points of Failure** - Multiple overlapping validations
 
 ## API Versioning
 
@@ -172,6 +215,56 @@ curl -X POST "/api/v1/projects/my-project/platforms" \
 - **Scope-based authorization** - Granular API key permissions
 - **Message deduplication** - Unique constraints prevent duplicate storage
 
+### Security Utilities
+
+#### **SecurityUtil Class**
+
+Central utility for all security operations with zero-duplication patterns:
+
+```typescript
+// Get project and validate access in one step
+const project = await SecurityUtil.getProjectWithAccess(
+  prisma,
+  projectSlug,
+  authContext,
+  'operation',
+);
+
+// Standalone validation
+SecurityUtil.validateProjectAccess(authContext, projectId, 'operation');
+
+// Extract auth context from request
+const authContext = SecurityUtil.extractAuthContext(request);
+```
+
+#### **AuthContext Interface**
+
+Type-safe authentication context passed between layers:
+
+```typescript
+interface AuthContext {
+  authType: 'api-key' | 'jwt';
+  project?: { id: string; slug: string };
+  user?: { userId: string; email?: string };
+}
+```
+
+#### **Security Decorators**
+
+```typescript
+// Controller method parameter decorator
+@AuthContextParam() authContext: AuthContext
+
+// Service method signature
+async method(projectSlug: string, data: any, authContext: AuthContext)
+```
+
+#### **Error Handling**
+
+- **Guard Bypass Detection**: `SECURITY ERROR: Authentication context missing for {operation}. This indicates a guard bypass.`
+- **Project Access Denial**: `API key does not have access to perform {operation}`
+- **Invalid Authentication**: `Invalid authentication type for {operation}`
+
 ### Platform Provider Features
 
 - **One connection per project** - Discord: dedicated WebSocket per project, WhatsApp-Evo: Evolution API integration
@@ -215,17 +308,44 @@ When writing or modifying tests:
 ### Quick Commands
 
 ```bash
-npm test         # Run unit tests (300 tests - all platforms)
-npm test:e2e     # Run integration tests
+npm test         # Run unit tests (360 tests - all platforms + security)
+npm test:e2e     # Run integration tests (86 tests)
 npm test -- --testPathPatterns="whatsapp.*spec.ts"  # Run WhatsApp-Evo tests (57 tests)
+npm test -- --testPathPatterns="security.*spec.ts|project-access.*spec.ts"  # Security tests
 ```
 
-### Platform Test Coverage
+### Test Coverage Summary
+
+**Total Tests**: 446 tests (360 unit + 86 e2e)
+
+#### **Security Test Coverage**
+
+- **ProjectAccessGuard**: 16 comprehensive tests covering all auth scenarios
+- **SecurityUtil**: 12 tests for defense-in-depth validation
+- **Auth Context**: Full coverage of API key and JWT authentication flows
+- **Guard Integration**: End-to-end security validation testing
+
+#### **Platform Test Coverage**
 
 - **Discord Provider**: Complete WebSocket connection testing
 - **Telegram Provider**: Comprehensive webhook and bot API testing
 - **WhatsApp-Evo Provider**: 57 tests covering Evolution API integration, QR code flow, edge cases
 - **Credential Validators**: Extensive validation testing for all platforms
+
+#### **Security Testing Requirements**
+
+When writing tests for services with project access:
+
+```typescript
+// REQUIRED: All service tests must provide auth context
+const mockAuthContext = {
+  authType: 'api-key' as const,
+  project: { id: 'project-id', slug: 'test-project' },
+};
+
+// Service call with auth context
+await service.method(projectSlug, data, mockAuthContext);
+```
 
 For detailed testing guidelines, see: **[test/CLAUDE.md](test/CLAUDE.md)**
 
