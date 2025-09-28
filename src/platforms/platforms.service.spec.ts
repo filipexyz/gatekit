@@ -251,6 +251,9 @@ describe('PlatformsService', () => {
       });
       mockPrismaService.projectPlatform.findFirst.mockResolvedValue({
         id: platformId,
+        platform: 'discord',
+        credentialsEncrypted: 'encrypted_{"token":"test-token"}',
+        webhookToken: 'webhook-token',
       });
 
       const result = await service.remove(projectSlug, platformId);
@@ -259,6 +262,246 @@ describe('PlatformsService', () => {
       expect(mockPrismaService.projectPlatform.delete).toHaveBeenCalledWith({
         where: { id: platformId },
       });
+    });
+  });
+
+  describe('Platform Lifecycle Events', () => {
+    let mockProvider: any;
+
+    beforeEach(() => {
+      mockProvider = {
+        name: 'whatsapp-evo',
+        onPlatformEvent: jest.fn(),
+      };
+      mockPlatformRegistry.getProvider.mockReturnValue(mockProvider);
+    });
+
+    it('should fire created event when platform is created and active', async () => {
+      const projectSlug = 'test-project';
+      const createDto = {
+        platform: 'whatsapp-evo',
+        credentials: {
+          evolutionApiUrl: 'https://evo.example.com',
+          evolutionApiKey: 'test-key',
+        },
+        isActive: true,
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
+      mockPrismaService.projectPlatform.create.mockResolvedValue({
+        id: 'platform-id',
+        platform: 'whatsapp-evo',
+        isActive: true,
+        webhookToken: 'webhook-token',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await service.create(projectSlug, createDto);
+
+      expect(mockProvider.onPlatformEvent).toHaveBeenCalledWith({
+        type: 'created',
+        projectId: 'project-id',
+        platformId: 'platform-id',
+        platform: 'whatsapp-evo',
+        credentials: createDto.credentials,
+        webhookToken: 'webhook-token',
+      });
+    });
+
+    it('should not fire created event when platform is created but inactive', async () => {
+      const projectSlug = 'test-project';
+      const createDto = {
+        platform: 'whatsapp-evo',
+        credentials: {
+          evolutionApiUrl: 'https://evo.example.com',
+          evolutionApiKey: 'test-key',
+        },
+        isActive: false,
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
+      mockPrismaService.projectPlatform.create.mockResolvedValue({
+        id: 'platform-id',
+        platform: 'whatsapp-evo',
+        isActive: false,
+        webhookToken: 'webhook-token',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await service.create(projectSlug, createDto);
+
+      expect(mockProvider.onPlatformEvent).not.toHaveBeenCalled();
+    });
+
+    it('should fire activated event when platform is activated', async () => {
+      const projectSlug = 'test-project';
+      const platformId = 'platform-id';
+      const updateDto = { isActive: true };
+
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
+      mockPrismaService.projectPlatform.findFirst.mockResolvedValue({
+        id: platformId,
+        platform: 'whatsapp-evo',
+        isActive: false, // Was inactive
+        credentialsEncrypted:
+          'encrypted_{"evolutionApiUrl":"https://evo.example.com","evolutionApiKey":"test-key"}',
+      });
+      mockPrismaService.projectPlatform.update.mockResolvedValue({
+        id: platformId,
+        platform: 'whatsapp-evo',
+        isActive: true, // Now active
+        webhookToken: 'webhook-token',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await service.update(projectSlug, platformId, updateDto);
+
+      expect(mockProvider.onPlatformEvent).toHaveBeenCalledWith({
+        type: 'activated',
+        projectId: 'project-id',
+        platformId: 'platform-id',
+        platform: 'whatsapp-evo',
+        credentials: {
+          evolutionApiUrl: 'https://evo.example.com',
+          evolutionApiKey: 'test-key',
+        },
+        webhookToken: 'webhook-token',
+      });
+    });
+
+    it('should fire deactivated event when platform is deactivated', async () => {
+      const projectSlug = 'test-project';
+      const platformId = 'platform-id';
+      const updateDto = { isActive: false };
+
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
+      mockPrismaService.projectPlatform.findFirst.mockResolvedValue({
+        id: platformId,
+        platform: 'whatsapp-evo',
+        isActive: true, // Was active
+        credentialsEncrypted:
+          'encrypted_{"evolutionApiUrl":"https://evo.example.com","evolutionApiKey":"test-key"}',
+      });
+      mockPrismaService.projectPlatform.update.mockResolvedValue({
+        id: platformId,
+        platform: 'whatsapp-evo',
+        isActive: false, // Now inactive
+        webhookToken: 'webhook-token',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await service.update(projectSlug, platformId, updateDto);
+
+      expect(mockProvider.onPlatformEvent).toHaveBeenCalledWith({
+        type: 'deactivated',
+        projectId: 'project-id',
+        platformId: 'platform-id',
+        platform: 'whatsapp-evo',
+        credentials: {
+          evolutionApiUrl: 'https://evo.example.com',
+          evolutionApiKey: 'test-key',
+        },
+        webhookToken: 'webhook-token',
+      });
+    });
+
+    it('should fire deleted event when platform is removed', async () => {
+      const projectSlug = 'test-project';
+      const platformId = 'platform-id';
+
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
+      mockPrismaService.projectPlatform.findFirst.mockResolvedValue({
+        id: platformId,
+        platform: 'whatsapp-evo',
+        credentialsEncrypted:
+          'encrypted_{"evolutionApiUrl":"https://evo.example.com","evolutionApiKey":"test-key"}',
+        webhookToken: 'webhook-token',
+      });
+
+      await service.remove(projectSlug, platformId);
+
+      expect(mockProvider.onPlatformEvent).toHaveBeenCalledWith({
+        type: 'deleted',
+        projectId: 'project-id',
+        platformId: 'platform-id',
+        platform: 'whatsapp-evo',
+        credentials: {
+          evolutionApiUrl: 'https://evo.example.com',
+          evolutionApiKey: 'test-key',
+        },
+        webhookToken: 'webhook-token',
+      });
+    });
+
+    it('should handle missing provider gracefully', async () => {
+      mockPlatformRegistry.getProvider.mockReturnValue(null);
+
+      const projectSlug = 'test-project';
+      const createDto = {
+        platform: 'unknown-platform',
+        credentials: {},
+        isActive: true,
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
+      mockPrismaService.projectPlatform.create.mockResolvedValue({
+        id: 'platform-id',
+        platform: 'unknown-platform',
+        isActive: true,
+        webhookToken: 'webhook-token',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      // Should not throw even if provider doesn't exist
+      await expect(
+        service.create(projectSlug, createDto),
+      ).resolves.toBeDefined();
+    });
+
+    it('should handle provider without onPlatformEvent method', async () => {
+      const providerWithoutEvents = { name: 'simple-provider' };
+      mockPlatformRegistry.getProvider.mockReturnValue(providerWithoutEvents);
+
+      const projectSlug = 'test-project';
+      const createDto = {
+        platform: 'simple-platform',
+        credentials: {},
+        isActive: true,
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
+      mockPrismaService.projectPlatform.create.mockResolvedValue({
+        id: 'platform-id',
+        platform: 'simple-platform',
+        isActive: true,
+        webhookToken: 'webhook-token',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      // Should not throw even if provider doesn't support events
+      await expect(
+        service.create(projectSlug, createDto),
+      ).resolves.toBeDefined();
     });
   });
 

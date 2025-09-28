@@ -583,4 +583,202 @@ describe('WhatsAppProvider', () => {
       });
     });
   });
+
+  describe('Platform Lifecycle Events', () => {
+    beforeEach(() => {
+      // Mock successful webhook setup
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        text: jest.fn().mockResolvedValue('Webhook configured'),
+      });
+    });
+
+    it('should automatically setup webhook on platform created event', async () => {
+      const event = {
+        type: 'created' as const,
+        projectId: 'project1',
+        platformId: 'platform1',
+        platform: 'whatsapp-evo',
+        credentials: {
+          evolutionApiUrl: 'https://evo.example.com',
+          evolutionApiKey: 'test-key',
+        },
+        webhookToken: 'webhook-token-123',
+      };
+
+      await provider.onPlatformEvent(event);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://evo.example.com/webhook/set/gatekit',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: 'test-key',
+          },
+          body: expect.stringContaining('"enabled":true'),
+        }),
+      );
+    });
+
+    it('should automatically setup webhook on platform activated event', async () => {
+      const event = {
+        type: 'activated' as const,
+        projectId: 'project1',
+        platformId: 'platform1',
+        platform: 'whatsapp-evo',
+        credentials: {
+          evolutionApiUrl: 'https://evo.example.com',
+          evolutionApiKey: 'test-key',
+        },
+        webhookToken: 'webhook-token-123',
+      };
+
+      await provider.onPlatformEvent(event);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://evo.example.com/webhook/set/gatekit',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: 'test-key',
+          },
+        }),
+      );
+    });
+
+    it('should re-setup webhook on platform updated event', async () => {
+      const event = {
+        type: 'updated' as const,
+        projectId: 'project1',
+        platformId: 'platform1',
+        platform: 'whatsapp-evo',
+        credentials: {
+          evolutionApiUrl: 'https://evo-new.example.com',
+          evolutionApiKey: 'new-test-key',
+        },
+        webhookToken: 'new-webhook-token',
+      };
+
+      await provider.onPlatformEvent(event);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://evo-new.example.com/webhook/set/gatekit',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: 'new-test-key',
+          },
+        }),
+      );
+    });
+
+    it('should cleanup connection on platform deactivated event', async () => {
+      const connectionKey = 'project1:platform1';
+      const event = {
+        type: 'deactivated' as const,
+        projectId: 'project1',
+        platformId: 'platform1',
+        platform: 'whatsapp-evo',
+        credentials: {},
+      };
+
+      // First create a connection
+      await provider.createAdapter(connectionKey, mockCredentials);
+      expect(provider.getAdapter(connectionKey)).toBeDefined();
+
+      // Then deactivate
+      await provider.onPlatformEvent(event);
+
+      // Connection should be removed
+      expect(provider.getAdapter(connectionKey)).toBeUndefined();
+    });
+
+    it('should cleanup connection on platform deleted event', async () => {
+      const connectionKey = 'project1:platform1';
+      const event = {
+        type: 'deleted' as const,
+        projectId: 'project1',
+        platformId: 'platform1',
+        platform: 'whatsapp-evo',
+        credentials: {},
+      };
+
+      // First create a connection
+      await provider.createAdapter(connectionKey, mockCredentials);
+      expect(provider.getAdapter(connectionKey)).toBeDefined();
+
+      // Then delete
+      await provider.onPlatformEvent(event);
+
+      // Connection should be removed
+      expect(provider.getAdapter(connectionKey)).toBeUndefined();
+    });
+
+    it('should handle webhook setup failure gracefully', async () => {
+      // Mock webhook setup failure
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        text: jest.fn().mockResolvedValue('Webhook setup failed'),
+      });
+
+      const event = {
+        type: 'created' as const,
+        projectId: 'project1',
+        platformId: 'platform1',
+        platform: 'whatsapp-evo',
+        credentials: {
+          evolutionApiUrl: 'https://evo.example.com',
+          evolutionApiKey: 'test-key',
+        },
+        webhookToken: 'webhook-token-123',
+      };
+
+      // Should not throw error even if webhook setup fails
+      await expect(provider.onPlatformEvent(event)).resolves.not.toThrow();
+    });
+
+    it('should skip webhook setup when no webhook token provided', async () => {
+      const event = {
+        type: 'created' as const,
+        projectId: 'project1',
+        platformId: 'platform1',
+        platform: 'whatsapp-evo',
+        credentials: {
+          evolutionApiUrl: 'https://evo.example.com',
+          evolutionApiKey: 'test-key',
+        },
+        // No webhookToken
+      };
+
+      await provider.onPlatformEvent(event);
+
+      // Should not attempt webhook setup
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('should handle network errors during webhook setup', async () => {
+      // Mock network error
+      (global.fetch as jest.Mock).mockRejectedValue(
+        new Error('Network timeout'),
+      );
+
+      const event = {
+        type: 'created' as const,
+        projectId: 'project1',
+        platformId: 'platform1',
+        platform: 'whatsapp-evo',
+        credentials: {
+          evolutionApiUrl: 'https://evo.example.com',
+          evolutionApiKey: 'test-key',
+        },
+        webhookToken: 'webhook-token-123',
+      };
+
+      // Should handle error gracefully without throwing
+      await expect(provider.onPlatformEvent(event)).resolves.not.toThrow();
+    });
+  });
 });

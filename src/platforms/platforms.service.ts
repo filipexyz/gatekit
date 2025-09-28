@@ -11,6 +11,7 @@ import { UpdatePlatformDto } from './dto/update-platform.dto';
 import { CryptoUtil } from '../common/utils/crypto.util';
 import { CredentialValidationService } from './services/credential-validation.service';
 import { PlatformRegistry } from './services/platform-registry.service';
+import { PlatformLifecycleEvent } from './interfaces/platform-provider.interface';
 import TelegramBot = require('node-telegram-bot-api');
 
 @Injectable()
@@ -26,6 +27,38 @@ export class PlatformsService {
   private getWebhookUrl(platform: string, webhookToken: string): string {
     const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
     return `${baseUrl}/api/v1/webhooks/${platform}/${webhookToken}`;
+  }
+
+  private async firePlatformEvent(
+    type: PlatformLifecycleEvent['type'],
+    projectId: string,
+    platformId: string,
+    platform: string,
+    credentials: any,
+    webhookToken?: string,
+  ): Promise<void> {
+    const provider = this.platformRegistry.getProvider(platform);
+    if (provider && 'onPlatformEvent' in provider) {
+      const event: PlatformLifecycleEvent = {
+        type,
+        projectId,
+        platformId,
+        platform,
+        credentials,
+        webhookToken,
+      };
+
+      try {
+        await (provider as any).onPlatformEvent(event);
+        this.logger.log(
+          `Platform event '${type}' fired for ${platform} provider`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Failed to process platform event '${type}' for ${platform}: ${error.message}`,
+        );
+      }
+    }
   }
 
   async create(projectSlug: string, createPlatformDto: CreatePlatformDto) {
@@ -61,6 +94,18 @@ export class PlatformsService {
         testMode: createPlatformDto.testMode ?? false,
       },
     });
+
+    // Fire platform created event for automatic webhook setup
+    if (platform.isActive) {
+      await this.firePlatformEvent(
+        'created',
+        project.id,
+        platform.id,
+        platform.platform,
+        createPlatformDto.credentials,
+        platform.webhookToken,
+      );
+    }
 
     return {
       id: platform.id,
@@ -190,6 +235,42 @@ export class PlatformsService {
       data: updateData,
     });
 
+    // Determine which event to fire based on what changed
+    let eventType: PlatformLifecycleEvent['type'] = 'updated';
+
+    // Check for activation state changes
+    if (updatePlatformDto.isActive !== undefined) {
+      if (updatePlatformDto.isActive && !existingPlatform.isActive) {
+        eventType = 'activated';
+      } else if (!updatePlatformDto.isActive && existingPlatform.isActive) {
+        eventType = 'deactivated';
+      }
+    }
+
+    // Fire platform event with updated credentials
+    let credentials = updatePlatformDto.credentials;
+    if (!credentials) {
+      try {
+        credentials = JSON.parse(
+          CryptoUtil.decrypt(existingPlatform.credentialsEncrypted),
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Failed to decrypt credentials for platform ${platform.id}: ${error.message}`,
+        );
+        credentials = {}; // Use empty credentials if decryption fails
+      }
+    }
+
+    await this.firePlatformEvent(
+      eventType,
+      project.id,
+      platform.id,
+      platform.platform,
+      credentials,
+      platform.webhookToken,
+    );
+
     return {
       id: platform.id,
       platform: platform.platform,
@@ -222,6 +303,29 @@ export class PlatformsService {
     if (!platform) {
       throw new NotFoundException(`Platform with id '${platformId}' not found`);
     }
+
+    // Get credentials before deletion for cleanup event
+    let credentials: any = {};
+    try {
+      credentials = JSON.parse(
+        CryptoUtil.decrypt(platform.credentialsEncrypted),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to decrypt credentials for platform ${platform.id} during deletion: ${error.message}`,
+      );
+      // Continue with empty credentials to allow cleanup
+    }
+
+    // Fire platform deleted event before removal
+    await this.firePlatformEvent(
+      'deleted',
+      project.id,
+      platform.id,
+      platform.platform,
+      credentials,
+      platform.webhookToken,
+    );
 
     await this.prisma.projectPlatform.delete({
       where: { id: platformId },

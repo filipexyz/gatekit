@@ -58,7 +58,7 @@ import { sentryConfig } from './config/sentry.config';
           tls: config.get<string>('REDIS_HOST', '').includes('upstash.io')
             ? {}
             : undefined,
-          maxRetriesPerRequest: 3,
+          maxRetriesPerRequest: null, // Required by BullMQ
           retryDelayOnFailover: 100,
           lazyConnect: true,
         };
