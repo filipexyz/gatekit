@@ -49,35 +49,52 @@ type AuthenticatedRequest = ApiKeyRequest | JwtRequest;
 @UseGuards(AppAuthGuard)
 export class AuthController {
   @Get('whoami')
-  getPermissions(
-    @Request() req: { user: AuthenticatedRequest },
-  ): PermissionResponse {
-    const authReq = req.user;
+  getPermissions(@Request() req: any): PermissionResponse {
+    if (!req) {
+      throw new Error('Authentication type not found');
+    }
+
+    const authType = req.authType;
+    if (!authType) {
+      throw new Error('Authentication type not found');
+    }
+
     const response: PermissionResponse = {
-      authType: authReq.authType,
+      authType,
       permissions: [],
     };
 
-    if (authReq.authType === 'api-key') {
-      response.permissions = authReq.apiKey.scopes || [];
+    if (authType === 'api-key') {
+      const apiKey = req.apiKey;
+      const project = req.project;
+
+      if (!apiKey || !project) {
+        throw new Error('API key or project not found');
+      }
+
+      response.permissions = apiKey.scopes || [];
       response.project = {
-        id: authReq.project.id,
-        slug: authReq.project.slug,
-        name: authReq.project.name,
+        id: project.id,
+        slug: project.slug,
+        name: project.name,
       };
       response.apiKey = {
-        id: authReq.apiKey.id,
-        name: authReq.apiKey.name,
+        id: apiKey.id,
+        name: apiKey.name,
       };
-    } else if (authReq.authType === 'jwt') {
-      const userPermissions = authReq.user.permissions || [];
-      const userScopes = authReq.user.scope
-        ? authReq.user.scope.split(' ')
-        : [];
+    } else if (authType === 'jwt') {
+      const user = req.user;
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const userPermissions = user.permissions || [];
+      const userScopes = user.scope ? user.scope.split(' ') : [];
       response.permissions = [...userPermissions, ...userScopes];
       response.user = {
-        userId: authReq.user.userId,
-        email: authReq.user.email,
+        userId: user.userId,
+        email: user.email,
       };
     }
 

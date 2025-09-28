@@ -24,7 +24,7 @@ enum ProjectRole {
 model User {
   id        String   @id @default(uuid())
   auth0Id   String   @unique @map("auth0_id") // Auth0 sub field
-  email     String   @unique
+  email     String?  @unique
   name      String?
   isAdmin   Boolean  @default(false) @map("is_admin")
   createdAt DateTime @default(now()) @map("created_at")

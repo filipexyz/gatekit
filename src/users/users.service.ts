@@ -16,12 +16,12 @@ export class UsersService {
     const user = await this.prisma.user.upsert({
       where: { auth0Id: auth0Payload.sub },
       update: {
-        email: auth0Payload.email || '',
+        email: auth0Payload.email || null,
         name: auth0Payload.name,
       },
       create: {
         auth0Id: auth0Payload.sub,
-        email: auth0Payload.email || '',
+        email: auth0Payload.email || null,
         name: auth0Payload.name,
       },
     });
