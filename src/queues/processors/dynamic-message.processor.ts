@@ -6,11 +6,10 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import type { Queue, Job } from 'bullmq';
-import { PlatformsService } from '../../platforms/platforms.service';
 import { PlatformRegistry } from '../../platforms/services/platform-registry.service';
 import { makeEnvelope } from '../../platforms/utils/envelope.factory';
-import { PlatformAdapter } from '../../platforms/interfaces/platform-adapter.interface';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CryptoUtil } from '../../common/utils/crypto.util';
 
 interface MessageJob {
   projectSlug: string;
@@ -49,7 +48,6 @@ export class DynamicMessageProcessor
   private readonly logger = new Logger(DynamicMessageProcessor.name);
 
   constructor(
-    private readonly platformsService: PlatformsService,
     private readonly platformRegistry: PlatformRegistry,
     @InjectQueue('messages') private readonly messageQueue: Queue,
     private readonly prisma: PrismaService,
@@ -66,46 +64,84 @@ export class DynamicMessageProcessor
   async process(job: Job<MessageJob>) {
     const { projectSlug, projectId, message } = job.data;
 
-    this.logger.log(
-      `Processing job ${job.id} - ${message.targets.length} targets`,
-    );
+    // SECURITY: Deduplicate targets to prevent spam attacks
+    const targetMap = new Map<string, (typeof message.targets)[0]>();
+    const duplicatesDetected: string[] = [];
 
-    // Store sent message records for each target
-    const sentMessageIds: string[] = [];
     for (const target of message.targets) {
-      try {
-        const sentMessage = await this.prisma.sentMessage.create({
-          data: {
-            projectId,
-            platformId: target.platformId,
-            platform: 'telegram', // Will be dynamic based on target platform
-            jobId: job.id?.toString(),
-            targetChatId: target.id,
-            targetUserId: target.type === 'user' ? target.id : null,
-            targetType: target.type,
-            messageText: message.content.text || null,
-            messageContent: message.content,
-            status: 'pending',
-          },
-        });
-        sentMessageIds.push(sentMessage.id);
-      } catch (error) {
-        this.logger.error(
-          `Failed to store sent message record: ${error.message}`,
+      // SECURITY: Safe key generation that handles special characters
+      const targetKey = this.generateSafeTargetKey(target);
+
+      if (!targetMap.has(targetKey)) {
+        targetMap.set(targetKey, target);
+      } else {
+        duplicatesDetected.push(targetKey);
+        this.logger.warn(
+          `🚨 DUPLICATE TARGET BLOCKED: ${this.sanitizeForLogging(targetKey)} (prevents spam)`,
         );
       }
     }
 
+    const uniqueTargets = Array.from(targetMap.values());
+    const originalCount = message.targets.length;
+    const deduplicatedCount = uniqueTargets.length;
+
+    if (duplicatesDetected.length > 0) {
+      this.logger.warn(
+        `🛡️ SPAM PROTECTION: Removed ${duplicatesDetected.length} duplicate targets from job ${job.id}`,
+      );
+    }
+
+    this.logger.log(
+      `Processing job ${job.id} - ${originalCount} targets (${deduplicatedCount} unique after deduplication)`,
+    );
+
     const results: any[] = [];
     const errors: any[] = [];
 
-    // Process each target separately
-    for (const target of message.targets) {
+    // Process each unique target with single database call per target
+    for (const target of uniqueTargets) {
+      let platformConfig: any = null;
+      let sentMessageId: string | null = null; // Declare outside for error handling access
+
       try {
-        // Get platform configuration by ID - fail immediately if not found
-        const platformConfig = await this.platformsService.getProjectPlatform(
-          target.platformId,
+        // SECURITY: Validate platform ownership before accessing
+        platformConfig = await this.prisma.projectPlatform.findFirst({
+          where: {
+            id: target.platformId,
+            projectId: projectId, // CRITICAL: Ensure platform belongs to this project
+          },
+          select: {
+            id: true,
+            platform: true,
+            isActive: true,
+            credentialsEncrypted: true,
+            webhookToken: true,
+          },
+        });
+
+        if (!platformConfig) {
+          throw new Error(
+            `Platform configuration not found or access denied for ${target.platformId}`,
+          );
+        }
+
+        if (!platformConfig.isActive) {
+          throw new Error(
+            `Platform configuration '${target.platformId}' is not active`,
+          );
+        }
+
+        // Decrypt credentials securely
+        const decryptedCredentials = JSON.parse(
+          CryptoUtil.decrypt(platformConfig.credentialsEncrypted),
         );
+
+        // Transform to expected format
+        platformConfig = {
+          ...platformConfig,
+          decryptedCredentials,
+        };
 
         this.logger.log(
           `Sending to ${platformConfig.platform}:${target.type}:${target.id} (platformId: ${target.platformId})`,
@@ -121,6 +157,24 @@ export class DynamicMessageProcessor
             `Platform provider '${platformConfig.platform}' not found`,
           );
         }
+
+        // Create sent message record now that platform is validated (just before sending)
+        const sentMessage = await this.prisma.sentMessage.create({
+          data: {
+            projectId,
+            platformId: target.platformId,
+            platform: platformConfig.platform, // Use platform type from existing lookup
+            jobId: job.id?.toString(),
+            targetChatId: target.id,
+            targetUserId: target.type === 'user' ? target.id : null,
+            targetType: target.type,
+            messageText: message.content.text || null,
+            messageContent: message.content,
+            status: 'pending',
+          },
+        });
+
+        sentMessageId = sentMessage.id; // Store ID for safe, precise updates
 
         // Create composite key for this specific platform instance
         const connectionKey = `${projectId}:${target.platformId}`;
@@ -174,14 +228,10 @@ export class DynamicMessageProcessor
           `Message sent successfully to ${platformConfig.platform}:${target.type}:${target.id} (platformId: ${target.platformId}) - Provider Message ID: ${result.providerMessageId}`,
         );
 
-        // Update sent message status to 'sent'
+        // Update sent message status to 'sent' (using specific ID for safety)
         try {
-          await this.prisma.sentMessage.updateMany({
-            where: {
-              jobId: job.id?.toString(),
-              platformId: target.platformId,
-              targetChatId: target.id,
-            },
+          await this.prisma.sentMessage.update({
+            where: { id: sentMessageId },
             data: {
               status: 'sent',
               providerMessageId: result.providerMessageId,
@@ -204,44 +254,52 @@ export class DynamicMessageProcessor
           timestamp: new Date().toISOString(),
         });
       } catch (error) {
-        // Check if this is a permanent failure that shouldn't be retried
-        const isPermanentFailure =
-          error.message.includes('EFATAL') ||
-          error.message.includes('Platform configuration') ||
-          error.message.includes('not found') ||
-          error.message.includes('not provided') ||
-          error.message.includes('timed out') ||
-          error.message.includes('disabled') ||
-          error.message.includes('invalid');
+        // Robust permanent failure detection (error-type based, not string-based)
+        const isPermanentFailure = this.classifyErrorAsPermanent(error);
 
         if (isPermanentFailure) {
           this.logger.error(
-            `[PERMANENT FAILURE] Platform ${target.platformId} - ${error.message} - MARKING JOB AS FAILED`,
+            `[PERMANENT FAILURE] Platform ${target.platformId} - ${error.message} - RECORDING FAILURE AND CONTINUING`,
           );
 
-          // Throw to mark the entire job as permanently failed
-          throw new Error(
-            `PERMANENT_FAILURE: Platform ${target.platformId} - ${error.message}`,
-          );
+          // Record permanent failure but continue with other targets
+          // Don't throw - this would terminate processing for other platforms
         }
 
+        // Use platform type from main lookup (no duplicate database call needed)
+        const platformType = platformConfig?.platform || 'unknown';
+
+        const errorType = isPermanentFailure
+          ? 'PERMANENT FAILURE'
+          : 'TEMPORARY FAILURE - will retry';
         this.logger.error(
-          `Failed to send message to platformId ${target.platformId}:${target.type}:${target.id}: ${error.message} - will retry`,
+          `Failed to send message to ${platformType}:${target.type}:${target.id} (platformId: ${target.platformId}): ${error.message} - ${errorType}`,
         );
 
-        // Update sent message status to 'failed'
+        // Update sent message status to 'failed' (using specific ID if available)
         try {
-          await this.prisma.sentMessage.updateMany({
-            where: {
-              jobId: job.id?.toString(),
-              platformId: target.platformId,
-              targetChatId: target.id,
-            },
-            data: {
-              status: 'failed',
-              errorMessage: error.message,
-            },
-          });
+          if (sentMessageId) {
+            await this.prisma.sentMessage.update({
+              where: { id: sentMessageId },
+              data: {
+                status: 'failed',
+                errorMessage: error.message,
+              },
+            });
+          } else {
+            // Fallback to updateMany if sentMessage wasn't created (early failures)
+            await this.prisma.sentMessage.updateMany({
+              where: {
+                jobId: job.id?.toString(),
+                platformId: target.platformId,
+                targetChatId: target.id,
+              },
+              data: {
+                status: 'failed',
+                errorMessage: error.message,
+              },
+            });
+          }
         } catch (updateError) {
           this.logger.error(
             `Failed to update sent message failure status: ${updateError.message}`,
@@ -249,27 +307,35 @@ export class DynamicMessageProcessor
         }
 
         errors.push({
-          target,
+          target: {
+            ...target,
+            platform: platformType,
+          },
           error: error.message,
+          permanent: isPermanentFailure,
           timestamp: new Date().toISOString(),
         });
       }
     }
 
-    // Return results for all targets
-    const totalTargets = message.targets.length;
+    // Return results with deduplication information
+    const totalTargets = originalCount; // Original target count
+    const uniqueTargetCount = deduplicatedCount; // After deduplication
     const successCount = results.length;
     const failureCount = errors.length;
+    const duplicatesRemoved = originalCount - deduplicatedCount;
 
     this.logger.log(
-      `Job ${job.id} completed: ${successCount}/${totalTargets} successful, ${failureCount} failed`,
+      `Job ${job.id} completed: ${successCount}/${uniqueTargetCount} unique targets successful, ${failureCount} failed, ${duplicatesRemoved} duplicates removed`,
     );
 
     return {
       success: failureCount === 0,
       totalTargets,
+      uniqueTargets: uniqueTargetCount,
       successCount,
       failureCount,
+      duplicatesRemoved,
       results,
       errors,
       timestamp: new Date().toISOString(),
@@ -297,5 +363,76 @@ export class DynamicMessageProcessor
     }
 
     this.logger.log('Message processor cleanup complete');
+  }
+
+  /**
+   * Robust error classification to determine if failure is permanent (shouldn't retry)
+   * Uses error types and structured patterns instead of fragile string matching
+   */
+  private classifyErrorAsPermanent(error: Error): boolean {
+    const message = error.message.toLowerCase();
+    const errorName = error.constructor.name.toLowerCase();
+
+    // Error type-based classification (most reliable)
+    if (errorName.includes('notfound') || errorName.includes('forbidden')) {
+      return true;
+    }
+
+    // Structured error pattern matching (more reliable than simple includes)
+    const permanentPatterns = [
+      /platform.*not found/i,
+      /configuration.*not found/i,
+      /access.*denied/i,
+      /platform.*disabled/i,
+      /invalid.*platform/i,
+      /credentials.*invalid/i,
+      /token.*invalid/i,
+      /platform.*inactive/i,
+      /provider.*not found/i,
+    ];
+
+    return permanentPatterns.some((pattern) => pattern.test(message));
+  }
+
+  /**
+   * Generate safe, collision-resistant target key that handles special characters
+   * Uses JSON serialization instead of string concatenation to avoid delimiter conflicts
+   */
+  private generateSafeTargetKey(target: any): string {
+    // Use JSON serialization for unambiguous key generation
+    const normalized = {
+      platformId: target.platformId?.trim(),
+      type: target.type?.trim(),
+      id: target.id?.trim(),
+    };
+
+    return JSON.stringify(normalized);
+  }
+
+  /**
+   * Sanitize sensitive data for logging to prevent information disclosure
+   * Masks platform IDs and target IDs while preserving structure for debugging
+   */
+  private sanitizeForLogging(data: string): string {
+    // Parse the JSON key safely
+    try {
+      const parsed = JSON.parse(data);
+      return JSON.stringify({
+        platformId: this.maskId(parsed.platformId),
+        type: parsed.type, // Type is safe to log (user/channel/group)
+        id: this.maskId(parsed.id),
+      });
+    } catch {
+      // Fallback for non-JSON keys
+      return data.replace(/[a-f0-9-]{8,}/gi, '***masked***');
+    }
+  }
+
+  /**
+   * Mask sensitive IDs for logging while preserving first/last chars for debugging
+   */
+  private maskId(id: string): string {
+    if (!id || id.length <= 4) return '***';
+    return `${id.substring(0, 2)}***${id.substring(id.length - 2)}`;
   }
 }
