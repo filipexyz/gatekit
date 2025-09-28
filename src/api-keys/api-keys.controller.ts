@@ -15,7 +15,7 @@ import { ProjectAccessGuard } from '../common/guards/project-access.guard';
 import { RequireScopes } from '../common/decorators/scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { AuthContextParam } from '../common/decorators/auth-context.decorator';
-import { AuthContext } from '../common/utils/security.util';
+import type { AuthContext } from '../common/utils/security.util';
 import { Throttle } from '@nestjs/throttler';
 
 @Controller('api/v1/projects/:projectSlug/keys')
@@ -53,8 +53,13 @@ export class ApiKeysController {
   create(
     @Param('projectSlug') projectSlug: string,
     @Body() createApiKeyDto: CreateApiKeyDto,
+    @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.apiKeysService.create(projectSlug, createApiKeyDto);
+    return this.apiKeysService.create(
+      projectSlug,
+      createApiKeyDto,
+      authContext,
+    );
   }
 
   @Get()
@@ -72,8 +77,11 @@ export class ApiKeysController {
       },
     ],
   })
-  findAll(@Param('projectSlug') projectSlug: string) {
-    return this.apiKeysService.findAll(projectSlug);
+  findAll(
+    @Param('projectSlug') projectSlug: string,
+    @AuthContextParam() authContext: AuthContext,
+  ) {
+    return this.apiKeysService.findAll(projectSlug, authContext);
   }
 
   @Delete(':keyId')
@@ -101,8 +109,9 @@ export class ApiKeysController {
   revoke(
     @Param('projectSlug') projectSlug: string,
     @Param('keyId') keyId: string,
+    @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.apiKeysService.revoke(projectSlug, keyId);
+    return this.apiKeysService.revoke(projectSlug, keyId, authContext);
   }
 
   @Post(':keyId/roll')
@@ -132,7 +141,8 @@ export class ApiKeysController {
   roll(
     @Param('projectSlug') projectSlug: string,
     @Param('keyId') keyId: string,
+    @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.apiKeysService.roll(projectSlug, keyId);
+    return this.apiKeysService.roll(projectSlug, keyId, authContext);
   }
 }
