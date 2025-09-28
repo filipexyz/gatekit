@@ -205,6 +205,9 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
       // Set up webhook with Evolution API instance
       await this.setupWebhook(connection, credentials.webhookToken);
 
+      // Check current connection status from Evolution API
+      await this.refreshConnectionStatus(connection);
+
       const platformLogger = this.createPlatformLogger(projectId, platformId);
       platformLogger.logConnection(
         `WhatsApp connection created for ${connectionKey}`,
@@ -350,6 +353,48 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
   }
 
   // Evolution API methods
+  private async refreshConnectionStatus(
+    connection: WhatsAppConnection,
+  ): Promise<void> {
+    try {
+      const response = await fetch(
+        `${connection.evolutionApiUrl}/instance/fetchInstances`,
+        {
+          method: 'GET',
+          headers: {
+            apikey: connection.evolutionApiKey,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        this.logger.warn(
+          `Failed to fetch instance status: ${response.statusText}`,
+        );
+        return;
+      }
+
+      const instances = await response.json();
+      const instance = instances.find(
+        (inst: any) => inst.name === connection.instanceName,
+      );
+
+      if (instance) {
+        connection.connectionState = instance.connectionStatus || 'close';
+        connection.isConnected = instance.connectionStatus === 'open';
+        this.logger.log(
+          `Updated connection status for ${connection.connectionKey}: ${connection.connectionState}`,
+        );
+      } else {
+        this.logger.warn(
+          `Instance ${connection.instanceName} not found in Evolution API`,
+        );
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to refresh connection status: ${error.message}`);
+    }
+  }
+
   private async setupWebhook(
     connection: WhatsAppConnection,
     webhookToken: string,
@@ -693,10 +738,9 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
     const connection = this.connections.get(connectionKey);
 
     if (!connection || !connection.isConnected) {
-      this.logger.warn(
+      throw new Error(
         `WhatsApp not connected for ${connectionKey}, cannot send message`,
       );
-      return { providerMessageId: 'whatsapp-evo-not-connected' };
     }
 
     try {
@@ -755,7 +799,7 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
       );
 
       this.logger.error('Failed to send WhatsApp message:', error.message);
-      return { providerMessageId: 'whatsapp-evo-send-failed' };
+      throw error;
     }
   }
 }
