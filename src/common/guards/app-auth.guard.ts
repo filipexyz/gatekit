@@ -96,18 +96,31 @@ export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
   }
 
   private async validateJwt(context: ExecutionContext): Promise<boolean> {
+    console.log('AppAuthGuard - validateJwt() called');
+
     try {
+      console.log('AppAuthGuard - Calling super.canActivate()');
       const result = await super.canActivate(context);
+      console.log('AppAuthGuard - super.canActivate() result:', result);
 
       if (result) {
         const request = context.switchToHttp().getRequest();
         request.authType = 'jwt';
+
+        console.log('AppAuthGuard - JWT validation successful, user:', {
+          hasUser: !!request.user,
+          userId: request.user?.userId,
+          email: request.user?.email,
+          permissionsCount: request.user?.permissions?.length || 0,
+        });
 
         const requiredScopes =
           this.reflector.getAllAndOverride<string[]>('requiredScopes', [
             context.getHandler(),
             context.getClass(),
           ]) || [];
+
+        console.log('AppAuthGuard - Required scopes:', requiredScopes);
 
         if (requiredScopes.length > 0 && request.user) {
           const userPermissions = request.user.permissions || [];
@@ -116,18 +129,33 @@ export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
             : [];
           const allPermissions = [...userPermissions, ...userScopes];
 
+          console.log('AppAuthGuard - User permissions check:', {
+            userPermissions,
+            userScopes,
+            allPermissions,
+            requiredScopes,
+          });
+
           const hasRequiredScopes = requiredScopes.every((scope) =>
             allPermissions.includes(scope),
           );
 
           if (!hasRequiredScopes) {
+            console.error('AppAuthGuard - Insufficient permissions');
             throw new ForbiddenException('Insufficient permissions');
           }
         }
       }
 
+      console.log('AppAuthGuard - JWT validation complete, returning:', result);
       return result as boolean;
     } catch (error) {
+      console.error('AppAuthGuard - JWT validation error:', {
+        error: error.message,
+        type: error.constructor.name,
+        stack: error.stack,
+      });
+
       if (error instanceof ForbiddenException) {
         throw error;
       }
