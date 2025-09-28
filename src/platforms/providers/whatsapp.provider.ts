@@ -251,10 +251,11 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
     this.logger.log(`Removing WhatsApp connection for ${connectionKey}`);
 
     try {
-      // Delete Evolution API instance
-      await this.deleteEvolutionInstance(connection);
-
-      this.logger.debug(`WhatsApp instance deleted for ${connectionKey}`);
+      // Note: We don't delete Evolution API instances as they may be shared
+      // and contain important chat history. Instance management should be manual.
+      this.logger.debug(
+        `WhatsApp connection removed for ${connectionKey} (instance preserved)`,
+      );
     } catch (error) {
       this.logger.error(
         `Error removing WhatsApp connection for ${connectionKey}: ${error.message}`,
@@ -439,32 +440,6 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
     this.logger.log(
       `Evolution API webhook configured for instance: ${connection.instanceName}`,
     );
-  }
-
-  private async deleteEvolutionInstance(
-    connection: WhatsAppConnection,
-  ): Promise<void> {
-    try {
-      const response = await fetch(
-        `${connection.evolutionApiUrl}/instance/delete/${connection.instanceName}`,
-        {
-          method: 'DELETE',
-          headers: {
-            apikey: connection.evolutionApiKey,
-          },
-        },
-      );
-
-      if (!response.ok) {
-        this.logger.warn(
-          `Failed to delete Evolution instance ${connection.instanceName}: ${response.statusText}`,
-        );
-      }
-    } catch (error) {
-      this.logger.warn(
-        `Error deleting Evolution instance ${connection.instanceName}: ${error.message}`,
-      );
-    }
   }
 
   private async processEvolutionWebhook(
