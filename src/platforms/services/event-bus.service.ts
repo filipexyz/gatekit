@@ -17,6 +17,8 @@ export class EventBusService implements IEventBus {
   }
 
   subscribe(handler: (envelope: MessageEnvelopeV1) => Promise<void>): void {
-    this.eventEmitter.on('message.received', handler);
+    this.eventEmitter.on('message.received', (envelope) => {
+      void handler(envelope);
+    });
   }
 }

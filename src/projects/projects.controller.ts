@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -55,7 +56,21 @@ export class ProjectsController {
     ],
   })
   create(@Body() createProjectDto: CreateProjectDto, @Request() req: any) {
-    return this.projectsService.create(createProjectDto, req.user.user.id);
+    // Handle both authentication types
+    let ownerId: string;
+    if (req.authType === 'api-key') {
+      // For API key auth, use the owner of the project that the API key belongs to
+      ownerId = req.project.owner.id;
+    } else if (req.authType === 'jwt' && req.user?.user?.id) {
+      // For JWT auth, use the authenticated user
+      ownerId = req.user.user.id;
+    } else {
+      throw new Error(
+        'Unable to determine user ID from authentication context',
+      );
+    }
+
+    return this.projectsService.create(createProjectDto, ownerId);
   }
 
   @Get()

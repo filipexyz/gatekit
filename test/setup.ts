@@ -19,8 +19,13 @@ beforeEach(async () => {
   await prisma.apiKeyUsage.deleteMany();
   await prisma.apiKeyScope.deleteMany();
   await prisma.apiKey.deleteMany();
+  await prisma.receivedMessage.deleteMany();
+  await prisma.sentMessage.deleteMany();
+  await prisma.platformLog.deleteMany();
   await prisma.projectPlatform.deleteMany();
+  await prisma.projectMember.deleteMany();
   await prisma.project.deleteMany();
+  await prisma.user.deleteMany();
 });
 
 afterAll(async () => {

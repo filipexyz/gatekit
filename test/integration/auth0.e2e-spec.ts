@@ -34,10 +34,17 @@ describe('Auth0 Authentication (e2e)', () => {
     prisma = moduleFixture.get<PrismaService>(PrismaService);
     configService = moduleFixture.get<ConfigService>(ConfigService);
 
-    // Clean database
+    // Clean database in correct order (respecting foreign keys)
+    await prisma.apiKeyUsage.deleteMany();
     await prisma.apiKeyScope.deleteMany();
     await prisma.apiKey.deleteMany();
+    await prisma.receivedMessage.deleteMany();
+    await prisma.sentMessage.deleteMany();
+    await prisma.platformLog.deleteMany();
+    await prisma.projectPlatform.deleteMany();
+    await prisma.projectMember.deleteMany();
     await prisma.project.deleteMany();
+    await prisma.user.deleteMany();
 
     // Create test data
     const project = await createTestProject(prisma, {
@@ -56,10 +63,10 @@ describe('Auth0 Authentication (e2e)', () => {
   });
 
   describe('Without Auth0 configuration', () => {
-    it('should reject Bearer token authentication', () => {
+    it('should reject invalid JWT tokens', () => {
       return request(app.getHttpServer())
         .get('/api/v1/projects')
-        .set('Authorization', 'Bearer fake.jwt.token')
+        .set('Authorization', 'Bearer any.jwt.token')
         .expect(401)
         .expect((res) => {
           expect(res.body.message).toBe('Invalid or expired token');

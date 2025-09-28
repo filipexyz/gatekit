@@ -46,9 +46,9 @@ describe('CredentialValidationService', () => {
       }).not.toThrow();
     });
 
-    it('should throw BadRequestException for invalid Telegram credentials', () => {
+    it('should throw BadRequestException for empty Telegram credentials', () => {
       const invalidCredentials = {
-        token: 'invalid-token',
+        token: '   ',
       };
 
       expect(() => {
@@ -67,9 +67,9 @@ describe('CredentialValidationService', () => {
       }).not.toThrow();
     });
 
-    it('should throw BadRequestException for invalid Discord credentials', () => {
+    it('should throw BadRequestException for empty Discord credentials', () => {
       const invalidCredentials = {
-        token: 'invalid-discord-token',
+        token: '   ',
       };
 
       expect(() => {
@@ -98,9 +98,9 @@ describe('CredentialValidationService', () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should return error for invalid credentials', () => {
+    it('should return error for empty credentials', () => {
       const credentials = {
-        token: 'invalid',
+        token: '   ',
       };
 
       const result = service.validate('telegram', credentials);

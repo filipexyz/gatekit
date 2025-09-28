@@ -31,10 +31,17 @@ describe('GateKit API (e2e)', () => {
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
 
-    // Clean database
+    // Clean database in correct order (respecting foreign keys)
+    await prisma.apiKeyUsage.deleteMany();
     await prisma.apiKeyScope.deleteMany();
     await prisma.apiKey.deleteMany();
+    await prisma.receivedMessage.deleteMany();
+    await prisma.sentMessage.deleteMany();
+    await prisma.platformLog.deleteMany();
+    await prisma.projectPlatform.deleteMany();
+    await prisma.projectMember.deleteMany();
     await prisma.project.deleteMany();
+    await prisma.user.deleteMany();
 
     // Create test project and API key with proper scopes
     const project = await createTestProject(prisma, {

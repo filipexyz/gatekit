@@ -3,6 +3,8 @@ import { INestApplication } from '@nestjs/common';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { AppModule } from '../../src/app.module';
 import { ProjectRole, ProjectEnvironment } from '@prisma/client';
+import { ProjectsService } from '../../src/projects/projects.service';
+import { UsersService } from '../../src/users/users.service';
 
 describe('User-Project System (e2e)', () => {
   let app: INestApplication;
@@ -78,7 +80,7 @@ describe('User-Project System (e2e)', () => {
         name: 'New User',
       };
 
-      const usersService = app.get('UsersService');
+      const usersService = app.get(UsersService);
       const user = await usersService.upsertFromAuth0(auth0Payload);
 
       expect(user.auth0Id).toBe(auth0Payload.sub);
@@ -91,7 +93,7 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should create project with user ownership', async () => {
-      const projectsService = app.get('ProjectsService');
+      const projectsService = app.get(ProjectsService);
 
       const createDto = {
         name: 'User Owned Project',
@@ -109,7 +111,7 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should return only accessible projects for regular users', async () => {
-      const projectsService = app.get('ProjectsService');
+      const projectsService = app.get(ProjectsService);
 
       // User1 should see their own project
       const user1Projects = await projectsService.findAllForUser(
@@ -128,7 +130,7 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should return all projects for admin users', async () => {
-      const projectsService = app.get('ProjectsService');
+      const projectsService = app.get(ProjectsService);
 
       const adminProjects = await projectsService.findAllForUser(
         adminUser.id,
@@ -141,7 +143,7 @@ describe('User-Project System (e2e)', () => {
 
   describe('Project Access Control', () => {
     it('should allow project owner full access', async () => {
-      const projectsService = app.get('ProjectsService');
+      const projectsService = app.get(ProjectsService);
 
       const hasAccess = await projectsService.checkProjectAccess(
         testUser1.id,
@@ -154,7 +156,7 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should deny access to non-member users', async () => {
-      const projectsService = app.get('ProjectsService');
+      const projectsService = app.get(ProjectsService);
 
       const hasAccess = await projectsService.checkProjectAccess(
         testUser2.id,
@@ -167,7 +169,7 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should allow global admin access to any project', async () => {
-      const projectsService = app.get('ProjectsService');
+      const projectsService = app.get(ProjectsService);
 
       const hasAccess = await projectsService.checkProjectAccess(
         adminUser.id,
@@ -180,7 +182,7 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should prevent non-owner from deleting project', async () => {
-      const projectsService = app.get('ProjectsService');
+      const projectsService = app.get(ProjectsService);
 
       await expect(
         projectsService.remove(testProject.slug, testUser2.id, false),
@@ -200,7 +202,7 @@ describe('User-Project System (e2e)', () => {
         },
       });
 
-      const projectsService = app.get('ProjectsService');
+      const projectsService = app.get(ProjectsService);
 
       // Admin should be able to delete it
       const result = await projectsService.remove(
@@ -242,7 +244,7 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should add member to project', async () => {
-      const usersService = app.get('UsersService');
+      const usersService = app.get(UsersService);
 
       const member = await usersService.addProjectMember(
         membershipTestProject.slug,
@@ -257,7 +259,7 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should update member role', async () => {
-      const usersService = app.get('UsersService');
+      const usersService = app.get(UsersService);
 
       const updatedMember = await usersService.updateProjectMemberRole(
         membershipTestProject.slug,
@@ -270,7 +272,7 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should allow member access after being added', async () => {
-      const projectsService = app.get('ProjectsService');
+      const projectsService = app.get(ProjectsService);
 
       const hasAccess = await projectsService.checkProjectAccess(
         testUser2.id,
@@ -283,7 +285,7 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should include project in member accessible projects', async () => {
-      const projectsService = app.get('ProjectsService');
+      const projectsService = app.get(ProjectsService);
 
       const user2Projects = await projectsService.findAllForUser(
         testUser2.id,
@@ -295,7 +297,7 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should remove member from project', async () => {
-      const usersService = app.get('UsersService');
+      const usersService = app.get(UsersService);
 
       await usersService.removeProjectMember(
         membershipTestProject.slug,
@@ -304,7 +306,7 @@ describe('User-Project System (e2e)', () => {
       );
 
       // Verify member was removed
-      const projectsService = app.get('ProjectsService');
+      const projectsService = app.get(ProjectsService);
       const hasAccess = await projectsService.checkProjectAccess(
         testUser2.id,
         membershipTestProject.slug,
@@ -316,7 +318,7 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should prevent removing project owner as member', async () => {
-      const usersService = app.get('UsersService');
+      const usersService = app.get(UsersService);
 
       await expect(
         usersService.removeProjectMember(
@@ -328,7 +330,7 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should prevent changing project owner role', async () => {
-      const usersService = app.get('UsersService');
+      const usersService = app.get(UsersService);
 
       await expect(
         usersService.updateProjectMemberRole(
@@ -438,7 +440,7 @@ describe('User-Project System (e2e)', () => {
 
     accessTests.forEach(([userType, requiredRole, expected]) => {
       it(`should ${expected ? 'allow' : 'deny'} ${userType} access when ${requiredRole} required`, async () => {
-        const projectsService = app.get('ProjectsService');
+        const projectsService = app.get(ProjectsService);
 
         let userId: string;
         switch (userType) {

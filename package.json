@@ -26,7 +26,8 @@
     "generate:sdk": "ts-node -r tsconfig-paths/register tools/generators/sdk-generator.ts",
     "generate:cli": "ts-node -r tsconfig-paths/register tools/generators/cli-generator.ts",
     "generate:n8n": "ts-node -r tsconfig-paths/register tools/generators/n8n-generator.ts",
-    "generate:openapi": "ts-node -r tsconfig-paths/register tools/generators/openapi-generator.ts"
+    "generate:openapi": "ts-node -r tsconfig-paths/register tools/generators/openapi-generator.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.3",
@@ -80,8 +81,10 @@
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^16.0.0",
+    "husky": "^9.1.7",
     "jest": "^30.0.0",
     "jest-mock": "^30.0.5",
+    "lint-staged": "^16.2.1",
     "prettier": "^3.4.2",
     "prisma": "^6.16.2",
     "source-map-support": "^0.5.21",
@@ -92,6 +95,15 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
   },
   "jest": {
     "moduleFileExtensions": [

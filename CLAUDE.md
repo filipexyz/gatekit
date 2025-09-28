@@ -39,22 +39,31 @@ Dual authentication support:
 ## Development Rules
 
 ### SUPER IMPORTANT
+
 - **NEVER** include features, concepts, or implementations that have not been explicitly discussed
 - **NEVER** add speculative or "nice-to-have" features to documentation or CLAUDE.md
 - **ONLY** document what has been explicitly requested and implemented
 
 ### Documentation Structure
+
 - **Keep domain-specific documentation separate** - Testing docs in `test/CLAUDE.md`, not in main CLAUDE.md
 - **Main CLAUDE.md is for project overview only** - Reference other CLAUDE.md files for specific areas
 - **Each major area should have its own CLAUDE.md** - Tests, infrastructure, etc. have separate documentation
 
 ### Package Management
+
 - **NEVER** write dependencies directly in package.json
 - **ALWAYS** use CLI commands to install packages
+
+### Commit Messages
+
+- **NEVER** include "Generated with [Claude Code]" messages in commits
+- **Keep Co-Authored-By: Claude <noreply@anthropic.com>** for attribution
 
 ## Current Implementation
 
 ### Core Endpoints
+
 - `GET /api/v1/health` - Public health check
 - `POST /api/v1/projects` - Create project
 - `GET /api/v1/projects` - List all projects
@@ -67,6 +76,7 @@ Dual authentication support:
 - `POST /api/v1/projects/:slug/keys/:keyId/roll` - Roll key
 
 ### Platform Configuration
+
 - `GET /api/v1/projects/:slug/platforms` - List configured platforms
 - `POST /api/v1/projects/:slug/platforms` - Configure platform (Discord, Telegram, WhatsApp-Evo)
 - `PATCH /api/v1/projects/:slug/platforms/:id` - Update platform
@@ -75,18 +85,21 @@ Dual authentication support:
 - `GET /api/v1/projects/:slug/platforms/:id/qr-code` - Get QR code for WhatsApp authentication
 
 ### Messaging (Queue-based)
+
 - `POST /api/v1/projects/:slug/messages/send` - Queue message for delivery
 - `GET /api/v1/projects/:slug/messages/status/:jobId` - Check message status
 - `GET /api/v1/projects/:slug/messages/queue/metrics` - Queue metrics
 - `POST /api/v1/projects/:slug/messages/retry/:jobId` - Retry failed message
 
 ### Message Reception & Storage
+
 - `GET /api/v1/projects/:slug/messages` - List received messages with filtering
 - `GET /api/v1/projects/:slug/messages/stats` - Get message statistics
 - `GET /api/v1/projects/:slug/messages/:messageId` - Get specific message
 - `DELETE /api/v1/projects/:slug/messages/cleanup` - Delete old messages
 
 ### Webhooks (Dynamic & UUID-secured)
+
 - `POST /api/v1/webhooks/:platform/:webhookToken` - Dynamic webhook handler for any platform
 - `GET /api/v1/platforms/health` - Platform provider health status
 - `GET /api/v1/platforms/supported` - List supported platforms (discord, telegram, whatsapp-evo)
@@ -99,6 +112,7 @@ Dual authentication support:
 GateKit integrates with WhatsApp through the Evolution API, providing robust WhatsApp messaging capabilities:
 
 #### **Features:**
+
 - **QR Code Authentication** - Secure connection setup via QR code scanning
 - **Real-time Messaging** - Webhook-based message reception and sending
 - **Multi-format Support** - Handles various Evolution API payload formats
@@ -106,16 +120,19 @@ GateKit integrates with WhatsApp through the Evolution API, providing robust Wha
 - **Message Persistence** - Complete message history with raw data storage
 
 #### **Setup Process:**
+
 1. **Configure Platform** - Add WhatsApp-Evo platform with Evolution API credentials
 2. **QR Code Flow** - Use `/platforms/:id/qr-code` endpoint for authentication
 3. **Webhook Registration** - Automatic webhook setup with Evolution API
 4. **Message Flow** - Send/receive messages through unified GateKit API
 
 #### **Credentials Required:**
+
 - `evolutionApiUrl` - Evolution API server URL (e.g., https://evo.example.com)
 - `evolutionApiKey` - Evolution API authentication key
 
 #### **Example Configuration:**
+
 ```bash
 curl -X POST "/api/v1/projects/my-project/platforms" \
   -H "X-API-Key: your-api-key" \
@@ -131,6 +148,7 @@ curl -X POST "/api/v1/projects/my-project/platforms" \
 ## Architecture Highlights
 
 ### Dynamic Platform System
+
 - **Plugin-based architecture** - Platforms auto-register via `@PlatformProviderDecorator`
 - **Complete isolation** - Each platform provider manages its own connections and logic
 - **Thread-safe design** - No shared state between projects or platforms
@@ -138,6 +156,7 @@ curl -X POST "/api/v1/projects/my-project/platforms" \
 - **Auto-discovery** - New platforms require only a single provider class
 
 ### Message Queue System
+
 - **All messages are queued** - No synchronous message sending
 - **Bull queue with Redis backend** - Reliable, scalable message processing
 - **Dynamic platform routing** - Queue processor uses platform registry
@@ -145,6 +164,7 @@ curl -X POST "/api/v1/projects/my-project/platforms" \
 - **Job tracking** - Monitor message status via job IDs
 
 ### Security Features
+
 - **UUID-based webhook tokens** - No exposure of project IDs in URLs
 - **AES-256-GCM encryption** - For sensitive credentials
 - **Platform isolation** - Each project gets dedicated platform connections
@@ -153,6 +173,7 @@ curl -X POST "/api/v1/projects/my-project/platforms" \
 - **Message deduplication** - Unique constraints prevent duplicate storage
 
 ### Platform Provider Features
+
 - **One connection per project** - Discord: dedicated WebSocket per project, WhatsApp-Evo: Evolution API integration
 - **Resource management** - Connection limits, cleanup, health monitoring
 - **Error resilience** - Graceful degradation when platforms unavailable
@@ -164,6 +185,7 @@ curl -X POST "/api/v1/projects/my-project/platforms" \
 ## Development Setup
 
 ### Local Development
+
 ```bash
 # Start databases only (PostgreSQL, Redis)
 docker compose up -d postgres redis
@@ -173,6 +195,7 @@ npm run start:dev
 ```
 
 ### Docker Usage
+
 - **Docker is for production deployment only**
 - **Never run tests inside Docker containers during development**
 - Use local Node.js for all development and testing
@@ -180,14 +203,17 @@ npm run start:dev
 ## Testing
 
 ### IMPORTANT: Testing Documentation
+
 **All testing guidelines, rules, and examples are documented in `test/CLAUDE.md`**
 
 When writing or modifying tests:
+
 1. **ALWAYS read `test/CLAUDE.md` first**
 2. Follow the testing rules exactly as specified
 3. Never deviate from the testing patterns documented there
 
 ### Quick Commands
+
 ```bash
 npm test         # Run unit tests (300 tests - all platforms)
 npm test:e2e     # Run integration tests
@@ -195,6 +221,7 @@ npm test -- --testPathPatterns="whatsapp.*spec.ts"  # Run WhatsApp-Evo tests (57
 ```
 
 ### Platform Test Coverage
+
 - **Discord Provider**: Complete WebSocket connection testing
 - **Telegram Provider**: Comprehensive webhook and bot API testing
 - **WhatsApp-Evo Provider**: 57 tests covering Evolution API integration, QR code flow, edge cases
@@ -209,9 +236,11 @@ For detailed testing guidelines, see: **[test/CLAUDE.md](test/CLAUDE.md)**
 ## GateKit Client Architecture
 
 ### **Revolutionary Contract-Driven System**
+
 GateKit implements a next-generation architecture where **SDK** and **CLI** are auto-generated from backend API contracts, ensuring perfect sync and zero duplication.
 
 ### **Core Architecture Specifications**
+
 - **[SDK_SPECIFICATION.md](SDK_SPECIFICATION.md)** - Pure TypeScript API client architecture
 - **[CLI_SPECIFICATION.md](CLI_SPECIFICATION.md)** - Permission-aware CLI design
 - **[PERMISSION_AWARE_CLI.md](PERMISSION_AWARE_CLI.md)** - Dynamic command system based on user permissions
@@ -219,6 +248,7 @@ GateKit implements a next-generation architecture where **SDK** and **CLI** are 
 - **[DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md)** - Multi-agent collaboration system
 
 ### **Key Innovation: Single Source → Quintuple Outputs**
+
 ```
 Backend Controllers (@SdkContract decorators)
     ↓
@@ -230,12 +260,14 @@ Backend Controllers (@SdkContract decorators)
 ```
 
 ### **Strategic Advantages**
+
 - **Perfect Sync** - API changes automatically update SDK & CLI
 - **Source Protection** - Only compiled packages published, backend source stays private
 - **Permission Intelligence** - CLI shows only commands user can execute
 - **Zero Duplication** - Single contract definition generates everything
 
 ### **Current Implementation Status**
+
 - ✅ Backend API fully functional with Discord, Telegram, and WhatsApp-Evo support
 - ✅ Revolutionary contract-driven architecture complete and production-ready
 - ✅ Permission Discovery API (`/auth/whoami`) operational
@@ -248,9 +280,11 @@ Backend Controllers (@SdkContract decorators)
 - ✅ Production tested: All generated packages compile and deploy successfully
 
 ### **Contract-Driven Development**
+
 **Complete Implementation Guide:** **[CONTRACT_DRIVEN_DEVELOPMENT.md](CONTRACT_DRIVEN_DEVELOPMENT.md)**
 
 **Daily Workflow:**
+
 ```bash
 # 1. Add @SdkContract decorators to controllers
 # 2. Regenerate all packages (quintuple generation)
@@ -282,4 +316,21 @@ fly logs -f
 
 # SSH into container
 fly ssh console
+```
+
+## Code Quality & Development Tools
+
+### ESLint & Code Quality
+
+- **All ESLint errors must be fixed** - Zero tolerance for lint errors in production
+- **Codex CLI integration** - Use `codex exec` for complex linting analysis and systematic error resolution
+- **Pre-commit hooks** - Husky + lint-staged automatically format and lint on commit
+- **CI/CD validation** - GitHub Actions pipeline validates code quality on every PR
+
+### Codex CLI for Deep Analysis
+
+**Use when you need additional expertise on complex problems:**
+
+```bash
+codex exec "Find and fix the remaining ESLint errors with solid solutions"
 ```

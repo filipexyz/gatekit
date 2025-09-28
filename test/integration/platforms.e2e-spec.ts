@@ -32,11 +32,17 @@ describe('Platforms (e2e)', () => {
 
     await app.init();
 
-    // Clean database
+    // Clean database in correct order (respecting foreign keys)
+    await prisma.apiKeyUsage.deleteMany();
     await prisma.apiKeyScope.deleteMany();
     await prisma.apiKey.deleteMany();
+    await prisma.receivedMessage.deleteMany();
+    await prisma.sentMessage.deleteMany();
+    await prisma.platformLog.deleteMany();
     await prisma.projectPlatform.deleteMany();
+    await prisma.projectMember.deleteMany();
     await prisma.project.deleteMany();
+    await prisma.user.deleteMany();
 
     // Create test project and API key
     const project = await createTestProject(prisma, {
@@ -86,7 +92,6 @@ describe('Platforms (e2e)', () => {
             platform: 'telegram',
             credentials: {
               token: 'test-telegram-bot-token',
-              webhook: 'https://example.com/webhook',
             },
             isActive: true,
             testMode: true,
@@ -124,8 +129,11 @@ describe('Platforms (e2e)', () => {
             platform: 'discord',
             credentials: { token: 'second-discord-token' },
           })
-          .expect(201) // Should succeed
           .expect((res) => {
+            if (res.status !== 201) {
+              console.log('Error response:', res.body);
+            }
+            expect(res.status).toBe(201);
             expect(res.body.platform).toBe('discord');
             expect(res.body.isActive).toBe(true);
           });
@@ -291,9 +299,14 @@ describe('Platforms (e2e)', () => {
           .patch(`/api/v1/projects/platform-test/platforms/${platformId}`)
           .set('X-API-Key', testApiKey)
           .send({
-            credentials: { token: 'new-token' },
+            credentials: { token: 'updated-discord-token' },
           })
-          .expect(200);
+          .expect((res) => {
+            if (res.status !== 200) {
+              console.log('PATCH Error response:', res.body);
+            }
+            expect(res.status).toBe(200);
+          });
       });
     });
 

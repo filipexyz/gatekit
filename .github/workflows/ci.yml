@@ -1,0 +1,133 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-format:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run ESLint
+      run: npm run lint
+
+    - name: Check Prettier formatting
+      run: npx prettier --check "src/**/*.ts" "test/**/*.ts"
+
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gatekit_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Setup test environment
+      run: |
+        cp .env.example .env.test
+        echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/gatekit_test" >> .env.test
+        echo "REDIS_URL=redis://localhost:6379" >> .env.test
+        echo "ENCRYPTION_KEY=603ce4d06f761f2ace4ae4eda60987f404644414032d1ef216e9a306277afb00" >> .env.test
+        echo "AUTH0_DOMAIN=test.auth0.com" >> .env.test
+        echo "AUTH0_AUDIENCE=https://api.test.com" >> .env.test
+        echo "AUTH0_CLIENT_ID=test-client-id" >> .env.test
+        echo "AUTH0_CLIENT_SECRET=test-client-secret" >> .env.test
+
+    - name: Run database migrations
+      run: npx prisma migrate deploy
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gatekit_test
+
+    - name: Run unit tests
+      run: npm test
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gatekit_test
+        REDIS_URL: redis://localhost:6379
+        ENCRYPTION_KEY: 603ce4d06f761f2ace4ae4eda60987f404644414032d1ef216e9a306277afb00
+        AUTH0_DOMAIN: test.auth0.com
+        AUTH0_AUDIENCE: https://api.test.com
+        AUTH0_CLIENT_ID: test-client-id
+        AUTH0_CLIENT_SECRET: test-client-secret
+
+    - name: Run integration tests
+      run: npm run test:e2e -- --runInBand
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gatekit_test
+        REDIS_URL: redis://localhost:6379
+        ENCRYPTION_KEY: 603ce4d06f761f2ace4ae4eda60987f404644414032d1ef216e9a306277afb00
+        AUTH0_DOMAIN: test.auth0.com
+        AUTH0_AUDIENCE: https://api.test.com
+        AUTH0_CLIENT_ID: test-client-id
+        AUTH0_CLIENT_SECRET: test-client-secret
+
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, test]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build application
+      run: npm run build
+
+
