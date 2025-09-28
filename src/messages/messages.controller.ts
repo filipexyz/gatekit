@@ -19,7 +19,7 @@ import { ProjectAccessGuard } from '../common/guards/project-access.guard';
 import { RequireScopes } from '../common/decorators/require-scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { AuthContextParam } from '../common/decorators/auth-context.decorator';
-import { AuthContext } from '../common/utils/security.util';
+import type { AuthContext } from '../common/utils/security.util';
 
 @Controller('api/v1/projects/:projectSlug/messages')
 @UseGuards(AppAuthGuard, ProjectAccessGuard)
