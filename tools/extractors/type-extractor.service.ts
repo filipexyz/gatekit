@@ -4,9 +4,7 @@ import {
   ClassDeclaration,
   Node,
   Project,
-  Symbol,
-  Type,
-  TypeChecker,
+  SyntaxKind,
   TypeReferenceNode,
 } from 'ts-morph';
 
@@ -17,7 +15,6 @@ export interface ExtractedType {
 
 export class TypeExtractorService {
   private project: Project | null = null;
-  private typeChecker: TypeChecker | null = null;
   private exportMap: Map<string, Node> | null = null;
 
   async extractTypes(typeNames: string[]): Promise<ExtractedType[]> {
@@ -93,6 +90,13 @@ export class TypeExtractorService {
       };
     }
 
+    if (Node.isEnumDeclaration(declaration)) {
+      return {
+        name: typeName,
+        definition: this.convertEnumToType(declaration, typeName),
+      };
+    }
+
     return null;
   }
 
@@ -115,13 +119,6 @@ export class TypeExtractorService {
     return this.project;
   }
 
-  private getTypeChecker(): TypeChecker {
-    if (!this.typeChecker) {
-      this.typeChecker = this.getProject().getTypeChecker();
-    }
-    return this.typeChecker;
-  }
-
   private populateExportMap(): void {
     if (this.exportMap) return;
 
@@ -136,7 +133,8 @@ export class TypeExtractorService {
           (declaration) =>
             Node.isInterfaceDeclaration(declaration) ||
             Node.isTypeAliasDeclaration(declaration) ||
-            Node.isClassDeclaration(declaration),
+            Node.isClassDeclaration(declaration) ||
+            Node.isEnumDeclaration(declaration),
         );
         if (matching) {
           map.set(name, matching);
@@ -150,6 +148,17 @@ export class TypeExtractorService {
     const references = new Set<string>();
 
     const visit = (node: Node): void => {
+      // For class declarations, explicitly visit properties (forEachChild doesn't include them)
+      if (Node.isClassDeclaration(node)) {
+        node.getProperties().forEach((prop) => {
+          const typeNode = prop.getTypeNode();
+          if (typeNode) {
+            visit(typeNode);
+          }
+        });
+      }
+
+      // For interface/type alias declarations, forEachChild works fine
       if (Node.isTypeReference(node)) {
         this.collectFromTypeReferenceNode(node, references);
       } else if (Node.isArrayTypeNode(node)) {
@@ -198,9 +207,44 @@ export class TypeExtractorService {
     classDeclaration: ClassDeclaration,
     interfaceName: string,
   ): string {
-    const type = classDeclaration.getType();
-    const properties = this.printPropertiesFromType(type, classDeclaration);
-    return `export interface ${interfaceName} {\n${properties}\n}`;
+    const properties: string[] = [];
+
+    classDeclaration.getProperties().forEach((prop) => {
+      // Skip private/protected properties
+      if (
+        prop.hasModifier(SyntaxKind.PrivateKeyword) ||
+        prop.hasModifier(SyntaxKind.ProtectedKeyword)
+      ) {
+        return;
+      }
+
+      const name = prop.getName();
+      const typeNode = prop.getTypeNode();
+      const optional = prop.hasQuestionToken() ? '?' : '';
+
+      if (typeNode) {
+        const typeText = this.cleanTypeText(typeNode.getText());
+        properties.push(`  ${name}${optional}: ${typeText};`);
+      }
+    });
+
+    return `export interface ${interfaceName} {\n${properties.join('\n')}\n}`;
+  }
+
+  private convertEnumToType(enumDeclaration: Node, typeName: string): string {
+    if (!Node.isEnumDeclaration(enumDeclaration)) {
+      return `export type ${typeName} = string;`;
+    }
+
+    const members = enumDeclaration
+      .getMembers()
+      .map((member) => {
+        const value = member.getValue();
+        return typeof value === 'string' ? `'${value}'` : value;
+      })
+      .join(' | ');
+
+    return `export type ${typeName} = ${members};`;
   }
 
   private collectFromTypeReferenceNode(
@@ -310,34 +354,6 @@ export interface GateKitConfig {
   retries?: number;
 }
 `;
-  }
-
-  private printPropertiesFromType(
-    type: Type,
-    context: ClassDeclaration,
-  ): string {
-    const checker = this.getTypeChecker();
-    const lines: string[] = [];
-
-    type.getProperties().forEach((symbol: Symbol) => {
-      const name = symbol.getName();
-      if (name.startsWith('__')) {
-        return;
-      }
-
-      const declaration =
-        symbol.getValueDeclaration() || symbol.getDeclarations()?.[0];
-      const symbolType = declaration
-        ? symbol.getTypeAtLocation(declaration)
-        : checker.getTypeOfSymbolAtLocation(symbol, context);
-      const typeText = this.cleanTypeText(
-        symbolType.getText(declaration ?? context),
-      );
-      const optional = symbol.isOptional();
-      lines.push(`  ${name}${optional ? '?' : ''}: ${typeText};`);
-    });
-
-    return lines.join('\n');
   }
 
   private cleanTypeText(typeText: string): string {

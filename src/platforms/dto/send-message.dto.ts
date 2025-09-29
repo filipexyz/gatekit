@@ -6,6 +6,8 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
+  ValidateIf,
+  IsUrl,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -27,7 +29,7 @@ export enum Priority {
   HIGH = 'high',
 }
 
-class TargetDto {
+export class TargetDto {
   @IsString()
   platformId: string;
 
@@ -38,21 +40,29 @@ class TargetDto {
   id: string;
 }
 
-class AttachmentDto {
-  @IsOptional()
-  @IsString()
+export class AttachmentDto {
+  @ValidateIf((o) => !o.data)
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   url?: string;
 
-  @IsOptional()
+  @ValidateIf((o) => !o.url)
   @IsString()
-  mime?: string;
+  data?: string;
 
   @IsOptional()
   @IsString()
-  name?: string;
+  filename?: string;
+
+  @IsOptional()
+  @IsString()
+  mimeType?: string;
+
+  @IsOptional()
+  @IsString()
+  caption?: string;
 }
 
-class ButtonDto {
+export class ButtonDto {
   @IsString()
   text: string;
 
@@ -60,7 +70,7 @@ class ButtonDto {
   value: string;
 }
 
-class EmbedDto {
+export class EmbedDto {
   @IsOptional()
   @IsString()
   title?: string;
@@ -82,7 +92,7 @@ class EmbedDto {
   thumbnailUrl?: string;
 }
 
-class ContentDto {
+export class ContentDto {
   @IsOptional()
   @IsString()
   text?: string;
@@ -106,7 +116,7 @@ class ContentDto {
   embeds?: EmbedDto[];
 }
 
-class OptionsDto {
+export class OptionsDto {
   @IsOptional()
   @IsString()
   replyTo?: string;
@@ -120,7 +130,7 @@ class OptionsDto {
   scheduled?: string;
 }
 
-class MetadataDto {
+export class MetadataDto {
   @IsOptional()
   @IsString()
   trackingId?: string;

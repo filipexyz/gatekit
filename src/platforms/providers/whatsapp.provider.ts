@@ -14,6 +14,8 @@ import { makeEnvelope } from '../utils/envelope.factory';
 import { CryptoUtil } from '../../common/utils/crypto.util';
 import { PlatformLogsService } from '../services/platform-logs.service';
 import { PlatformLogger } from '../utils/platform-logger';
+import { AttachmentUtil } from '../../common/utils/attachment.util';
+import { AttachmentDto } from '../dto/send-message.dto';
 
 interface WhatsAppConnection {
   connectionKey: string; // projectId:platformId
@@ -724,38 +726,66 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
         throw new Error('No chat ID provided');
       }
 
-      const payload = {
-        number: chatId,
-        text: reply.text || '',
-      };
-
-      const response = await fetch(
-        `${connection.evolutionApiUrl}/message/sendText/${connection.instanceName}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: connection.evolutionApiKey,
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(`Evolution API error: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      const messageId = result.key?.id || 'unknown';
-
+      const hasAttachments = reply.attachments && reply.attachments.length > 0;
       const platformLogger = this.createPlatformLogger(
         env.projectId,
         platformId,
       );
+
+      let messageId: string;
+
+      // Handle attachments
+      if (hasAttachments && reply.attachments) {
+        // Send first attachment with caption, rest without
+        messageId = await this.sendAttachment(
+          connection,
+          chatId,
+          reply.attachments[0],
+          reply.text,
+        );
+
+        // Send additional attachments
+        for (let i = 1; i < reply.attachments.length; i++) {
+          await this.sendAttachment(
+            connection,
+            chatId,
+            reply.attachments[i],
+            reply.attachments[i].caption,
+          );
+        }
+      } else {
+        // Text-only message
+        const payload = {
+          number: chatId,
+          text: reply.text || '',
+        };
+
+        const response = await fetch(
+          `${connection.evolutionApiUrl}/message/sendText/${connection.instanceName}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: connection.evolutionApiKey,
+            },
+            body: JSON.stringify(payload),
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(`Evolution API error: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        messageId = result.key?.id || 'unknown';
+      }
+
       platformLogger.logMessage(`Message sent successfully to ${chatId}`, {
         messageId,
         chatId,
         messageLength: reply.text?.length || 0,
+        attachmentCount:
+          hasAttachments && reply.attachments ? reply.attachments.length : 0,
       });
 
       return { providerMessageId: messageId };
@@ -776,5 +806,93 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
       this.logger.error('Failed to send WhatsApp message:', error.message);
       throw error;
     }
+  }
+
+  /**
+   * Sends a single attachment via WhatsApp Evolution API
+   */
+  private async sendAttachment(
+    connection: WhatsAppConnection,
+    chatId: string,
+    attachment: AttachmentDto,
+    caption?: string,
+  ): Promise<string> {
+    let media: string;
+    let filename: string;
+
+    // Process attachment data
+    if (attachment.url) {
+      await AttachmentUtil.validateAttachmentUrl(attachment.url);
+      media = attachment.url;
+      filename =
+        attachment.filename ||
+        AttachmentUtil.getFilenameFromUrl(attachment.url);
+    } else if (attachment.data) {
+      AttachmentUtil.validateBase64Data(attachment.data, 16 * 1024 * 1024); // 16MB WhatsApp limit
+      // Evolution API expects raw base64 string (not data URI)
+      media = AttachmentUtil.extractBase64String(attachment.data);
+      filename = attachment.filename || 'file';
+    } else {
+      throw new Error('Attachment must have url or data');
+    }
+
+    // Detect MIME type
+    const mimeType = AttachmentUtil.detectMimeType({
+      url: attachment.url,
+      data: attachment.data,
+      filename: filename,
+      providedMimeType: attachment.mimeType,
+    });
+
+    const attachmentType = AttachmentUtil.getAttachmentType(mimeType);
+    const messageCaption = attachment.caption || caption || '';
+
+    // Map attachment type to Evolution API mediatype
+    let mediatype: string;
+    switch (attachmentType) {
+      case 'image':
+        mediatype = 'image';
+        break;
+      case 'video':
+        mediatype = 'video';
+        break;
+      case 'audio':
+        mediatype = 'audio';
+        break;
+      default:
+        mediatype = 'document';
+        break;
+    }
+
+    const payload = {
+      number: chatId,
+      mediatype,
+      mimetype: mimeType,
+      caption: messageCaption,
+      media,
+      fileName: filename,
+    };
+
+    const response = await fetch(
+      `${connection.evolutionApiUrl}/message/sendMedia/${connection.instanceName}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: connection.evolutionApiKey,
+        },
+        body: JSON.stringify(payload),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Evolution API error: ${response.statusText} - ${errorText}`,
+      );
+    }
+
+    const result = await response.json();
+    return result.key?.id || 'unknown';
   }
 }

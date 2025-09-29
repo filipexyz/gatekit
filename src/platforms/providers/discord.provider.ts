@@ -1,6 +1,11 @@
 import { Injectable, Logger, Inject, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Client, GatewayIntentBits, Message } from 'discord.js';
+import {
+  Client,
+  GatewayIntentBits,
+  Message,
+  AttachmentBuilder,
+} from 'discord.js';
 import {
   PlatformProvider,
   PlatformLifecycleEvent,
@@ -13,6 +18,7 @@ import { MessageEnvelopeV1 } from '../interfaces/message-envelope.interface';
 import { makeEnvelope } from '../utils/envelope.factory';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CryptoUtil } from '../../common/utils/crypto.util';
+import { AttachmentUtil } from '../../common/utils/attachment.util';
 
 interface DiscordConnection {
   connectionKey: string; // projectId:platformId
@@ -448,15 +454,17 @@ export class DiscordProvider
 
       // Validate message content
       const messageText = reply.text?.trim();
-      if (!messageText) {
+      const hasAttachments = reply.attachments && reply.attachments.length > 0;
+
+      if (!messageText && !hasAttachments) {
         this.logger.error(
-          `Discord message has no content - reply.text: "${reply.text}"`,
+          `Discord message has no content - reply.text: "${reply.text}", attachments: ${hasAttachments}`,
         );
-        throw new Error('Message text is required and cannot be empty');
+        throw new Error('Message must have text or attachments');
       }
 
       this.logger.debug(
-        `Sending Discord message to channel ${channelId}: "${messageText}"`,
+        `Sending Discord message to channel ${channelId}: "${messageText}", attachments: ${hasAttachments && reply.attachments ? reply.attachments.length : 0}`,
       );
 
       const channel = await connection.client.channels.fetch(channelId);
@@ -464,9 +472,51 @@ export class DiscordProvider
         throw new Error('Invalid channel or channel type');
       }
 
-      const sent = await (channel as any).send(messageText);
+      // Process attachments if present
+      const files: AttachmentBuilder[] = [];
+      if (hasAttachments && reply.attachments) {
+        for (const attachment of reply.attachments) {
+          try {
+            let attachmentData: string | Buffer;
+            let filename: string;
+
+            // Handle URL-based attachments
+            if (attachment.url) {
+              await AttachmentUtil.validateAttachmentUrl(attachment.url);
+              attachmentData = attachment.url;
+              filename =
+                attachment.filename ||
+                AttachmentUtil.getFilenameFromUrl(attachment.url);
+            }
+            // Handle base64 data attachments
+            else if (attachment.data) {
+              AttachmentUtil.validateBase64Data(attachment.data);
+              attachmentData = AttachmentUtil.base64ToBuffer(attachment.data);
+              filename = attachment.filename || 'file';
+            } else {
+              this.logger.warn('Attachment has no url or data, skipping');
+              continue;
+            }
+
+            const discordAttachment = new AttachmentBuilder(attachmentData, {
+              name: filename,
+            });
+            files.push(discordAttachment);
+          } catch (error) {
+            this.logger.error(`Failed to process attachment: ${error.message}`);
+            // Continue with other attachments
+          }
+        }
+      }
+
+      // Send message with text and/or attachments
+      const sent = await (channel as any).send({
+        content: messageText || undefined,
+        files: files.length > 0 ? files : undefined,
+      });
+
       this.logger.log(
-        `Discord message sent successfully to ${channelId}: ${sent.id}`,
+        `Discord message sent successfully to ${channelId}: ${sent.id} (${files.length} attachments)`,
       );
       return { providerMessageId: sent.id };
     } catch (error) {

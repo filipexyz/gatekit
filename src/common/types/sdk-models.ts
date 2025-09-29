@@ -77,40 +77,6 @@ export interface UpdatePlatformDto {
   credentials?: Record<string, unknown>;
 }
 
-// Message DTOs (clean versions for SDK)
-export interface SendMessageDto {
-  targets: TargetDto[];
-  content: ContentDto;
-  options?: OptionsDto;
-  metadata?: MetadataDto;
-}
-
-// Message nested types
-export interface TargetDto {
-  platformId: string;
-  type: 'user' | 'channel' | 'group';
-  id: string;
-}
-
-export interface ContentDto {
-  text?: string;
-  attachments?: any[];
-  buttons?: any[];
-  embeds?: any[];
-}
-
-export interface OptionsDto {
-  replyTo?: string;
-  silent?: boolean;
-  scheduled?: string;
-}
-
-export interface MetadataDto {
-  trackingId?: string;
-  tags?: string[];
-  priority?: 'low' | 'normal' | 'high';
-}
-
 // User and Project Member DTOs
 export interface User {
   id: string;

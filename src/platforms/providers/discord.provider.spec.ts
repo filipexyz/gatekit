@@ -367,4 +367,263 @@ describe('DiscordProvider', () => {
       await expect(provider.onModuleInit()).resolves.not.toThrow();
     });
   });
+
+  describe('Attachment Sending', () => {
+    let mockConnection: any;
+    let mockChannel: any;
+
+    beforeEach(async () => {
+      mockChannel = {
+        send: jest.fn().mockResolvedValue({ id: 'sent-message-id' }),
+      };
+
+      const mockClient = {
+        isReady: jest.fn().mockReturnValue(true),
+        channels: {
+          fetch: jest.fn().mockResolvedValue(mockChannel),
+        },
+      };
+
+      mockConnection = {
+        connectionKey: 'project-123:platform-456',
+        projectId: 'project-123',
+        platformId: 'platform-456',
+        client: mockClient,
+        isConnected: true,
+      };
+
+      // Manually inject connection for testing
+      (provider as any).connections.set(
+        'project-123:platform-456',
+        mockConnection,
+      );
+    });
+
+    it('should send message with URL attachment', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {
+        text: 'Check this out',
+        attachments: [
+          {
+            url: 'https://example.com/image.png',
+            filename: 'screenshot.png',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalledWith({
+        content: 'Check this out',
+        files: expect.arrayContaining([
+          expect.objectContaining({
+            attachment: 'https://example.com/image.png',
+          }),
+        ]),
+      });
+    });
+
+    it('should send message with base64 attachment', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const base64Data = Buffer.from('test file content').toString('base64');
+
+      const result = await provider.sendMessage(envelope, {
+        text: 'File attached',
+        attachments: [
+          {
+            data: base64Data,
+            filename: 'test.txt',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalledWith({
+        content: 'File attached',
+        files: expect.arrayContaining([
+          expect.objectContaining({
+            attachment: expect.any(Buffer),
+          }),
+        ]),
+      });
+    });
+
+    it('should send message with multiple attachments', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {
+        text: 'Multiple files',
+        attachments: [
+          { url: 'https://example.com/file1.png' },
+          { url: 'https://example.com/file2.pdf' },
+          {
+            data: Buffer.from('test').toString('base64'),
+            filename: 'test.txt',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalledWith({
+        content: 'Multiple files',
+        files: expect.arrayContaining([
+          expect.any(Object),
+          expect.any(Object),
+          expect.any(Object),
+        ]),
+      });
+    });
+
+    it('should send attachment-only message without text', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            url: 'https://example.com/image.png',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalledWith({
+        content: undefined,
+        files: expect.any(Array),
+      });
+    });
+
+    it('should handle attachment processing errors gracefully', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      // Invalid base64 data
+      const result = await provider.sendMessage(envelope, {
+        text: 'This should still work',
+        attachments: [
+          {
+            data: 'invalid@base64#data',
+            filename: 'test.txt',
+          },
+        ],
+      });
+
+      // Should continue and send text even if attachment fails
+      expect(mockChannel.send).toHaveBeenCalled();
+    });
+
+    it('should reject message with neither text nor attachments', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {});
+
+      expect(result.providerMessageId).toBe('discord-send-failed');
+      expect(mockChannel.send).not.toHaveBeenCalled();
+    });
+
+    it('should handle data URI format', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const dataUri = `data:image/png;base64,${Buffer.from('test').toString('base64')}`;
+
+      const result = await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            data: dataUri,
+            filename: 'image.png',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalled();
+    });
+
+    it('should use filename from URL if not provided', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            url: 'https://example.com/path/to/document.pdf',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalled();
+    });
+
+    it('should skip attachments with neither url nor data', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {
+        text: 'Text message',
+        attachments: [
+          {
+            filename: 'missing-data.txt',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalledWith({
+        content: 'Text message',
+        files: undefined, // No valid attachments
+      });
+    });
+  });
 });
