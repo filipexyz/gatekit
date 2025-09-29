@@ -14,6 +14,8 @@ import { makeEnvelope } from '../utils/envelope.factory';
 import { CryptoUtil } from '../../common/utils/crypto.util';
 import { PlatformLogsService } from '../services/platform-logs.service';
 import { PlatformLogger } from '../utils/platform-logger';
+import { AttachmentUtil } from '../../common/utils/attachment.util';
+import { AttachmentDto } from '../dto/send-message.dto';
 
 interface TelegramConnection {
   connectionKey: string; // projectId:platformId
@@ -554,29 +556,55 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
         throw new Error('No chat ID provided');
       }
 
-      const sentMessage = await connection.bot.sendMessage(
-        chatId,
-        reply.text ?? '',
-        {
-          parse_mode: 'HTML',
-        },
-      );
-
-      // Enhanced logging for successful message send
+      const hasAttachments = reply.attachments && reply.attachments.length > 0;
       const platformLogger = this.createPlatformLogger(
         env.projectId,
         platformId,
       );
+
+      let sentMessage: TelegramBot.Message;
+
+      // Handle attachments
+      if (hasAttachments && reply.attachments && reply.attachments.length > 0) {
+        // Telegram supports media groups (2-10 items of same type)
+        if (reply.attachments.length > 1) {
+          sentMessage = await this.sendMediaGroup(
+            connection.bot,
+            chatId,
+            reply.attachments,
+            reply.text,
+          );
+        } else {
+          // Single attachment
+          sentMessage = await this.sendSingleAttachment(
+            connection.bot,
+            chatId,
+            reply.attachments[0],
+            reply.text,
+          );
+        }
+      } else {
+        // Text-only message
+        sentMessage = await connection.bot.sendMessage(
+          chatId,
+          reply.text ?? '',
+          {
+            parse_mode: 'HTML',
+          },
+        );
+      }
+
       platformLogger.logMessage(`Message sent successfully to chat ${chatId}`, {
         messageId: sentMessage.message_id.toString(),
         chatId,
         messageLength: reply.text?.length || 0,
+        attachmentCount:
+          hasAttachments && reply.attachments ? reply.attachments.length : 0,
         parseMode: 'HTML',
       });
 
       return { providerMessageId: sentMessage.message_id.toString() };
     } catch (error) {
-      // Enhanced logging for message send failure
       const platformLogger = this.createPlatformLogger(
         env.projectId,
         platformId,
@@ -586,7 +614,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
         error,
         {
           chatId: reply.threadId ?? env.threadId,
-          messageText: reply.text?.substring(0, 100), // First 100 chars for debugging
+          messageText: reply.text?.substring(0, 100),
           errorType: error.name || 'Unknown',
         },
       );
@@ -594,5 +622,140 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
       this.logger.error('Failed to send Telegram message:', error.message);
       return { providerMessageId: 'telegram-send-failed' };
     }
+  }
+
+  /**
+   * Sends a single attachment via Telegram
+   */
+  private async sendSingleAttachment(
+    bot: TelegramBot,
+    chatId: string,
+    attachment: AttachmentDto,
+    caption?: string,
+  ): Promise<TelegramBot.Message> {
+    let fileData: string | Buffer;
+    let filename: string;
+
+    // Process attachment data
+    if (attachment.url) {
+      await AttachmentUtil.validateAttachmentUrl(attachment.url);
+      fileData = attachment.url;
+      filename =
+        attachment.filename ||
+        AttachmentUtil.getFilenameFromUrl(attachment.url);
+    } else if (attachment.data) {
+      AttachmentUtil.validateBase64Data(attachment.data, 50 * 1024 * 1024); // 50MB Telegram limit
+      fileData = AttachmentUtil.base64ToBuffer(attachment.data);
+      filename = attachment.filename || 'file';
+    } else {
+      throw new Error('Attachment must have url or data');
+    }
+
+    // Detect MIME type
+    const mimeType = AttachmentUtil.detectMimeType({
+      url: attachment.url,
+      data: attachment.data,
+      filename: filename,
+      providedMimeType: attachment.mimeType,
+    });
+
+    const attachmentType = AttachmentUtil.getAttachmentType(mimeType);
+    const messageCaption = attachment.caption || caption;
+    const options: any = messageCaption
+      ? { caption: messageCaption, parse_mode: 'HTML' }
+      : {};
+
+    // Route to appropriate Telegram method based on type
+    switch (attachmentType) {
+      case 'image':
+        return await bot.sendPhoto(chatId, fileData, options);
+      case 'video':
+        return await bot.sendVideo(chatId, fileData, options);
+      case 'audio':
+        return await bot.sendAudio(chatId, fileData, options);
+      default:
+        return await bot.sendDocument(chatId, fileData, options);
+    }
+  }
+
+  /**
+   * Sends multiple attachments as media group
+   */
+  private async sendMediaGroup(
+    bot: TelegramBot,
+    chatId: string,
+    attachments: AttachmentDto[],
+    caption?: string,
+  ): Promise<TelegramBot.Message> {
+    const media: any[] = [];
+
+    for (let i = 0; i < Math.min(attachments.length, 10); i++) {
+      const attachment = attachments[i];
+      let fileData: string;
+
+      // Telegram media groups only support URLs, not Buffers
+      if (attachment.url) {
+        await AttachmentUtil.validateAttachmentUrl(attachment.url);
+        fileData = attachment.url;
+      } else if (attachment.data) {
+        // For base64, we need to send individually (Telegram limitation)
+        this.logger.warn(
+          'Media groups do not support base64 data, sending individually',
+        );
+        return await this.sendSingleAttachment(
+          bot,
+          chatId,
+          attachment,
+          caption,
+        );
+      } else {
+        continue;
+      }
+
+      const filename =
+        attachment.filename ||
+        AttachmentUtil.getFilenameFromUrl(attachment.url);
+      const mimeType = AttachmentUtil.detectMimeType({
+        url: attachment.url,
+        filename: filename,
+        providedMimeType: attachment.mimeType,
+      });
+
+      const attachmentType = AttachmentUtil.getAttachmentType(mimeType);
+      const itemCaption =
+        i === 0 ? attachment.caption || caption : attachment.caption;
+
+      // Media groups only support photo and video
+      if (attachmentType === 'image') {
+        media.push({
+          type: 'photo',
+          media: fileData,
+          caption: itemCaption,
+          parse_mode: 'HTML',
+        });
+      } else if (attachmentType === 'video') {
+        media.push({
+          type: 'video',
+          media: fileData,
+          caption: itemCaption,
+          parse_mode: 'HTML',
+        });
+      } else {
+        // Documents/audio can't be in media groups, send individually
+        return await this.sendSingleAttachment(
+          bot,
+          chatId,
+          attachment,
+          caption,
+        );
+      }
+    }
+
+    if (media.length === 0) {
+      throw new Error('No valid media items for media group');
+    }
+
+    const messages = await bot.sendMediaGroup(chatId, media);
+    return messages[0]; // Return first message for ID
   }
 }

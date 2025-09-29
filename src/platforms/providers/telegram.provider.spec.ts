@@ -246,4 +246,293 @@ describe('TelegramProvider', () => {
       expect(typeof config.handler).toBe('function');
     });
   });
+
+  describe('Attachment Sending', () => {
+    const projectId = 'project-123';
+    const platformId = 'platform-456';
+    const chatId = '123456789';
+
+    let mockBot: any;
+
+    beforeEach(async () => {
+      mockBot = {
+        sendMessage: jest.fn().mockResolvedValue({ message_id: 1 }),
+        sendPhoto: jest.fn().mockResolvedValue({ message_id: 2 }),
+        sendVideo: jest.fn().mockResolvedValue({ message_id: 3 }),
+        sendAudio: jest.fn().mockResolvedValue({ message_id: 4 }),
+        sendDocument: jest.fn().mockResolvedValue({ message_id: 5 }),
+        sendMediaGroup: jest.fn().mockResolvedValue([{ message_id: 6 }]),
+      };
+
+      // Manually create connection for testing
+      const mockConnection = {
+        connectionKey: `${projectId}:${platformId}`,
+        projectId,
+        platformId,
+        bot: mockBot,
+        isActive: true,
+      };
+
+      (provider as any).connections.set(
+        `${projectId}:${platformId}`,
+        mockConnection,
+      );
+    });
+
+    it('should send image attachment using sendPhoto', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'Check this image',
+        attachments: [
+          {
+            url: 'https://example.com/image.png',
+            mimeType: 'image/png',
+          },
+        ],
+      });
+
+      expect(mockBot.sendPhoto).toHaveBeenCalledWith(
+        chatId,
+        'https://example.com/image.png',
+        expect.objectContaining({
+          caption: 'Check this image',
+          parse_mode: 'HTML',
+        }),
+      );
+    });
+
+    it('should send video attachment using sendVideo', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            url: 'https://example.com/video.mp4',
+            mimeType: 'video/mp4',
+            caption: 'Video caption',
+          },
+        ],
+      });
+
+      expect(mockBot.sendVideo).toHaveBeenCalledWith(
+        chatId,
+        'https://example.com/video.mp4',
+        expect.objectContaining({
+          caption: 'Video caption',
+          parse_mode: 'HTML',
+        }),
+      );
+    });
+
+    it('should send audio attachment using sendAudio', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            url: 'https://example.com/audio.mp3',
+            mimeType: 'audio/mpeg',
+          },
+        ],
+      });
+
+      expect(mockBot.sendAudio).toHaveBeenCalled();
+    });
+
+    it('should send document attachment using sendDocument', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            url: 'https://example.com/document.pdf',
+            mimeType: 'application/pdf',
+          },
+        ],
+      });
+
+      expect(mockBot.sendDocument).toHaveBeenCalledWith(
+        chatId,
+        'https://example.com/document.pdf',
+        expect.any(Object),
+      );
+    });
+
+    it('should send base64 image using Buffer', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      const base64Data = Buffer.from('fake image data').toString('base64');
+
+      await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            data: base64Data,
+            filename: 'image.png',
+            mimeType: 'image/png',
+          },
+        ],
+      });
+
+      expect(mockBot.sendPhoto).toHaveBeenCalledWith(
+        chatId,
+        expect.any(Buffer),
+        expect.any(Object),
+      );
+    });
+
+    it('should send media group for multiple images', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'Multiple images',
+        attachments: [
+          { url: 'https://example.com/image1.png', mimeType: 'image/png' },
+          { url: 'https://example.com/image2.jpg', mimeType: 'image/jpeg' },
+        ],
+      });
+
+      expect(mockBot.sendMediaGroup).toHaveBeenCalledWith(
+        chatId,
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'photo',
+            media: 'https://example.com/image1.png',
+          }),
+          expect.objectContaining({
+            type: 'photo',
+            media: 'https://example.com/image2.jpg',
+          }),
+        ]),
+      );
+    });
+
+    it('should use per-attachment caption', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'Main text',
+        attachments: [
+          {
+            url: 'https://example.com/image.png',
+            mimeType: 'image/png',
+            caption: 'Image caption',
+          },
+        ],
+      });
+
+      expect(mockBot.sendPhoto).toHaveBeenCalledWith(
+        chatId,
+        expect.any(String),
+        expect.objectContaining({
+          caption: 'Image caption',
+        }),
+      );
+    });
+
+    it('should auto-detect MIME type from filename', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            url: 'https://example.com/file.jpg',
+          },
+        ],
+      });
+
+      // Should detect image/jpeg and use sendPhoto
+      expect(mockBot.sendPhoto).toHaveBeenCalled();
+    });
+
+    it('should handle mixed media types individually', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        attachments: [
+          { url: 'https://example.com/image.png', mimeType: 'image/png' },
+          { url: 'https://example.com/video.mp4', mimeType: 'video/mp4' },
+        ],
+      });
+
+      // Mixed types should be sent via media group if images/videos, or individually
+      expect(mockBot.sendMediaGroup).toHaveBeenCalled();
+    });
+
+    it('should fall back to sendDocument for unknown types', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            url: 'https://example.com/file.unknown',
+            mimeType: 'application/octet-stream',
+          },
+        ],
+      });
+
+      expect(mockBot.sendDocument).toHaveBeenCalled();
+    });
+
+    it('should handle attachment sending errors gracefully', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      mockBot.sendPhoto.mockRejectedValue(new Error('File too large'));
+
+      const result = await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            url: 'https://example.com/large-image.png',
+            mimeType: 'image/png',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('telegram-send-failed');
+    });
+  });
 });

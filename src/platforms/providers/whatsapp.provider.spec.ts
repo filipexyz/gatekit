@@ -785,4 +785,341 @@ describe('WhatsAppProvider', () => {
       await expect(provider.onPlatformEvent(event)).resolves.not.toThrow();
     });
   });
+
+  describe('Attachment Sending', () => {
+    const projectId = 'project-123';
+    const platformId = 'platform-456';
+    const chatId = '5511999999999';
+
+    beforeEach(async () => {
+      // Mock successful connection
+      (global.fetch as jest.Mock).mockImplementation((url: string) => {
+        if (url.includes('/sendMedia/')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ key: { id: 'msg-123' } }),
+          });
+        }
+        if (url.includes('/sendText/')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ key: { id: 'msg-456' } }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      });
+
+      // Manually create connection for testing
+      const mockConnection = {
+        connectionKey: `${projectId}:${platformId}`,
+        projectId,
+        platformId,
+        instanceName: 'test-instance',
+        evolutionApiUrl: 'https://evo.example.com',
+        evolutionApiKey: 'test-key',
+        isConnected: true,
+      };
+
+      (provider as any).connections.set(
+        `${projectId}:${platformId}`,
+        mockConnection,
+      );
+    });
+
+    it('should send image attachment via sendMedia endpoint', async () => {
+      const connection = (provider as any).connections.get(
+        `${projectId}:${platformId}`,
+      );
+
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'Check this image',
+        attachments: [
+          {
+            url: 'https://example.com/image.png',
+            mimeType: 'image/png',
+          },
+        ],
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/sendMedia/'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            apikey: 'test-key',
+          }),
+          body: expect.stringContaining('"mediatype":"image"'),
+        }),
+      );
+    });
+
+    it('should send video attachment', async () => {
+      const connection = (provider as any).connections.get(
+        `${projectId}:${platformId}`,
+      );
+
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            url: 'https://example.com/video.mp4',
+            mimeType: 'video/mp4',
+            caption: 'Video caption',
+          },
+        ],
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/sendMedia/'),
+        expect.objectContaining({
+          body: expect.stringContaining('"mediatype":"video"'),
+        }),
+      );
+    });
+
+    it('should send audio attachment', async () => {
+      const connection = (provider as any).connections.get(
+        `${projectId}:${platformId}`,
+      );
+
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            url: 'https://example.com/audio.mp3',
+            mimeType: 'audio/mpeg',
+          },
+        ],
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/sendMedia/'),
+        expect.objectContaining({
+          body: expect.stringContaining('"mediatype":"audio"'),
+        }),
+      );
+    });
+
+    it('should send document attachment', async () => {
+      const connection = (provider as any).connections.get(
+        `${projectId}:${platformId}`,
+      );
+
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            url: 'https://example.com/document.pdf',
+            mimeType: 'application/pdf',
+          },
+        ],
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/sendMedia/'),
+        expect.objectContaining({
+          body: expect.stringContaining('"mediatype":"document"'),
+        }),
+      );
+    });
+
+    it('should send base64 attachment with data URI', async () => {
+      const connection = (provider as any).connections.get(
+        `${projectId}:${platformId}`,
+      );
+
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      const base64Data = Buffer.from('test file content').toString('base64');
+
+      await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            data: base64Data,
+            filename: 'test.txt',
+            mimeType: 'text/plain',
+          },
+        ],
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/sendMedia/'),
+        expect.objectContaining({
+          body: expect.stringContaining('data:'),
+        }),
+      );
+    });
+
+    it('should send multiple attachments individually', async () => {
+      const connection = (provider as any).connections.get(
+        `${projectId}:${platformId}`,
+      );
+
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'Multiple files',
+        attachments: [
+          { url: 'https://example.com/file1.png', mimeType: 'image/png' },
+          { url: 'https://example.com/file2.pdf', mimeType: 'application/pdf' },
+        ],
+      });
+
+      // Should call sendMedia twice (once per attachment)
+      const sendMediaCalls = (global.fetch as jest.Mock).mock.calls.filter(
+        (call) => call[0].includes('/sendMedia/'),
+      );
+      expect(sendMediaCalls.length).toBe(2);
+    });
+
+    it('should include caption in attachment', async () => {
+      const connection = (provider as any).connections.get(
+        `${projectId}:${platformId}`,
+      );
+
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'Main text',
+        attachments: [
+          {
+            url: 'https://example.com/image.png',
+            mimeType: 'image/png',
+            caption: 'Image caption',
+          },
+        ],
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: expect.stringContaining('"caption":"Image caption"'),
+        }),
+      );
+    });
+
+    it('should auto-detect MIME type from filename', async () => {
+      const connection = (provider as any).connections.get(
+        `${projectId}:${platformId}`,
+      );
+
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            url: 'https://example.com/photo.jpg',
+          },
+        ],
+      });
+
+      // Should detect image type and send as image
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/sendMedia/'),
+        expect.objectContaining({
+          body: expect.stringContaining('"mediatype":"image"'),
+        }),
+      );
+    });
+
+    it('should handle Evolution API errors', async () => {
+      const connection = (provider as any).connections.get(
+        `${projectId}:${platformId}`,
+      );
+
+      (global.fetch as jest.Mock).mockImplementationOnce(() =>
+        Promise.resolve({
+          ok: false,
+          statusText: 'Bad Request',
+          text: () => Promise.resolve('File too large'),
+        }),
+      );
+
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await expect(
+        provider.sendMessage(envelope, {
+          attachments: [
+            {
+              url: 'https://example.com/large-file.zip',
+              mimeType: 'application/zip',
+            },
+          ],
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('should include filename in sendMedia payload', async () => {
+      const connection = (provider as any).connections.get(
+        `${projectId}:${platformId}`,
+      );
+
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        attachments: [
+          {
+            url: 'https://example.com/report.pdf',
+            filename: 'quarterly-report.pdf',
+          },
+        ],
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: expect.stringContaining('"fileName":"quarterly-report.pdf"'),
+        }),
+      );
+    });
+  });
 });
