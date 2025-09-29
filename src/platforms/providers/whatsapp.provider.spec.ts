@@ -948,7 +948,7 @@ describe('WhatsAppProvider', () => {
       );
     });
 
-    it('should send base64 attachment with data URI', async () => {
+    it('should send base64 attachment with raw base64 string', async () => {
       const connection = (provider as any).connections.get(
         `${projectId}:${platformId}`,
       );
@@ -971,10 +971,11 @@ describe('WhatsAppProvider', () => {
         ],
       });
 
+      // Evolution API expects raw base64 string (not data URI)
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/sendMedia/'),
         expect.objectContaining({
-          body: expect.stringContaining('data:'),
+          body: expect.stringContaining(base64Data),
         }),
       );
     });
