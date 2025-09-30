@@ -117,11 +117,11 @@ GET    /api/v1/projects/:slug/platforms/logs/stats   # Activity dashboard
 
 Query capabilities programmatically via: `GET /api/v1/platforms/health`
 
-| Platform        | Connection | Send | Receive | Attachments | Edit | Delete | Embeds | Buttons | Reactions | Threads |
-| --------------- | ---------- | ---- | ------- | ----------- | ---- | ------ | ------ | ------- | --------- | ------- |
-| 💬 **Discord**  | WebSocket  | ✅   | ✅      | ✅          | 🔜   | 🔜     | 🔜     | 🔜      | 🔜        | 🔜      |
-| 📱 **Telegram** | Webhook    | ✅   | ✅      | ✅          | 🔜   | 🔜     | 🔜     | 🔜      | 🔜        | 🔜      |
-| 💚 **WhatsApp** | Webhook    | ✅   | ✅      | ✅          | 🔜   | 🔜     | 🔜     | 🔜      | 🔜        | 🔜      |
+| Platform        | Connection | Send | Receive | Attachments | Embeds | Edit | Delete | Buttons | Reactions | Threads |
+| --------------- | ---------- | ---- | ------- | ----------- | ------ | ---- | ------ | ------- | --------- | ------- |
+| 💬 **Discord**  | WebSocket  | ✅   | ✅      | ✅          | ✅     | 🔜   | 🔜     | 🔜      | 🔜        | 🔜      |
+| 📱 **Telegram** | Webhook    | ✅   | ✅      | ✅          | ✅     | 🔜   | 🔜     | 🔜      | 🔜        | 🔜      |
+| 💚 **WhatsApp** | Webhook    | ✅   | ✅      | ✅          | ✅     | 🔜   | 🔜     | 🔜      | 🔜        | 🔜      |
 
 **Legend:** ✅ Available | 🔜 Planned
 
@@ -130,12 +130,19 @@ Query capabilities programmatically via: `GET /api/v1/platforms/health`
 - **Send** - Send messages to users/channels
 - **Receive** - Receive incoming messages
 - **Attachments** - Send/receive media files (images, videos, documents)
+- **Embeds** - Rich embedded content with graceful cross-platform degradation
+
+**Embed Features:**
+
+- **Discord** - Full native embed support (author, title, description, fields, footer, images, timestamp)
+- **Telegram** - Graceful degradation to HTML-formatted text with inline fields
+- **WhatsApp** - Graceful degradation to Markdown-formatted text with inline fields
+- **Platform Limits** - Discord: 10 embeds/message, 25 fields/embed; Telegram/WhatsApp: first image only
 
 **Planned Capabilities:**
 
 - **Edit** - Edit previously sent messages
 - **Delete** - Delete sent messages
-- **Embeds** - Rich embedded content
 - **Buttons** - Interactive buttons and action rows
 - **Reactions** - Message reactions/emojis
 - **Threads** - Threaded conversations

@@ -550,7 +550,7 @@ describe('DiscordProvider', () => {
       } as any;
 
       await expect(provider.sendMessage(envelope, {})).rejects.toThrow(
-        'Message must have text or attachments',
+        'Message must have text, attachments, or embeds',
       );
       expect(mockChannel.send).not.toHaveBeenCalled();
     });
@@ -622,6 +622,320 @@ describe('DiscordProvider', () => {
       expect(mockChannel.send).toHaveBeenCalledWith({
         content: 'Text message',
         files: undefined, // No valid attachments
+      });
+    });
+  });
+
+  describe('Embed Transformation', () => {
+    let mockConnection: any;
+    let mockChannel: any;
+
+    beforeEach(async () => {
+      mockChannel = {
+        send: jest.fn().mockResolvedValue({ id: 'sent-message-id' }),
+      };
+
+      const mockClient = {
+        isReady: jest.fn().mockReturnValue(true),
+        channels: {
+          fetch: jest.fn().mockResolvedValue(mockChannel),
+        },
+      };
+
+      mockConnection = {
+        connectionKey: 'project-123:platform-456',
+        projectId: 'project-123',
+        platformId: 'platform-456',
+        client: mockClient,
+        isConnected: true,
+      };
+
+      (provider as any).connections.set(
+        'project-123:platform-456',
+        mockConnection,
+      );
+    });
+
+    it('should send message with complete embed', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {
+        text: 'Check this embed',
+        embeds: [
+          {
+            author: {
+              name: 'Test Author',
+              url: 'https://example.com/author',
+              iconUrl: 'https://example.com/icon.png',
+            },
+            title: 'Embed Title',
+            url: 'https://example.com/embed',
+            description: 'Description text',
+            color: '#5865F2',
+            imageUrl: 'https://example.com/image.png',
+            thumbnailUrl: 'https://example.com/thumb.png',
+            fields: [
+              { name: 'Field 1', value: 'Value 1', inline: true },
+              { name: 'Field 2', value: 'Value 2', inline: false },
+            ],
+            footer: {
+              text: 'Footer text',
+              iconUrl: 'https://example.com/footer.png',
+            },
+            timestamp: '2025-09-30T20:00:00.000Z',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalledWith({
+        content: 'Check this embed',
+        files: undefined,
+        embeds: expect.arrayContaining([expect.any(Object)]),
+      });
+    });
+
+    it('should enforce 10 embed limit', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const embeds = Array.from({ length: 15 }, (_, i) => ({
+        title: `Embed ${i + 1}`,
+        description: `Description ${i + 1}`,
+      }));
+
+      const result = await provider.sendMessage(envelope, {
+        embeds,
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalledWith({
+        content: undefined,
+        files: undefined,
+        embeds: expect.arrayContaining([expect.any(Object)]),
+      });
+
+      // Should have called with exactly 10 embeds
+      const call = mockChannel.send.mock.calls[0][0];
+      expect(call.embeds).toHaveLength(10);
+    });
+
+    it('should skip unsafe author URL', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {
+        embeds: [
+          {
+            author: {
+              name: 'Test Author',
+              url: 'http://169.254.169.254/metadata', // SSRF attempt
+            },
+            title: 'Test',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      // Should still send embed but without the unsafe URL
+      expect(mockChannel.send).toHaveBeenCalled();
+    });
+
+    it('should skip unsafe image URL', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {
+        embeds: [
+          {
+            title: 'Test',
+            imageUrl: 'http://localhost:8080/admin', // Unsafe URL
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalled();
+    });
+
+    it('should enforce 25 field limit per embed', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const fields = Array.from({ length: 30 }, (_, i) => ({
+        name: `Field ${i + 1}`,
+        value: `Value ${i + 1}`,
+      }));
+
+      const result = await provider.sendMessage(envelope, {
+        embeds: [
+          {
+            title: 'Many fields',
+            fields,
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalled();
+    });
+
+    it('should handle invalid timestamp gracefully', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {
+        embeds: [
+          {
+            title: 'Test',
+            timestamp: 'invalid-date-string',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalled();
+    });
+
+    it('should handle invalid color gracefully', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {
+        embeds: [
+          {
+            title: 'Test',
+            color: 'not-a-valid-color',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalled();
+    });
+
+    it('should send multiple embeds', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {
+        embeds: [
+          {
+            title: 'Embed 1',
+            description: 'First embed',
+          },
+          {
+            title: 'Embed 2',
+            description: 'Second embed',
+          },
+          {
+            title: 'Embed 3',
+            description: 'Third embed',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      const call = mockChannel.send.mock.calls[0][0];
+      expect(call.embeds).toHaveLength(3);
+    });
+
+    it('should send message with text, attachments, and embeds', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {
+        text: 'Complete message',
+        attachments: [
+          {
+            url: 'https://example.com/file.pdf',
+          },
+        ],
+        embeds: [
+          {
+            title: 'Embed',
+            description: 'Description',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalledWith({
+        content: 'Complete message',
+        files: expect.any(Array),
+        embeds: expect.any(Array),
+      });
+    });
+
+    it('should send embed-only message without text', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {
+        embeds: [
+          {
+            title: 'Embed only',
+            description: 'No text message',
+          },
+        ],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalledWith({
+        content: undefined,
+        files: undefined,
+        embeds: expect.any(Array),
       });
     });
   });
