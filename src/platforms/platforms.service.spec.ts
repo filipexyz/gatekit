@@ -440,6 +440,129 @@ describe('PlatformsService', () => {
         }),
       });
     });
+
+    it('should update only name without changing isActive or testMode', async () => {
+      const projectSlug = 'test-project';
+      const platformId = 'platform-id';
+      const updateDto = {
+        name: 'New Name Only',
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
+      mockPrismaService.projectPlatform.findFirst.mockResolvedValue({
+        id: platformId,
+        platform: 'discord',
+        name: 'Old Name',
+        isActive: true,
+        testMode: false,
+        credentialsEncrypted: 'encrypted_{"token":"test"}',
+      });
+      mockPrismaService.projectPlatform.update.mockResolvedValue({
+        id: platformId,
+        platform: 'discord',
+        name: 'New Name Only',
+        isActive: true,
+        testMode: false,
+        webhookToken: 'webhook-token',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await service.update(projectSlug, platformId, updateDto);
+
+      // Verify that ONLY name is in the update data
+      const updateCall =
+        mockPrismaService.projectPlatform.update.mock.calls[0][0];
+      expect(updateCall.data).toEqual({ name: 'New Name Only' });
+      expect(updateCall.data).not.toHaveProperty('isActive');
+      expect(updateCall.data).not.toHaveProperty('testMode');
+      expect(updateCall.data).not.toHaveProperty('description');
+      expect(updateCall.data).not.toHaveProperty('credentialsEncrypted');
+    });
+
+    it('should update only credentials without changing isActive', async () => {
+      const projectSlug = 'test-project';
+      const platformId = 'platform-id';
+      const updateDto = {
+        credentials: { token: 'new-token' },
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
+      mockPrismaService.projectPlatform.findFirst.mockResolvedValue({
+        id: platformId,
+        platform: 'discord',
+        name: 'Bot',
+        isActive: true,
+        testMode: false,
+      });
+      mockPrismaService.projectPlatform.update.mockResolvedValue({
+        id: platformId,
+        platform: 'discord',
+        name: 'Bot',
+        isActive: true,
+        testMode: false,
+        webhookToken: 'webhook-token',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await service.update(projectSlug, platformId, updateDto);
+
+      // Verify that ONLY credentialsEncrypted is in the update data
+      const updateCall =
+        mockPrismaService.projectPlatform.update.mock.calls[0][0];
+      expect(updateCall.data).toHaveProperty('credentialsEncrypted');
+      expect(updateCall.data).not.toHaveProperty('isActive');
+      expect(updateCall.data).not.toHaveProperty('testMode');
+      expect(updateCall.data).not.toHaveProperty('name');
+      expect(updateCall.data).not.toHaveProperty('description');
+    });
+
+    it('should update only description without changing other fields', async () => {
+      const projectSlug = 'test-project';
+      const platformId = 'platform-id';
+      const updateDto = {
+        description: 'New description',
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue({
+        id: 'project-id',
+      });
+      mockPrismaService.projectPlatform.findFirst.mockResolvedValue({
+        id: platformId,
+        platform: 'telegram',
+        name: 'Bot',
+        isActive: true,
+        testMode: true,
+        credentialsEncrypted: 'encrypted_{"token":"test"}',
+      });
+      mockPrismaService.projectPlatform.update.mockResolvedValue({
+        id: platformId,
+        platform: 'telegram',
+        name: 'Bot',
+        description: 'New description',
+        isActive: true,
+        testMode: true,
+        webhookToken: 'webhook-token',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await service.update(projectSlug, platformId, updateDto);
+
+      // Verify that ONLY description is in the update data
+      const updateCall =
+        mockPrismaService.projectPlatform.update.mock.calls[0][0];
+      expect(updateCall.data).toEqual({ description: 'New description' });
+      expect(updateCall.data).not.toHaveProperty('isActive');
+      expect(updateCall.data).not.toHaveProperty('testMode');
+      expect(updateCall.data).not.toHaveProperty('name');
+      expect(updateCall.data).not.toHaveProperty('credentialsEncrypted');
+    });
   });
 
   describe('remove', () => {
