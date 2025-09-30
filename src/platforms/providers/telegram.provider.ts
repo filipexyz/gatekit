@@ -15,7 +15,7 @@ import { CryptoUtil } from '../../common/utils/crypto.util';
 import { PlatformLogsService } from '../services/platform-logs.service';
 import { PlatformLogger } from '../utils/platform-logger';
 import { AttachmentUtil } from '../../common/utils/attachment.util';
-import { AttachmentDto } from '../dto/send-message.dto';
+import { AttachmentDto, ButtonDto } from '../dto/send-message.dto';
 import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
 import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
 import { PlatformCapability } from '../enums/platform-capability.enum';
@@ -43,6 +43,10 @@ interface TelegramConnection {
     capability: PlatformCapability.EMBEDS,
     limitations:
       'Max 1024 chars for caption (converted to HTML text + first embed image only)',
+  },
+  {
+    capability: PlatformCapability.BUTTONS,
+    limitations: '~100 buttons per message, 1-8 buttons per row recommended',
   },
 ])
 export class TelegramProvider implements PlatformProvider, PlatformAdapter {
@@ -428,7 +432,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     // Store the callback query as a message
     if (platformId && query.message) {
       try {
-        await this.prisma.receivedMessage.create({
+        const storedCallback = await this.prisma.receivedMessage.create({
           data: {
             projectId,
             platformId,
@@ -439,12 +443,33 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
             userDisplay:
               query.from.username || query.from.first_name || 'Unknown',
             messageText: query.data || null,
-            messageType: 'callback',
+            messageType: 'button_click',
             rawData: query as any,
           },
         });
         this.logger.debug(
           `Stored Telegram callback ${query.id} for project ${projectId}`,
+        );
+
+        // Deliver webhook event for button click
+        await this.webhookDeliveryService.deliverEvent(
+          projectId,
+          WebhookEventType.BUTTON_CLICKED,
+          {
+            message_id: storedCallback.id,
+            platform: 'telegram',
+            platform_id: platformId,
+            chat_id: query.message.chat.id.toString(),
+            user_id: query.from.id.toString(),
+            user_display:
+              query.from.username || query.from.first_name || 'Unknown',
+            button_value: query.data || '',
+            clicked_at: storedCallback.receivedAt.toISOString(),
+            raw: {
+              callback_id: query.id,
+              message_id: query.message.message_id,
+            },
+          },
         );
       } catch (error) {
         if (error.code !== 'P2002') {
@@ -642,6 +667,12 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
 
       const hasMedia = allMedia.length > 0;
 
+      // Transform buttons if present
+      let replyMarkup: TelegramBot.InlineKeyboardMarkup | undefined;
+      if (reply.buttons && reply.buttons.length > 0) {
+        replyMarkup = await this.transformToTelegramButtons(reply.buttons);
+      }
+
       // Handle media (attachments + embed images)
       if (hasMedia) {
         // Telegram supports media groups (2-10 items of same type)
@@ -651,6 +682,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
             chatId,
             allMedia,
             finalText,
+            replyMarkup,
           );
         } else {
           // Single media item
@@ -659,15 +691,17 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
             chatId,
             allMedia[0],
             finalText,
+            replyMarkup,
           );
         }
       } else {
-        // Text-only message (or text with embeds converted to HTML)
+        // Text-only message (or text with embeds converted to HTML and/or buttons)
         sentMessage = await connection.bot.sendMessage(
           chatId,
           finalText ?? '',
           {
             parse_mode: 'HTML',
+            reply_markup: replyMarkup,
           },
         );
       }
@@ -711,6 +745,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     chatId: string,
     attachment: AttachmentDto,
     caption?: string,
+    replyMarkup?: TelegramBot.InlineKeyboardMarkup,
   ): Promise<TelegramBot.Message> {
     let fileData: string | Buffer;
     let filename: string;
@@ -744,6 +779,11 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
       ? { caption: messageCaption, parse_mode: 'HTML' }
       : {};
 
+    // Add reply markup if provided
+    if (replyMarkup) {
+      options.reply_markup = replyMarkup;
+    }
+
     // Route to appropriate Telegram method based on type
     switch (attachmentType) {
       case 'image':
@@ -759,12 +799,15 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
 
   /**
    * Sends multiple attachments as media group
+   * Note: Telegram media groups don't support reply_markup (buttons)
+   * If buttons are needed, send a separate message after the media group
    */
   private async sendMediaGroup(
     bot: TelegramBot,
     chatId: string,
     attachments: AttachmentDto[],
     caption?: string,
+    replyMarkup?: TelegramBot.InlineKeyboardMarkup,
   ): Promise<TelegramBot.Message> {
     const media: any[] = [];
 
@@ -835,6 +878,18 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     }
 
     const messages = await bot.sendMediaGroup(chatId, media);
+
+    // If buttons are provided, send a separate message with buttons
+    // (Telegram doesn't support reply_markup on media groups)
+    if (replyMarkup) {
+      this.logger.debug(
+        'Sending buttons in separate message (Telegram limitation)',
+      );
+      await bot.sendMessage(chatId, '⬆️ Actions for media above:', {
+        reply_markup: replyMarkup,
+      });
+    }
+
     return messages[0]; // Return first message for ID
   }
 
@@ -988,5 +1043,64 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  /**
+   * Transform universal ButtonDto array to Telegram InlineKeyboardMarkup
+   * Platform-specific transformation with validation
+   */
+  private async transformToTelegramButtons(
+    buttons: ButtonDto[],
+  ): Promise<TelegramBot.InlineKeyboardMarkup> {
+    const keyboard: TelegramBot.InlineKeyboardButton[][] = [];
+
+    // Group buttons in rows (2 buttons per row for optimal mobile layout)
+    const buttonsPerRow = 2;
+
+    for (let i = 0; i < buttons.length; i += buttonsPerRow) {
+      const row: TelegramBot.InlineKeyboardButton[] = [];
+      const rowButtons = buttons.slice(i, i + buttonsPerRow);
+
+      for (const btn of rowButtons) {
+        try {
+          if (btn.url) {
+            // Link button - validate URL (SSRF protection)
+            await UrlValidationUtil.validateUrl(btn.url, 'button URL');
+            row.push({ text: btn.text, url: btn.url });
+          } else if (btn.value) {
+            // Callback button - validate callback_data length (Telegram limit: 1-64 bytes)
+            if (btn.value.length > 64) {
+              this.logger.warn(
+                `Button value exceeds 64 bytes: "${btn.value}", truncating`,
+              );
+              row.push({
+                text: btn.text,
+                callback_data: btn.value.substring(0, 64),
+              });
+            } else {
+              row.push({ text: btn.text, callback_data: btn.value });
+            }
+          } else {
+            this.logger.warn(
+              `Button "${btn.text}" has no value or url, skipping`,
+            );
+          }
+        } catch (error) {
+          this.logger.error(
+            `Failed to create button "${btn.text}": ${error.message}`,
+          );
+        }
+      }
+
+      if (row.length > 0) {
+        keyboard.push(row);
+      }
+    }
+
+    this.logger.debug(
+      `Transformed ${buttons.length} buttons to ${keyboard.length} Telegram keyboard rows`,
+    );
+
+    return { inline_keyboard: keyboard };
   }
 }

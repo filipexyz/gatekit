@@ -544,4 +544,285 @@ describe('TelegramProvider', () => {
       ).rejects.toThrow('File too large');
     });
   });
+
+  describe('Button Support', () => {
+    const projectId = 'project-123';
+    const platformId = 'platform-456';
+    const chatId = '987654321';
+    const connectionKey = `${projectId}:${platformId}`;
+
+    let mockBot: any;
+
+    beforeEach(() => {
+      // Mock Telegram bot
+      mockBot = {
+        sendMessage: jest.fn().mockResolvedValue({
+          message_id: 123,
+          chat: { id: chatId },
+        }),
+        sendPhoto: jest.fn().mockResolvedValue({
+          message_id: 124,
+          chat: { id: chatId },
+        }),
+        setWebHook: jest.fn().mockResolvedValue(true),
+        getWebHookInfo: jest.fn().mockResolvedValue({
+          url: 'https://example.com/webhook',
+          pending_update_count: 0,
+        }),
+      };
+
+      // Create mock connection
+      const mockConnection = {
+        connectionKey,
+        projectId,
+        platformId,
+        bot: mockBot,
+        isActive: true,
+      };
+      provider['connections'].set(connectionKey, mockConnection as any);
+    });
+
+    it('should transform buttons with values to Telegram inline keyboard', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'Choose an action',
+        buttons: [
+          { text: 'Confirm', value: 'confirm', style: 'success' },
+          { text: 'Cancel', value: 'cancel', style: 'danger' },
+        ],
+      });
+
+      expect(mockBot.sendMessage).toHaveBeenCalledWith(
+        chatId,
+        'Choose an action',
+        expect.objectContaining({
+          reply_markup: expect.objectContaining({
+            inline_keyboard: expect.arrayContaining([
+              expect.arrayContaining([
+                expect.objectContaining({
+                  text: 'Confirm',
+                  callback_data: 'confirm',
+                }),
+                expect.objectContaining({
+                  text: 'Cancel',
+                  callback_data: 'cancel',
+                }),
+              ]),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('should transform buttons with URLs to Telegram URL buttons', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'Visit our website',
+        buttons: [
+          {
+            text: 'Visit GateKit',
+            url: 'https://gatekit.dev',
+            style: 'link',
+          },
+        ],
+      });
+
+      expect(mockBot.sendMessage).toHaveBeenCalledWith(
+        chatId,
+        'Visit our website',
+        expect.objectContaining({
+          reply_markup: expect.objectContaining({
+            inline_keyboard: expect.arrayContaining([
+              expect.arrayContaining([
+                expect.objectContaining({
+                  text: 'Visit GateKit',
+                  url: 'https://gatekit.dev',
+                }),
+              ]),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('should arrange buttons in rows (2 per row)', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        buttons: [
+          { text: 'Button 1', value: 'btn1' },
+          { text: 'Button 2', value: 'btn2' },
+          { text: 'Button 3', value: 'btn3' },
+          { text: 'Button 4', value: 'btn4' },
+          { text: 'Button 5', value: 'btn5' },
+        ],
+      });
+
+      const call = mockBot.sendMessage.mock.calls[0][2];
+      const keyboard = call.reply_markup.inline_keyboard;
+
+      // Should have 3 rows: [2 buttons], [2 buttons], [1 button]
+      expect(keyboard.length).toBe(3);
+      expect(keyboard[0].length).toBe(2);
+      expect(keyboard[1].length).toBe(2);
+      expect(keyboard[2].length).toBe(1);
+    });
+
+    it('should handle many buttons (up to ~100)', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      const buttons = Array.from({ length: 20 }, (_, i) => ({
+        text: `Button ${i + 1}`,
+        value: `button_${i + 1}`,
+      }));
+
+      await provider.sendMessage(envelope, {
+        text: 'Many buttons',
+        buttons,
+      });
+
+      const call = mockBot.sendMessage.mock.calls[0][2];
+      const keyboard = call.reply_markup.inline_keyboard;
+
+      // Count total buttons
+      let totalButtons = 0;
+      for (const row of keyboard) {
+        totalButtons += row.length;
+        expect(row.length).toBeLessThanOrEqual(2); // Max 2 per row in implementation
+      }
+      expect(totalButtons).toBe(20);
+    });
+
+    it('should validate callback_data length (64 bytes max)', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      const longValue = 'a'.repeat(100);
+
+      await provider.sendMessage(envelope, {
+        buttons: [{ text: 'Button', value: longValue }],
+      });
+
+      const call = mockBot.sendMessage.mock.calls[0][2];
+      const button = call.reply_markup.inline_keyboard[0][0];
+
+      // Should be truncated to 64 bytes
+      expect(Buffer.from(button.callback_data).length).toBeLessThanOrEqual(64);
+    });
+
+    it('should handle button-only message', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        buttons: [
+          { text: 'Option A', value: 'option_a' },
+          { text: 'Option B', value: 'option_b' },
+        ],
+      });
+
+      expect(mockBot.sendMessage).toHaveBeenCalledWith(
+        chatId,
+        expect.any(String),
+        expect.objectContaining({
+          reply_markup: expect.any(Object),
+        }),
+      );
+    });
+
+    it('should handle empty buttons array', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'No buttons',
+        buttons: [],
+      });
+
+      expect(mockBot.sendMessage).toHaveBeenCalledWith(
+        chatId,
+        'No buttons',
+        expect.not.objectContaining({
+          reply_markup: expect.anything(),
+        }),
+      );
+    });
+
+    it('should mix value and URL buttons in same message', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        buttons: [
+          { text: 'Confirm', value: 'confirm', style: 'success' },
+          { text: 'Cancel', value: 'cancel', style: 'danger' },
+          { text: 'Help', url: 'https://help.example.com', style: 'link' },
+        ],
+      });
+
+      const call = mockBot.sendMessage.mock.calls[0][2];
+      const keyboard = call.reply_markup.inline_keyboard;
+
+      // Find buttons
+      const confirmBtn = keyboard.flat().find((b: any) => b.text === 'Confirm');
+      const cancelBtn = keyboard.flat().find((b: any) => b.text === 'Cancel');
+      const helpBtn = keyboard.flat().find((b: any) => b.text === 'Help');
+
+      expect(confirmBtn.callback_data).toBe('confirm');
+      expect(cancelBtn.callback_data).toBe('cancel');
+      expect(helpBtn.url).toBe('https://help.example.com');
+    });
+
+    it('should handle buttons with attachments', async () => {
+      const envelope = {
+        projectId,
+        threadId: chatId,
+        provider: { raw: { platformId } },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'Check this out',
+        attachments: [
+          {
+            url: 'https://example.com/image.jpg',
+            mimeType: 'image/jpeg',
+          },
+        ],
+        buttons: [{ text: 'Download', value: 'download' }],
+      });
+
+      // Telegram sends image and buttons (either in photo or separate message)
+      expect(mockBot.sendPhoto).toHaveBeenCalled();
+    });
+  });
 });

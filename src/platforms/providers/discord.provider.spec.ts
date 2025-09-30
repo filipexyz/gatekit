@@ -4,6 +4,7 @@ import { Client, Message, User, TextChannel } from 'discord.js';
 import { DiscordProvider } from './discord.provider';
 import { EVENT_BUS } from '../interfaces/event-bus.interface';
 import { PrismaService } from '../../prisma/prisma.service';
+import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
 
 describe('DiscordProvider', () => {
   let provider: DiscordProvider;
@@ -32,6 +33,10 @@ describe('DiscordProvider', () => {
     },
   };
 
+  const mockWebhookDeliveryService = {
+    deliverEvent: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -47,6 +52,10 @@ describe('DiscordProvider', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: WebhookDeliveryService,
+          useValue: mockWebhookDeliveryService,
         },
       ],
     }).compile();
@@ -937,6 +946,320 @@ describe('DiscordProvider', () => {
         files: undefined,
         embeds: expect.any(Array),
       });
+    });
+  });
+
+  describe('Button Support', () => {
+    let mockChannel: any;
+    let mockClient: any;
+
+    beforeEach(() => {
+      mockChannel = {
+        send: jest.fn().mockResolvedValue({ id: 'sent-message-id' }),
+      };
+
+      mockClient = {
+        channels: {
+          fetch: jest.fn().mockResolvedValue(mockChannel),
+        },
+        isReady: jest.fn().mockReturnValue(true),
+        login: jest.fn().mockResolvedValue('token'),
+        destroy: jest.fn().mockResolvedValue(undefined),
+      };
+
+      // Inject mock connection
+      const connectionKey = 'project-123:platform-456';
+      const mockConnection = {
+        connectionKey,
+        projectId: 'project-123',
+        platformId: 'platform-456',
+        client: mockClient,
+        token: 'test-token',
+        isConnected: true,
+        lastActivity: new Date(),
+      };
+      provider['connections'].set(connectionKey, mockConnection as any);
+    });
+
+    it('should transform buttons with values to Discord action rows', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'Choose an action',
+        buttons: [
+          { text: 'Confirm', value: 'confirm', style: 'success' },
+          { text: 'Cancel', value: 'cancel', style: 'danger' },
+        ],
+      });
+
+      expect(mockChannel.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: 'Choose an action',
+          components: expect.arrayContaining([
+            expect.objectContaining({
+              components: expect.arrayContaining([
+                expect.objectContaining({
+                  data: expect.objectContaining({
+                    custom_id: expect.stringContaining('confirm'),
+                    label: 'Confirm',
+                  }),
+                }),
+                expect.objectContaining({
+                  data: expect.objectContaining({
+                    custom_id: expect.stringContaining('cancel'),
+                    label: 'Cancel',
+                  }),
+                }),
+              ]),
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it('should transform buttons with URLs to Discord link buttons', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'Visit our website',
+        buttons: [
+          {
+            text: 'Visit GateKit',
+            url: 'https://gatekit.dev',
+            style: 'link',
+          },
+        ],
+      });
+
+      expect(mockChannel.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: 'Visit our website',
+          components: expect.arrayContaining([
+            expect.objectContaining({
+              components: expect.arrayContaining([
+                expect.objectContaining({
+                  data: expect.objectContaining({
+                    url: 'https://gatekit.dev',
+                    label: 'Visit GateKit',
+                  }),
+                }),
+              ]),
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it('should map button styles to Discord button styles', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'Choose a style',
+        buttons: [
+          { text: 'Primary', value: 'primary', style: 'primary' },
+          { text: 'Secondary', value: 'secondary', style: 'secondary' },
+          { text: 'Success', value: 'success', style: 'success' },
+          { text: 'Danger', value: 'danger', style: 'danger' },
+        ],
+      });
+
+      const call = mockChannel.send.mock.calls[0][0];
+      const buttons = call.components[0].components;
+
+      // Check that styles are mapped (Discord.js ButtonStyle enum values)
+      expect(buttons[0].data.style).toBeDefined();
+      expect(buttons[1].data.style).toBeDefined();
+      expect(buttons[2].data.style).toBeDefined();
+      expect(buttons[3].data.style).toBeDefined();
+    });
+
+    it('should handle up to 25 buttons across multiple rows', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const buttons = Array.from({ length: 25 }, (_, i) => ({
+        text: `Button ${i + 1}`,
+        value: `button_${i + 1}`,
+      }));
+
+      await provider.sendMessage(envelope, {
+        text: 'Many buttons',
+        buttons,
+      });
+
+      const call = mockChannel.send.mock.calls[0][0];
+      expect(call.components).toBeDefined();
+      expect(call.components.length).toBeLessThanOrEqual(5); // Max 5 rows
+
+      // Count total buttons
+      let totalButtons = 0;
+      for (const row of call.components) {
+        totalButtons += row.components.length;
+        expect(row.components.length).toBeLessThanOrEqual(5); // Max 5 buttons per row
+      }
+      expect(totalButtons).toBe(25);
+    });
+
+    it('should truncate buttons exceeding Discord limit', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const buttons = Array.from({ length: 30 }, (_, i) => ({
+        text: `Button ${i + 1}`,
+        value: `button_${i + 1}`,
+      }));
+
+      await provider.sendMessage(envelope, {
+        text: 'Too many buttons',
+        buttons,
+      });
+
+      const call = mockChannel.send.mock.calls[0][0];
+
+      // Count total buttons (should be max 25)
+      let totalButtons = 0;
+      for (const row of call.components) {
+        totalButtons += row.components.length;
+      }
+      expect(totalButtons).toBeLessThanOrEqual(25);
+    });
+
+    it('should send message with text, attachments, embeds, and buttons', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      const result = await provider.sendMessage(envelope, {
+        text: 'Complete message',
+        attachments: [
+          {
+            url: 'https://example.com/file.pdf',
+          },
+        ],
+        embeds: [
+          {
+            title: 'Embed',
+            description: 'Description',
+          },
+        ],
+        buttons: [{ text: 'Download', value: 'download', style: 'primary' }],
+      });
+
+      expect(result.providerMessageId).toBe('sent-message-id');
+      expect(mockChannel.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: 'Complete message',
+          files: expect.any(Array),
+          embeds: expect.any(Array),
+          components: expect.any(Array),
+        }),
+      );
+    });
+
+    it('should handle message with buttons', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'Choose an option',
+        buttons: [
+          { text: 'Option A', value: 'option_a' },
+          { text: 'Option B', value: 'option_b' },
+        ],
+      });
+
+      expect(mockChannel.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: 'Choose an option',
+          components: expect.any(Array),
+        }),
+      );
+    });
+
+    it('should handle empty buttons array', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'No buttons',
+        buttons: [],
+      });
+
+      expect(mockChannel.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: 'No buttons',
+          components: undefined,
+        }),
+      );
+    });
+
+    it('should mix value and URL buttons in same message', async () => {
+      const envelope = {
+        projectId: 'project-123',
+        threadId: 'channel-123',
+        provider: {
+          raw: { platformId: 'platform-456' },
+        },
+      } as any;
+
+      await provider.sendMessage(envelope, {
+        text: 'Choose your action',
+        buttons: [
+          { text: 'Confirm', value: 'confirm', style: 'success' },
+          { text: 'Cancel', value: 'cancel', style: 'danger' },
+          { text: 'Help', url: 'https://help.example.com', style: 'link' },
+        ],
+      });
+
+      const call = mockChannel.send.mock.calls[0][0];
+      const buttons = call.components[0].components;
+
+      expect(buttons).toHaveLength(3);
+      expect(buttons[0].data.custom_id).toBeDefined();
+      expect(buttons[1].data.custom_id).toBeDefined();
+      expect(buttons[2].data.url).toBe('https://help.example.com');
     });
   });
 });

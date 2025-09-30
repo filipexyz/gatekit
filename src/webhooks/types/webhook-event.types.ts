@@ -2,6 +2,7 @@ export enum WebhookEventType {
   MESSAGE_RECEIVED = 'message.received',
   MESSAGE_SENT = 'message.sent',
   MESSAGE_FAILED = 'message.failed',
+  BUTTON_CLICKED = 'button.clicked',
 }
 
 /**
@@ -14,6 +15,7 @@ export enum WebhookEventType {
  *   | { event: WebhookEventType.MESSAGE_RECEIVED; data: MessageReceivedData }
  *   | { event: WebhookEventType.MESSAGE_SENT; data: MessageSentData }
  *   | { event: WebhookEventType.MESSAGE_FAILED; data: MessageFailedData }
+ *   | { event: WebhookEventType.BUTTON_CLICKED; data: ButtonClickedData }
  *
  * This allows TypeScript to narrow the data type based on the event field.
  */
@@ -21,7 +23,11 @@ export interface WebhookPayload {
   event: WebhookEventType;
   timestamp: string;
   project_id: string;
-  data: MessageReceivedData | MessageSentData | MessageFailedData;
+  data:
+    | MessageReceivedData
+    | MessageSentData
+    | MessageFailedData
+    | ButtonClickedData;
 }
 
 export interface MessageReceivedData {
@@ -61,4 +67,16 @@ export interface MessageFailedData {
   };
   error: string;
   failed_at: string;
+}
+
+export interface ButtonClickedData {
+  message_id: string;
+  platform: string;
+  platform_id: string;
+  chat_id: string;
+  user_id: string;
+  user_display: string | null;
+  button_value: string;
+  clicked_at: string;
+  raw?: Record<string, unknown>; // Optional raw platform data
 }
