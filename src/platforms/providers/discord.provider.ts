@@ -19,6 +19,7 @@ import { makeEnvelope } from '../utils/envelope.factory';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CryptoUtil } from '../../common/utils/crypto.util';
 import { AttachmentUtil } from '../../common/utils/attachment.util';
+import { PlatformCapability } from '../enums/platform-capability.enum';
 
 interface DiscordConnection {
   connectionKey: string; // projectId:platformId
@@ -32,7 +33,11 @@ interface DiscordConnection {
 }
 
 @Injectable()
-@PlatformProviderDecorator('discord')
+@PlatformProviderDecorator('discord', [
+  { capability: PlatformCapability.SEND_MESSAGE },
+  { capability: PlatformCapability.RECEIVE_MESSAGE },
+  { capability: PlatformCapability.ATTACHMENTS },
+])
 export class DiscordProvider
   implements PlatformProvider, PlatformAdapter, OnModuleInit
 {
