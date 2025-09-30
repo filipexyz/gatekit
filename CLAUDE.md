@@ -141,12 +141,21 @@ authContext: AuthContext; // Required, not optional
 - `GET /api/v1/projects/:slug/messages/:messageId` - Get specific message
 - `DELETE /api/v1/projects/:slug/messages/cleanup` - Delete old messages
 
-### Webhooks (Dynamic & UUID-secured)
+### Platform Webhooks (Incoming - Dynamic & UUID-secured)
 
 - `POST /api/v1/webhooks/:platform/:webhookToken` - Dynamic webhook handler for any platform
 - `GET /api/v1/platforms/health` - Platform provider health status
 - `GET /api/v1/platforms/supported` - List supported platforms (discord, telegram, whatsapp-evo)
 - `GET /api/v1/platforms/webhook-routes` - Available webhook routes
+
+### Webhook Notifications (Outgoing - Event Subscriptions)
+
+- `POST /api/v1/projects/:slug/webhooks` - Create webhook subscription
+- `GET /api/v1/projects/:slug/webhooks` - List webhook subscriptions
+- `GET /api/v1/projects/:slug/webhooks/:webhookId` - Get webhook details with stats
+- `PATCH /api/v1/projects/:slug/webhooks/:webhookId` - Update webhook
+- `DELETE /api/v1/projects/:slug/webhooks/:webhookId` - Delete webhook
+- `GET /api/v1/projects/:slug/webhooks/:webhookId/deliveries` - List delivery attempts
 
 ## Platform Integrations
 
@@ -275,6 +284,21 @@ async method(projectSlug: string, data: any, authContext: AuthContext)
 - **QR Code Authentication** - WhatsApp-Evo supports QR code flow for connection setup
 - **Message persistence** - All incoming messages stored with full raw data
 
+### Webhook Notification System
+
+**Events**: `message.received`, `message.sent`, `message.failed`
+
+**Features**:
+
+- HMAC SHA-256 signatures for validation
+- SSRF protection (double validation)
+- Auto-retry with exponential backoff (1s, 2s, 4s - max 3 attempts)
+- Concurrency control (max 10 concurrent)
+- Delivery tracking with stats
+- Max 50 webhooks per project
+
+**Maintenance**: Periodic cleanup required (deliveries stored indefinitely)
+
 ## Development Setup
 
 ### Local Development
@@ -308,29 +332,21 @@ When writing or modifying tests:
 ### Quick Commands
 
 ```bash
-npm test         # Run unit tests (360 tests - all platforms + security)
-npm test:e2e     # Run integration tests (86 tests)
-npm test -- --testPathPatterns="whatsapp.*spec.ts"  # Run WhatsApp-Evo tests (57 tests)
-npm test -- --testPathPatterns="security.*spec.ts|project-access.*spec.ts"  # Security tests
+npm test         # Run all tests (544 tests)
+npm test:e2e     # Run integration tests
+npm test -- webhook  # Run webhook tests (36 tests)
 ```
 
 ### Test Coverage Summary
 
-**Total Tests**: 446 tests (360 unit + 86 e2e)
+**Total Tests**: 544 tests (all passing)
 
-#### **Security Test Coverage**
+#### **Key Test Coverage**
 
-- **ProjectAccessGuard**: 16 comprehensive tests covering all auth scenarios
-- **SecurityUtil**: 12 tests for defense-in-depth validation
-- **Auth Context**: Full coverage of API key and JWT authentication flows
-- **Guard Integration**: End-to-end security validation testing
-
-#### **Platform Test Coverage**
-
-- **Discord Provider**: Complete WebSocket connection testing
-- **Telegram Provider**: Comprehensive webhook and bot API testing
-- **WhatsApp-Evo Provider**: 57 tests covering Evolution API integration, QR code flow, edge cases
-- **Credential Validators**: Extensive validation testing for all platforms
+- **Webhooks**: 36 tests (delivery, retry logic, HMAC signatures, stats, cleanup)
+- **Security**: Complete auth guard and context validation coverage
+- **Platforms**: Discord, Telegram, WhatsApp-Evo providers fully tested
+- **Messages**: Queue processing, delivery, storage, and retrieval
 
 #### **Security Testing Requirements**
 

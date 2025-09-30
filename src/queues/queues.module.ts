@@ -4,6 +4,7 @@ import { MessageQueue } from './message.queue';
 import { DynamicMessageProcessor } from './processors/dynamic-message.processor';
 import { PlatformsModule } from '../platforms/platforms.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { WebhooksModule } from '../webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     }),
     PlatformsModule,
     PrismaModule,
+    WebhooksModule,
   ],
   providers: [MessageQueue, DynamicMessageProcessor],
   exports: [MessageQueue, BullModule],

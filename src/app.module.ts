@@ -19,6 +19,7 @@ import { QueuesModule } from './queues/queues.module';
 import { DocsModule } from './docs/docs.module';
 import { MessagesModule } from './messages/messages.module';
 import { UsersModule } from './users/users.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 import { sentryConfig } from './config/sentry.config';
 
 @Module({
@@ -96,6 +97,7 @@ import { sentryConfig } from './config/sentry.config';
     DocsModule,
     MessagesModule,
     UsersModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [
