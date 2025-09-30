@@ -14,8 +14,10 @@ interface GeneratedCLI {
 }
 
 export class CLIGenerator {
-
-  async generateFromContracts(contractsPath: string, outputDir: string): Promise<void> {
+  async generateFromContracts(
+    contractsPath: string,
+    outputDir: string,
+  ): Promise<void> {
     console.log('🔧 Generating permission-aware CLI from contracts...');
 
     // Load contracts
@@ -41,7 +43,8 @@ export class CLIGenerator {
 
     const commands: Record<string, string> = {};
     Object.entries(groups).forEach(([category, contracts]) => {
-      commands[CaseConverter.toValidFilename(category)] = this.generateCommandFile(category, contracts);
+      commands[CaseConverter.toValidFilename(category)] =
+        this.generateCommandFile(category, contracts);
     });
 
     return {
@@ -53,8 +56,13 @@ export class CLIGenerator {
     };
   }
 
-  private generateCommandFile(category: string, contracts: ExtractedContract[]): string {
-    const commandMethods = contracts.map(contract => this.generateCommand(contract)).join('\n\n');
+  private generateCommandFile(
+    category: string,
+    contracts: ExtractedContract[],
+  ): string {
+    const commandMethods = contracts
+      .map((contract) => this.generateCommand(contract))
+      .join('\n\n');
 
     return `// Generated ${category} commands for GateKit CLI
 // DO NOT EDIT - This file is auto-generated from backend contracts
@@ -84,23 +92,39 @@ ${this.generateCommandHelpers()}
     // Extract path parameters for SDK method call
     const pathParams = this.extractPathParameters(path);
 
-    const options = Object.entries(contractMetadata.options || {}).map(([name, opt]) => {
-      const defaultStr = opt.default ? `, '${String(opt.default)}'` : '';
-      const optionDef = `    .option('--${name} <value>', '${opt.description}'${defaultStr})`;
-      return optionDef;
-    }).join('\n');
+    const options = Object.entries(contractMetadata.options || {})
+      .map(([name, opt]) => {
+        const defaultStr =
+          opt.default !== undefined && typeof opt.default !== 'object'
+            ? // eslint-disable-next-line @typescript-eslint/no-base-to-string
+              `, '${String(opt.default)}'`
+            : '';
+        const optionDef = `    .option('--${name} <value>', '${opt.description}'${defaultStr})`;
+        return optionDef;
+      })
+      .join('\n');
 
     // Add path parameter options
-    const pathParamOptions = pathParams.map(param => {
-      const defaultValue = param === 'projectSlug' ? "'default'" : 'undefined';
-      return `    .option('--${param} <value>', '${param} parameter', ${defaultValue})`;
-    }).join('\n');
+    const pathParamOptions = pathParams
+      .map((param) => {
+        const defaultValue =
+          param === 'projectSlug' ? "'default'" : 'undefined';
+        return `    .option('--${param} <value>', '${param} parameter', ${defaultValue})`;
+      })
+      .join('\n');
 
     const allOptions = [options, pathParamOptions].filter(Boolean).join('\n');
 
     // Convert kebab-case to camelCase for method calls
-    const camelCaseMethod = subCommand.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-    const methodCall = subCommand === 'create' ? 'create' : subCommand === 'list' ? 'list' : camelCaseMethod;
+    const camelCaseMethod = subCommand.replace(/-([a-z])/g, (_, letter) =>
+      letter.toUpperCase(),
+    );
+    const methodCall =
+      subCommand === 'create'
+        ? 'create'
+        : subCommand === 'list'
+          ? 'list'
+          : camelCaseMethod;
 
     return `  ${CaseConverter.toValidPropertyName(category)}
     .command('${subCommand}')
@@ -111,12 +135,17 @@ ${allOptions}
       try {
         const config = await loadConfig();
 
-        // Check permissions${contractMetadata.requiredScopes && contractMetadata.requiredScopes.length > 0 ? `
+        // Check permissions${
+          contractMetadata.requiredScopes &&
+          contractMetadata.requiredScopes.length > 0
+            ? `
         const hasPermission = await checkPermissions(config, ${JSON.stringify(contractMetadata.requiredScopes)});
         if (!hasPermission) {
           console.error('❌ Insufficient permissions. Required: ${contractMetadata.requiredScopes?.join(', ')}');
           process.exit(1);
-        }` : '\n        // No permissions required for this command'}
+        }`
+            : '\n        // No permissions required for this command'
+        }
 
         const gk = new GateKit(config);
 
@@ -129,12 +158,20 @@ ${allOptions}
     });`;
   }
 
-  private generateMethodCall(subCommand: string, methodCall: string, category: string, contractMetadata: any, pathParams: string[]): string {
+  private generateMethodCall(
+    subCommand: string,
+    methodCall: string,
+    category: string,
+    contractMetadata: any,
+    pathParams: string[],
+  ): string {
     // Convert category to valid SDK namespace (dynamically, no hardcoded keys)
     const sdkNamespace = CaseConverter.toValidPropertyName(category);
 
     // Build path parameter arguments
-    const pathArgs = pathParams.map(param => `options.${param} || 'default'`).join(', ');
+    const pathArgs = pathParams
+      .map((param) => `options.${param} || 'default'`)
+      .join(', ');
 
     // If no input type specified, method takes only path parameters
     if (!contractMetadata.inputType) {
@@ -144,19 +181,26 @@ ${allOptions}
 
     // Build data object by mapping CLI options to DTO properties using contract metadata
     // Exclude path parameters from DTO object
-    const dtoObject = this.buildDtoObjectFromContract(contractMetadata.options || {}, pathParams);
+    const dtoObject = this.buildDtoObjectFromContract(
+      contractMetadata.options || {},
+      pathParams,
+    );
 
     // Combine path parameters and data object
-    const allArgs = pathParams.length > 0 ? `${pathArgs}, ${dtoObject}` : dtoObject;
+    const allArgs =
+      pathParams.length > 0 ? `${pathArgs}, ${dtoObject}` : dtoObject;
     return `const result = await gk.${sdkNamespace}.${methodCall}(${allArgs});`;
   }
 
   private extractPathParameters(path: string): string[] {
     const matches = path.match(/:([a-zA-Z][a-zA-Z0-9]*)/g);
-    return matches ? matches.map(match => match.substring(1)) : [];
+    return matches ? matches.map((match) => match.substring(1)) : [];
   }
 
-  private buildDtoObjectFromContract(options: Record<string, any>, pathParams: string[] = []): string {
+  private buildDtoObjectFromContract(
+    options: Record<string, any>,
+    pathParams: string[] = [],
+  ): string {
     if (!options || Object.keys(options).length === 0) {
       return '{}';
     }
@@ -172,34 +216,38 @@ ${allOptions}
 
     // Handle standard type conversion
     // Filter out path parameters from DTO options
-    const dtoOptions = Object.keys(options).filter(key => !pathParams.includes(key));
-    const optionEntries = dtoOptions.map(key => {
-      const option = options[key];
+    const dtoOptions = Object.keys(options).filter(
+      (key) => !pathParams.includes(key),
+    );
+    const optionEntries = dtoOptions
+      .map((key) => {
+        const option = options[key];
 
-      if (option.type === 'object') {
-        // Parse JSON strings for object types
-        return `      ${key}: options.${key} ? JSON.parse(options.${key}) : undefined`;
-      } else if (option.type === 'boolean') {
-        // Convert string to boolean
-        return `      ${key}: options.${key} === 'true' || options.${key} === true`;
-      } else if (option.type === 'number') {
-        // Convert string to number
-        return `      ${key}: options.${key} ? parseInt(options.${key}) : undefined`;
-      } else {
-        // String type or default
-        return `      ${key}: options.${key}`;
-      }
-    }).join(',\n');
+        if (option.type === 'object') {
+          // Parse JSON strings for object types
+          return `      ${key}: options.${key} ? JSON.parse(options.${key}) : undefined`;
+        } else if (option.type === 'boolean') {
+          // Convert string to boolean, preserve undefined when not provided
+          return `      ${key}: options.${key} !== undefined ? (options.${key} === 'true' || options.${key} === true) : undefined`;
+        } else if (option.type === 'number') {
+          // Convert string to number
+          return `      ${key}: options.${key} ? parseInt(options.${key}) : undefined`;
+        } else {
+          // String type or default
+          return `      ${key}: options.${key}`;
+        }
+      })
+      .join(',\n');
 
     return `{
 ${optionEntries}
         }`;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private buildPatternBasedDto(options: Record<string, any>): string {
     return `buildMessageDto(options)`;
   }
-
 
   private generateCommandHelpers(): string {
     return `
@@ -272,14 +320,23 @@ async function checkPermissions(config: any, requiredScopes: string[]): Promise<
 }`;
   }
 
-  private generateIndex(contracts: ExtractedContract[], groups: Record<string, ExtractedContract[]>): string {
-    const commandImports = Object.keys(groups).map(category =>
-      `import { create${CaseConverter.toValidClassName(category)}Command } from './commands/${CaseConverter.toValidFilename(category)}';`
-    ).join('\n');
+  private generateIndex(
+    contracts: ExtractedContract[],
+    groups: Record<string, ExtractedContract[]>,
+  ): string {
+    const commandImports = Object.keys(groups)
+      .map(
+        (category) =>
+          `import { create${CaseConverter.toValidClassName(category)}Command } from './commands/${CaseConverter.toValidFilename(category)}';`,
+      )
+      .join('\n');
 
-    const commandRegistrations = Object.keys(groups).map(category =>
-      `  program.addCommand(create${CaseConverter.toValidClassName(category)}Command());`
-    ).join('\n');
+    const commandRegistrations = Object.keys(groups)
+      .map(
+        (category) =>
+          `  program.addCommand(create${CaseConverter.toValidClassName(category)}Command());`,
+      )
+      .join('\n');
 
     return `#!/usr/bin/env node
 // Generated CLI entry point for GateKit
@@ -381,51 +438,63 @@ export function handleError(error: any): void {
   }
 
   private generatePackageJson(): string {
-    return JSON.stringify({
-      name: '@gatekit/cli',
-      version: '1.0.0',
-      description: 'Official CLI for GateKit universal messaging gateway',
-      main: 'dist/index.js',
-      bin: {
-        gatekit: 'dist/index.js'
+    return JSON.stringify(
+      {
+        name: '@gatekit/cli',
+        version: '1.0.0',
+        description: 'Official CLI for GateKit universal messaging gateway',
+        main: 'dist/index.js',
+        bin: {
+          gatekit: 'dist/index.js',
+        },
+        files: ['dist'],
+        scripts: {
+          build: 'tsc',
+          prepublishOnly: 'npm run build',
+        },
+        dependencies: {
+          '@gatekit/sdk': 'file:../sdk',
+          commander: '^11.0.0',
+          axios: '^1.6.0',
+        },
+        peerDependencies: {
+          typescript: '>=4.5.0',
+        },
+        keywords: ['gatekit', 'cli', 'messaging', 'universal'],
+        author: 'GateKit',
+        license: 'MIT',
+        repository: {
+          type: 'git',
+          url: 'https://github.com/filipexyz/gatekit-cli.git',
+        },
+        homepage: 'https://github.com/filipexyz/gatekit-cli',
+        bugs: {
+          url: 'https://github.com/filipexyz/gatekit-cli/issues',
+        },
       },
-      files: ['dist'],
-      scripts: {
-        build: 'tsc',
-        prepublishOnly: 'npm run build'
-      },
-      dependencies: {
-        '@gatekit/sdk': 'file:../sdk',
-        'commander': '^11.0.0',
-        'axios': '^1.6.0'
-      },
-      peerDependencies: {
-        'typescript': '>=4.5.0'
-      },
-      keywords: ['gatekit', 'cli', 'messaging', 'universal'],
-      author: 'GateKit',
-      license: 'MIT',
-      repository: {
-        type: 'git',
-        url: 'https://github.com/filipexyz/gatekit-cli.git'
-      },
-      homepage: 'https://github.com/filipexyz/gatekit-cli',
-      bugs: {
-        url: 'https://github.com/filipexyz/gatekit-cli/issues'
-      }
-    }, null, 2);
+      null,
+      2,
+    );
   }
 
-  private groupContractsByCategory(contracts: ExtractedContract[]): Record<string, ExtractedContract[]> {
-    return contracts.reduce((groups, contract) => {
-      const category = contract.contractMetadata.category || 'General';
-      if (!groups[category]) groups[category] = [];
-      groups[category].push(contract);
-      return groups;
-    }, {} as Record<string, ExtractedContract[]>);
+  private groupContractsByCategory(
+    contracts: ExtractedContract[],
+  ): Record<string, ExtractedContract[]> {
+    return contracts.reduce(
+      (groups, contract) => {
+        const category = contract.contractMetadata.category || 'General';
+        if (!groups[category]) groups[category] = [];
+        groups[category].push(contract);
+        return groups;
+      },
+      {} as Record<string, ExtractedContract[]>,
+    );
   }
 
-  private async writeCLIFiles(outputDir: string, cli: GeneratedCLI): Promise<void> {
+  private async writeCLIFiles(
+    outputDir: string,
+    cli: GeneratedCLI,
+  ): Promise<void> {
     const srcDir = path.join(outputDir, 'src');
     const commandsDir = path.join(srcDir, 'commands');
     const libDir = path.join(srcDir, 'lib');
@@ -436,8 +505,8 @@ export function handleError(error: any): void {
     // Write command files
     await Promise.all(
       Object.entries(cli.commands).map(([category, content]) =>
-        fs.writeFile(path.join(commandsDir, `${category}.ts`), content)
-      )
+        fs.writeFile(path.join(commandsDir, `${category}.ts`), content),
+      ),
     );
 
     // Write core files
@@ -445,45 +514,59 @@ export function handleError(error: any): void {
       fs.writeFile(path.join(srcDir, 'index.ts'), cli.index),
       fs.writeFile(path.join(libDir, 'utils.ts'), cli.config),
       fs.writeFile(path.join(outputDir, 'package.json'), cli.packageJson),
-      fs.writeFile(path.join(outputDir, 'tsconfig.json'), this.generateTSConfig()),
+      fs.writeFile(
+        path.join(outputDir, 'tsconfig.json'),
+        this.generateTSConfig(),
+      ),
       fs.writeFile(path.join(outputDir, 'README.md'), cli.readme),
     ]);
   }
 
   private generateTSConfig(): string {
-    return JSON.stringify({
-      compilerOptions: {
-        target: 'ES2020',
-        module: 'commonjs',
-        lib: ['ES2020'],
-        outDir: './dist',
-        rootDir: './src',
-        strict: true,
-        esModuleInterop: true,
-        skipLibCheck: true,
-        forceConsistentCasingInFileNames: true,
-        declaration: true,
-        declarationMap: true,
-        sourceMap: true
+    return JSON.stringify(
+      {
+        compilerOptions: {
+          target: 'ES2020',
+          module: 'commonjs',
+          lib: ['ES2020'],
+          outDir: './dist',
+          rootDir: './src',
+          strict: true,
+          esModuleInterop: true,
+          skipLibCheck: true,
+          forceConsistentCasingInFileNames: true,
+          declaration: true,
+          declarationMap: true,
+          sourceMap: true,
+        },
+        include: ['src/**/*'],
+        exclude: ['node_modules', 'dist'],
       },
-      include: ['src/**/*'],
-      exclude: ['node_modules', 'dist']
-    }, null, 2);
+      null,
+      2,
+    );
   }
 
-  private generateReadme(contracts: ExtractedContract[], groups: Record<string, ExtractedContract[]>): string {
+  private generateReadme(
+    contracts: ExtractedContract[],
+    groups: Record<string, ExtractedContract[]>,
+  ): string {
     const commandExamples = Object.entries(groups)
       .map(([category, contracts]) => {
-        const examples = contracts.slice(0, 3).map(contract => {
-          const example = contract.contractMetadata.examples?.[0];
-          return `### ${contract.contractMetadata.description}
+        const examples = contracts
+          .slice(0, 3)
+          .map((contract) => {
+            const example = contract.contractMetadata.examples?.[0];
+            return `### ${contract.contractMetadata.description}
 \`\`\`bash
 ${example?.command || `gatekit ${contract.contractMetadata.command} --help`}
 \`\`\``;
-        }).join('\n\n');
+          })
+          .join('\n\n');
 
         return `## ${category}\n\n${examples}`;
-      }).join('\n\n');
+      })
+      .join('\n\n');
 
     return `# @gatekit/cli
 
@@ -604,7 +687,10 @@ The CLI provides helpful error messages:
 // CLI execution
 async function main() {
   const generator = new CLIGenerator();
-  const contractsPath = path.join(__dirname, '../../generated/contracts/contracts.json');
+  const contractsPath = path.join(
+    __dirname,
+    '../../generated/contracts/contracts.json',
+  );
   const outputDir = path.join(__dirname, '../../generated/cli');
 
   await generator.generateFromContracts(contractsPath, outputDir);
