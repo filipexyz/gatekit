@@ -708,7 +708,7 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
     const platformId = (env.provider?.raw as any)?.platformId;
     if (!platformId) {
       this.logger.error('No platformId in envelope, cannot route message');
-      return { providerMessageId: 'whatsapp-evo-no-platform-id' };
+      throw new Error('No platformId in envelope, cannot route message');
     }
 
     const connectionKey = `${env.projectId}:${platformId}`;

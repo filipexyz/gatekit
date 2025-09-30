@@ -350,8 +350,9 @@ describe('WhatsAppProvider', () => {
         provider: { raw: {} }, // Missing platformId
       };
 
-      const result = await provider.sendMessage(envelope, { text: 'reply' });
-      expect(result.providerMessageId).toBe('whatsapp-evo-no-platform-id');
+      await expect(
+        provider.sendMessage(envelope, { text: 'reply' }),
+      ).rejects.toThrow('No platformId in envelope, cannot route message');
     });
 
     it('should handle sending to disconnected instance', async () => {

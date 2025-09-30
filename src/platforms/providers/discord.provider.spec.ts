@@ -122,17 +122,16 @@ describe('DiscordProvider', () => {
         provider: { eventId: 'event2', raw: { platformId: 'platform-2' } },
       } as any;
 
-      // Both should return not-ready since no connections are set up
-      const results = await Promise.all([
+      // All should throw errors since no connections are set up
+      await expect(
         provider.sendMessage(env1, { text: 'Hello 1' }),
+      ).rejects.toThrow('Discord client not ready');
+      await expect(
         provider.sendMessage(env2, { text: 'Hello 2' }),
+      ).rejects.toThrow('Discord client not ready');
+      await expect(
         provider.sendMessage(env1, { text: 'Hello 1 again' }),
-      ]);
-
-      // Verify isolation - each should have consistent responses (no connections set up)
-      expect(results[0].providerMessageId).toBe('discord-not-ready');
-      expect(results[1].providerMessageId).toBe('discord-not-ready');
-      expect(results[2].providerMessageId).toBe('discord-not-ready');
+      ).rejects.toThrow('Discord client not ready');
     });
   });
 
@@ -550,9 +549,9 @@ describe('DiscordProvider', () => {
         },
       } as any;
 
-      const result = await provider.sendMessage(envelope, {});
-
-      expect(result.providerMessageId).toBe('discord-send-failed');
+      await expect(provider.sendMessage(envelope, {})).rejects.toThrow(
+        'Message must have text or attachments',
+      );
       expect(mockChannel.send).not.toHaveBeenCalled();
     });
 
