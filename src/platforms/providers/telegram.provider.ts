@@ -18,6 +18,7 @@ import { AttachmentUtil } from '../../common/utils/attachment.util';
 import { AttachmentDto } from '../dto/send-message.dto';
 import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
 import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
+import { PlatformCapability } from '../enums/platform-capability.enum';
 
 interface TelegramConnection {
   connectionKey: string; // projectId:platformId
@@ -29,7 +30,11 @@ interface TelegramConnection {
 }
 
 @Injectable()
-@PlatformProviderDecorator('telegram')
+@PlatformProviderDecorator('telegram', [
+  { capability: PlatformCapability.SEND_MESSAGE },
+  { capability: PlatformCapability.RECEIVE_MESSAGE },
+  { capability: PlatformCapability.ATTACHMENTS },
+])
 export class TelegramProvider implements PlatformProvider, PlatformAdapter {
   private readonly logger = new Logger(TelegramProvider.name);
   private readonly connections = new Map<string, TelegramConnection>();

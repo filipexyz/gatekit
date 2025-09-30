@@ -18,6 +18,7 @@ export class PlatformHealthController {
    * Get health status for all registered platform providers
    */
   @Get('health')
+  @Public()
   async getHealth() {
     const providers = this.platformRegistry.getAllProviders();
     const healthStatus = await this.platformRegistry.getHealthStatus();
@@ -28,6 +29,7 @@ export class PlatformHealthController {
       connectionType: provider.connectionType,
       isHealthy: healthStatus[provider.name] || false,
       stats: provider.getConnectionStats ? provider.getConnectionStats() : null,
+      capabilities: this.platformRegistry.getProviderCapabilities(provider),
     }));
 
     return {

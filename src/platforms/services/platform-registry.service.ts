@@ -1,7 +1,12 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PlatformProvider } from '../interfaces/platform-provider.interface';
 import { ModuleRef, DiscoveryService } from '@nestjs/core';
-import { PLATFORM_PROVIDER_METADATA } from '../decorators/platform-provider.decorator';
+import {
+  PLATFORM_PROVIDER_METADATA,
+  PLATFORM_CAPABILITIES_METADATA,
+  PlatformCapabilityInfo,
+} from '../decorators/platform-provider.decorator';
+import { PlatformCapability } from '../enums/platform-capability.enum';
 
 @Injectable()
 export class PlatformRegistry implements OnModuleInit {
@@ -124,5 +129,44 @@ export class PlatformRegistry implements OnModuleInit {
     }
 
     return routes;
+  }
+
+  /**
+   * Check if a platform has a specific capability
+   */
+  hasCapability(platformName: string, capability: PlatformCapability): boolean {
+    const provider = this.getProvider(platformName);
+    if (!provider) return false;
+
+    const capabilities = this.getProviderCapabilities(provider);
+    return capabilities.some((c) => c.capability === capability);
+  }
+
+  /**
+   * Get capability info for a specific capability on a platform
+   */
+  getCapabilityInfo(
+    platformName: string,
+    capability: PlatformCapability,
+  ): PlatformCapabilityInfo | null {
+    const provider = this.getProvider(platformName);
+    if (!provider) return null;
+
+    const capabilities = this.getProviderCapabilities(provider);
+    return capabilities.find((c) => c.capability === capability) || null;
+  }
+
+  /**
+   * Get all capabilities for a provider
+   */
+  getProviderCapabilities(
+    provider: PlatformProvider,
+  ): PlatformCapabilityInfo[] {
+    return (
+      Reflect.getMetadata(
+        PLATFORM_CAPABILITIES_METADATA,
+        provider.constructor,
+      ) || []
+    );
   }
 }

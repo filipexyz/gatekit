@@ -197,6 +197,65 @@ curl -X POST "/api/v1/projects/my-project/platforms" \
   }'
 ```
 
+### **Platform Capability System**
+
+GateKit implements a decorator-based capability system to track which features each platform supports.
+
+#### **How It Works**
+
+Platforms declare their capabilities using the `@PlatformProviderDecorator`:
+
+```typescript
+@PlatformProviderDecorator('discord', [
+  { capability: PlatformCapability.SEND_MESSAGE },
+  { capability: PlatformCapability.RECEIVE_MESSAGE },
+  { capability: PlatformCapability.ATTACHMENTS },
+])
+export class DiscordProvider implements PlatformProvider
+```
+
+#### **Querying Capabilities**
+
+**Via API:**
+
+```bash
+GET /api/v1/platforms/health
+```
+
+**Via Registry Service:**
+
+```typescript
+platformRegistry.hasCapability('discord', PlatformCapability.SEND_MESSAGE);
+platformRegistry.getCapabilityInfo('telegram', PlatformCapability.ATTACHMENTS);
+platformRegistry.getProviderCapabilities(provider);
+```
+
+#### **Current Capabilities**
+
+All platforms (Discord, Telegram, WhatsApp-Evo) support:
+
+- `send-message` - Send messages to users/channels
+- `receive-message` - Receive incoming messages
+- `attachments` - Send/receive media files
+
+#### **Future Capabilities (In Enum)**
+
+Capabilities defined but not yet implemented:
+
+- `edit-message` - Edit previously sent messages
+- `delete-message` - Delete sent messages
+- `embeds` - Rich embedded content
+- `buttons` - Interactive buttons
+- `reactions` - Message reactions
+- `threads` - Threaded conversations
+
+#### **Implementation Details**
+
+- **Enum**: `src/platforms/enums/platform-capability.enum.ts`
+- **Decorator**: `src/platforms/decorators/platform-provider.decorator.ts`
+- **Registry**: `src/platforms/services/platform-registry.service.ts`
+- **Endpoint**: `src/platforms/controllers/platform-health.controller.ts`
+
 ## Architecture Highlights
 
 ### Dynamic Platform System

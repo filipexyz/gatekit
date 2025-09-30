@@ -16,6 +16,7 @@ import { PlatformLogsService } from '../services/platform-logs.service';
 import { PlatformLogger } from '../utils/platform-logger';
 import { AttachmentUtil } from '../../common/utils/attachment.util';
 import { AttachmentDto } from '../dto/send-message.dto';
+import { PlatformCapability } from '../enums/platform-capability.enum';
 
 interface WhatsAppConnection {
   connectionKey: string; // projectId:platformId
@@ -47,7 +48,11 @@ interface EvolutionMessage {
 }
 
 @Injectable()
-@PlatformProviderDecorator('whatsapp-evo')
+@PlatformProviderDecorator('whatsapp-evo', [
+  { capability: PlatformCapability.SEND_MESSAGE },
+  { capability: PlatformCapability.RECEIVE_MESSAGE },
+  { capability: PlatformCapability.ATTACHMENTS },
+])
 export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
   private readonly logger = new Logger(WhatsAppProvider.name);
   private readonly connections = new Map<string, WhatsAppConnection>();
