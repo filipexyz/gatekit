@@ -62,12 +62,29 @@ export class AttachmentDto {
   caption?: string;
 }
 
+export enum ButtonStyle {
+  PRIMARY = 'primary',
+  SECONDARY = 'secondary',
+  SUCCESS = 'success',
+  DANGER = 'danger',
+  LINK = 'link',
+}
+
 export class ButtonDto {
   @IsString()
   text: string;
 
+  @ValidateIf((o) => !o.url)
   @IsString()
-  value: string;
+  value?: string;
+
+  @ValidateIf((o) => !o.value)
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  url?: string;
+
+  @IsOptional()
+  @IsEnum(ButtonStyle)
+  style?: ButtonStyle;
 }
 
 export class EmbedAuthorDto {

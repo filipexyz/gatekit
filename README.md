@@ -60,10 +60,20 @@ class YourAIAgent {
     // 2. Process with your AI
     const response = await yourAI.process(history, message);
 
-    // 3. Respond on same platform (what we HAVE)
+    // 3. Respond with text, attachments, embeds, and buttons (what we HAVE)
     await this.gatekit.messages.send('project', {
       targets: [{ platformId: platform, type: 'user', id: userId }],
-      content: { text: response },
+      content: {
+        text: response,
+        buttons: [
+          { text: 'Confirm', value: 'confirm', style: 'success' },
+          {
+            text: 'Learn More',
+            url: 'https://docs.example.com',
+            style: 'link',
+          },
+        ],
+      },
     });
   }
 }
@@ -117,13 +127,13 @@ GET    /api/v1/projects/:slug/platforms/logs/stats   # Activity dashboard
 
 Query capabilities programmatically via: `GET /api/v1/platforms/health`
 
-| Platform        | Connection | Send | Receive | Attachments | Embeds | Edit | Delete | Buttons | Reactions | Threads |
-| --------------- | ---------- | ---- | ------- | ----------- | ------ | ---- | ------ | ------- | --------- | ------- |
-| 💬 **Discord**  | WebSocket  | ✅   | ✅      | ✅          | ✅     | 🔜   | 🔜     | 🔜      | 🔜        | 🔜      |
-| 📱 **Telegram** | Webhook    | ✅   | ✅      | ✅          | ✅     | 🔜   | 🔜     | 🔜      | 🔜        | 🔜      |
-| 💚 **WhatsApp** | Webhook    | ✅   | ✅      | ✅          | ✅     | 🔜   | 🔜     | 🔜      | 🔜        | 🔜      |
+| Platform        | Connection | Send | Receive | Attachments | Embeds | Buttons | Edit | Delete | Reactions | Threads |
+| --------------- | ---------- | ---- | ------- | ----------- | ------ | ------- | ---- | ------ | --------- | ------- |
+| 💬 **Discord**  | WebSocket  | ✅   | ✅      | ✅          | ✅     | ✅      | 🔜   | 🔜     | 🔜        | 🔜      |
+| 📱 **Telegram** | Webhook    | ✅   | ✅      | ✅          | ✅     | ✅      | 🔜   | 🔜     | 🔜        | 🔜      |
+| 💚 **WhatsApp** | Webhook    | ✅   | ✅      | ✅          | ✅     | ❌      | 🔜   | 🔜     | 🔜        | 🔜      |
 
-**Legend:** ✅ Available | 🔜 Planned
+**Legend:** ✅ Available | 🔜 Planned | ❌ Not Supported by Platform
 
 **Current Capabilities:**
 
@@ -131,6 +141,7 @@ Query capabilities programmatically via: `GET /api/v1/platforms/health`
 - **Receive** - Receive incoming messages
 - **Attachments** - Send/receive media files (images, videos, documents)
 - **Embeds** - Rich embedded content with graceful cross-platform degradation
+- **Buttons** - Interactive buttons with webhook callbacks (Discord & Telegram)
 
 **Embed Features:**
 
@@ -139,11 +150,18 @@ Query capabilities programmatically via: `GET /api/v1/platforms/health`
 - **WhatsApp** - Graceful degradation to Markdown-formatted text with inline fields
 - **Platform Limits** - Discord: 10 embeds/message, 25 fields/embed; Telegram/WhatsApp: first image only
 
+**Button Features:**
+
+- **Discord** - Interactive buttons with 5 styles (primary, secondary, success, danger, link)
+- **Telegram** - Inline keyboard buttons with callback data or URLs
+- **Webhook Events** - Dedicated `button.clicked` event delivered to subscribed webhooks
+- **Platform Limits** - Discord: 25 buttons max (5×5 grid); Telegram: ~100 buttons (2 per row recommended)
+- **Security** - SSRF protection on all button URLs (HTTPS only)
+
 **Planned Capabilities:**
 
 - **Edit** - Edit previously sent messages
 - **Delete** - Delete sent messages
-- **Buttons** - Interactive buttons and action rows
 - **Reactions** - Message reactions/emojis
 - **Threads** - Threaded conversations
 

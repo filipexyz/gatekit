@@ -6,6 +6,9 @@ import {
   Message,
   AttachmentBuilder,
   EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } from 'discord.js';
 import {
   PlatformProvider,
@@ -22,7 +25,13 @@ import { CryptoUtil } from '../../common/utils/crypto.util';
 import { AttachmentUtil } from '../../common/utils/attachment.util';
 import { PlatformCapability } from '../enums/platform-capability.enum';
 import { UrlValidationUtil } from '../../common/utils/url-validation.util';
-import { EmbedDto } from '../dto/send-message.dto';
+import {
+  EmbedDto,
+  ButtonDto,
+  ButtonStyle as GKButtonStyle,
+} from '../dto/send-message.dto';
+import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
+import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
 
 interface DiscordConnection {
   connectionKey: string; // projectId:platformId
@@ -47,6 +56,10 @@ interface DiscordConnection {
     capability: PlatformCapability.EMBEDS,
     limitations: 'Max 6000 chars total, max 10 embeds per message',
   },
+  {
+    capability: PlatformCapability.BUTTONS,
+    limitations: 'Max 25 buttons per message (5 rows × 5 buttons)',
+  },
 ])
 export class DiscordProvider
   implements PlatformProvider, PlatformAdapter, OnModuleInit
@@ -64,6 +77,7 @@ export class DiscordProvider
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
     private readonly eventEmitter: EventEmitter2,
     private readonly prisma: PrismaService,
+    private readonly webhookDeliveryService: WebhookDeliveryService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -318,6 +332,20 @@ export class DiscordProvider
     };
 
     const onInteractionCreate = (interaction: any) => {
+      // Handle button interactions asynchronously (fire-and-forget)
+      if (interaction.isButton()) {
+        // Handle button interaction with webhook delivery
+        void this.handleButtonInteraction(
+          interaction,
+          projectId,
+          connection.platformId,
+        ).catch((err) => {
+          this.logger.error(
+            `Error handling button interaction: ${err.message}`,
+          );
+        });
+      }
+
       this.eventEmitter.emit('discord.interaction', {
         projectId,
         interaction,
@@ -540,12 +568,20 @@ export class DiscordProvider
         );
       }
 
-      // Send message with text, attachments, and/or embeds
+      // Transform buttons if present (Discord max: 25 buttons per message)
+      let components: ActionRowBuilder<ButtonBuilder>[] | undefined;
+      if (reply.buttons && reply.buttons.length > 0) {
+        components = this.transformToDiscordButtons(reply.buttons);
+      }
+
+      // Send message with text, attachments, embeds, and/or buttons
       const sent = await (channel as any).send({
         content: messageText || undefined,
         files: files.length > 0 ? files : undefined,
         embeds:
           discordEmbeds && discordEmbeds.length > 0 ? discordEmbeds : undefined,
+        components:
+          components && components.length > 0 ? components : undefined,
       });
 
       this.logger.log(
@@ -611,6 +647,23 @@ export class DiscordProvider
 
       this.logger.debug(
         `Discord message stored: ${storedMessage.id} from ${msg.author.username}`,
+      );
+
+      // Deliver webhook event for incoming message
+      await this.webhookDeliveryService.deliverEvent(
+        projectId,
+        WebhookEventType.MESSAGE_RECEIVED,
+        {
+          message_id: storedMessage.id,
+          platform: 'discord',
+          platform_id: connection.platformId,
+          chat_id: msg.channelId,
+          user_id: msg.author.id,
+          user_display: msg.author.displayName || msg.author.username,
+          text: msg.content,
+          message_type: 'text',
+          received_at: storedMessage.receivedAt.toISOString(),
+        },
       );
     } catch (error) {
       this.logger.error(`Failed to store Discord message: ${error.message}`);
@@ -793,5 +846,154 @@ export class DiscordProvider
     );
 
     return builder;
+  }
+
+  /**
+   * Transform universal ButtonDto array to Discord ActionRow components
+   * Platform-specific transformation with validation
+   */
+  private transformToDiscordButtons(
+    buttons: ButtonDto[],
+  ): ActionRowBuilder<ButtonBuilder>[] {
+    const rows: ActionRowBuilder<ButtonBuilder>[] = [];
+    const maxButtons = Math.min(buttons.length, 25); // Discord limit: 25 buttons total
+
+    if (buttons.length > 25) {
+      this.logger.warn(
+        `Message has ${buttons.length} buttons, Discord limit is 25. Truncating.`,
+      );
+    }
+
+    // Create rows of up to 5 buttons each
+    for (let i = 0; i < maxButtons; i += 5) {
+      const row = new ActionRowBuilder<ButtonBuilder>();
+      const rowButtons = buttons.slice(i, Math.min(i + 5, maxButtons));
+
+      for (const btn of rowButtons) {
+        try {
+          const builder = new ButtonBuilder().setLabel(btn.text);
+
+          if (btn.url) {
+            // Link button
+            builder.setURL(btn.url).setStyle(ButtonStyle.Link);
+          } else if (btn.value) {
+            // Callback button
+            builder
+              .setCustomId(btn.value)
+              .setStyle(this.mapButtonStyle(btn.style));
+          } else {
+            this.logger.warn(
+              `Button "${btn.text}" has no value or url, skipping`,
+            );
+            continue;
+          }
+
+          row.addComponents(builder);
+        } catch (error) {
+          this.logger.error(
+            `Failed to create button "${btn.text}": ${error.message}`,
+          );
+        }
+      }
+
+      if (row.components.length > 0) {
+        rows.push(row);
+      }
+    }
+
+    this.logger.debug(
+      `Transformed ${buttons.length} buttons to ${rows.length} Discord action rows`,
+    );
+
+    return rows;
+  }
+
+  /**
+   * Map universal button style to Discord ButtonStyle
+   */
+  private mapButtonStyle(style?: GKButtonStyle): ButtonStyle {
+    switch (style) {
+      case GKButtonStyle.SECONDARY:
+        return ButtonStyle.Secondary;
+      case GKButtonStyle.SUCCESS:
+        return ButtonStyle.Success;
+      case GKButtonStyle.DANGER:
+        return ButtonStyle.Danger;
+      case GKButtonStyle.LINK:
+        return ButtonStyle.Link;
+      case GKButtonStyle.PRIMARY:
+      default:
+        return ButtonStyle.Primary;
+    }
+  }
+
+  /**
+   * Handle button interaction and deliver webhook event
+   */
+  private async handleButtonInteraction(
+    interaction: any,
+    projectId: string,
+    platformId: string,
+  ): Promise<void> {
+    try {
+      // Store interaction in database
+      const storedInteraction = await this.prisma.receivedMessage.create({
+        data: {
+          projectId,
+          platformId,
+          platform: 'discord',
+          providerMessageId: `interaction_${interaction.id}`,
+          providerChatId: interaction.channelId,
+          providerUserId: interaction.user.id,
+          userDisplay: interaction.user.username,
+          messageText: interaction.customId,
+          messageType: 'button_click',
+          rawData: {
+            id: interaction.id,
+            customId: interaction.customId,
+            componentType: interaction.componentType,
+            channelId: interaction.channelId,
+            guildId: interaction.guildId,
+            user: {
+              id: interaction.user.id,
+              username: interaction.user.username,
+              discriminator: interaction.user.discriminator,
+            },
+          },
+        },
+      });
+
+      this.logger.debug(
+        `Discord button interaction stored: ${storedInteraction.id} from ${interaction.user.username}`,
+      );
+
+      // Deliver webhook event for button click
+      await this.webhookDeliveryService.deliverEvent(
+        projectId,
+        WebhookEventType.BUTTON_CLICKED,
+        {
+          message_id: storedInteraction.id,
+          platform: 'discord',
+          platform_id: platformId,
+          chat_id: interaction.channelId,
+          user_id: interaction.user.id,
+          user_display: interaction.user.username,
+          button_value: interaction.customId,
+          clicked_at: storedInteraction.receivedAt.toISOString(),
+          raw: {
+            interaction_id: interaction.id,
+            component_type: interaction.componentType,
+            message_id: interaction.message?.id,
+          },
+        },
+      );
+
+      // Acknowledge the interaction to Discord
+      await interaction.deferUpdate();
+    } catch (error) {
+      this.logger.error(
+        `Failed to handle button interaction: ${error.message}`,
+      );
+    }
   }
 }

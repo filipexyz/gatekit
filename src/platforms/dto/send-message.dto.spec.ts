@@ -871,4 +871,425 @@ describe('SendMessageDto - Attachment Validation', () => {
       expect(errors.length).toBeGreaterThan(0);
     });
   });
+
+  describe('ButtonDto validation', () => {
+    it('should accept button with value', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          text: 'Choose an action',
+          buttons: [
+            {
+              text: 'Confirm',
+              value: 'confirm_action',
+            },
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should accept button with url', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          text: 'Visit our website',
+          buttons: [
+            {
+              text: 'Visit GateKit',
+              url: 'https://gatekit.dev',
+            },
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should accept button with value and style', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          text: 'Confirm action',
+          buttons: [
+            {
+              text: 'Confirm',
+              value: 'confirm',
+              style: 'success',
+            },
+            {
+              text: 'Cancel',
+              value: 'cancel',
+              style: 'danger',
+            },
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should accept button with url and style', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          buttons: [
+            {
+              text: 'Visit Website',
+              url: 'https://example.com',
+              style: 'link',
+            },
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should accept all button styles', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          buttons: [
+            { text: 'Primary', value: 'primary', style: 'primary' },
+            { text: 'Secondary', value: 'secondary', style: 'secondary' },
+            { text: 'Success', value: 'success', style: 'success' },
+            { text: 'Danger', value: 'danger', style: 'danger' },
+            { text: 'Link', url: 'https://example.com', style: 'link' },
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should reject button with invalid style', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          buttons: [
+            {
+              text: 'Button',
+              value: 'action',
+              style: 'invalid-style' as any,
+            },
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+    });
+
+    it('should reject button with invalid url protocol', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          buttons: [
+            {
+              text: 'Invalid URL',
+              url: 'ftp://invalid.com',
+            },
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+    });
+
+    it('should reject button with http url (must be https)', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          buttons: [
+            {
+              text: 'Insecure',
+              url: 'http://example.com',
+            },
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+    });
+
+    it('should reject button without text', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          buttons: [
+            {
+              value: 'action',
+            } as any,
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+    });
+
+    it('should reject button with neither value nor url', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          buttons: [
+            {
+              text: 'Invalid Button',
+              style: 'primary',
+            } as any,
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+    });
+
+    it('should accept button with both value and url (either is valid)', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          buttons: [
+            {
+              text: 'Button',
+              value: 'action',
+              url: 'https://example.com',
+            },
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should accept multiple buttons', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          text: 'Choose an action',
+          buttons: [
+            { text: 'Confirm', value: 'confirm', style: 'success' },
+            { text: 'Cancel', value: 'cancel', style: 'danger' },
+            { text: 'Help', url: 'https://help.example.com', style: 'link' },
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should accept message with text, attachments, embeds, and buttons', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          text: 'Complete message',
+          attachments: [
+            {
+              url: 'https://example.com/file.pdf',
+            },
+          ],
+          embeds: [
+            {
+              title: 'Embed Title',
+              description: 'Description',
+            },
+          ],
+          buttons: [
+            {
+              text: 'Download',
+              value: 'download',
+              style: 'primary',
+            },
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should accept button-only message', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          buttons: [
+            { text: 'Option A', value: 'a' },
+            { text: 'Option B', value: 'b' },
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should accept empty buttons array', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          text: 'Just text',
+          buttons: [],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should handle unicode in button text', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          buttons: [
+            {
+              text: '✅ Confirm',
+              value: 'confirm',
+            },
+            {
+              text: '❌ Cancel',
+              value: 'cancel',
+            },
+            {
+              text: '📚 Documentation',
+              url: 'https://docs.example.com',
+            },
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should accept very long button text', async () => {
+      const dto = plainToClass(SendMessageDto, {
+        targets: [
+          {
+            platformId: 'platform-123',
+            type: 'channel',
+            id: 'channel-456',
+          },
+        ],
+        content: {
+          buttons: [
+            {
+              text: 'a'.repeat(500),
+              value: 'action',
+            },
+          ],
+        },
+      });
+
+      const errors = await validate(dto);
+      // Should validate - platform providers will handle truncation
+      expect(errors).toHaveLength(0);
+    });
+  });
 });

@@ -8,6 +8,7 @@ import {
   MessageReceivedData,
   MessageSentData,
   MessageFailedData,
+  ButtonClickedData,
 } from '../types/webhook-event.types';
 import type { Webhook, Prisma } from '@prisma/client';
 import * as crypto from 'crypto';
@@ -47,7 +48,11 @@ export class WebhookDeliveryService {
   async deliverEvent(
     projectId: string,
     event: WebhookEventType,
-    data: MessageReceivedData | MessageSentData | MessageFailedData,
+    data:
+      | MessageReceivedData
+      | MessageSentData
+      | MessageFailedData
+      | ButtonClickedData,
   ): Promise<void> {
     try {
       // Get active webhooks subscribed to this event
