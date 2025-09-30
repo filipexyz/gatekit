@@ -15,8 +15,9 @@ import { CryptoUtil } from '../../common/utils/crypto.util';
 import { PlatformLogsService } from '../services/platform-logs.service';
 import { PlatformLogger } from '../utils/platform-logger';
 import { AttachmentUtil } from '../../common/utils/attachment.util';
-import { AttachmentDto } from '../dto/send-message.dto';
+import { AttachmentDto, EmbedDto } from '../dto/send-message.dto';
 import { PlatformCapability } from '../enums/platform-capability.enum';
+import { UrlValidationUtil } from '../../common/utils/url-validation.util';
 
 interface WhatsAppConnection {
   connectionKey: string; // projectId:platformId
@@ -51,7 +52,15 @@ interface EvolutionMessage {
 @PlatformProviderDecorator('whatsapp-evo', [
   { capability: PlatformCapability.SEND_MESSAGE },
   { capability: PlatformCapability.RECEIVE_MESSAGE },
-  { capability: PlatformCapability.ATTACHMENTS },
+  {
+    capability: PlatformCapability.ATTACHMENTS,
+    limitations: 'Depends on Evolution API limits, typically 16MB',
+  },
+  {
+    capability: PlatformCapability.EMBEDS,
+    limitations:
+      'Max 3000 chars for caption (converted to markdown text + first embed image only)',
+  },
 ])
 export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
   private readonly logger = new Logger(WhatsAppProvider.name);
@@ -731,38 +740,94 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
         throw new Error('No chat ID provided');
       }
 
-      const hasAttachments = reply.attachments && reply.attachments.length > 0;
+      const hasEmbeds = reply.embeds && reply.embeds.length > 0;
       const platformLogger = this.createPlatformLogger(
         env.projectId,
         platformId,
       );
 
       let messageId: string;
+      let finalText = reply.text;
 
-      // Handle attachments
-      if (hasAttachments && reply.attachments) {
-        // Send first attachment with caption, rest without
+      // Transform embeds to WhatsApp format (markdown text + optional media)
+      // Note: WhatsApp doesn't have native embeds, so we convert to markdown text + separate media
+      let embedImage: AttachmentDto | undefined;
+
+      if (hasEmbeds && reply.embeds) {
+        const embedResults = await Promise.all(
+          reply.embeds.map((embed) => this.transformToWhatsAppEmbed(embed)),
+        );
+
+        // Merge all embed texts with message text
+        const embedTexts = embedResults
+          .map((result) => result.text)
+          .filter(Boolean);
+        if (embedTexts.length > 0) {
+          finalText = this.mergeEmbedWithText(
+            finalText,
+            embedTexts.join('\n\n---\n\n'),
+          );
+        }
+
+        // Extract ONLY FIRST embed image (WhatsApp doesn't have native embeds)
+        // Platform limitation: Only the first embed image is sent
+        // Use AttachmentUtil to detect MIME types from URLs
+        const firstEmbedImage = embedResults.find((result) => result.media);
+
+        if (firstEmbedImage?.media) {
+          // Use AttachmentUtil for MIME type detection (no blocking HEAD request)
+          const mimeType = AttachmentUtil.detectMimeType({
+            url: firstEmbedImage.media,
+          });
+          const filename = AttachmentUtil.getFilenameFromUrl(
+            firstEmbedImage.media,
+          );
+
+          embedImage = {
+            url: firstEmbedImage.media,
+            mimeType,
+            filename,
+          };
+
+          platformLogger.logMessage(
+            'Extracted first embed image (platform limitation)',
+            { embedImageUrl: firstEmbedImage.media },
+          );
+        }
+      }
+
+      // Combine user attachments + embed image (without mutating reply)
+      const allMedia: AttachmentDto[] = [
+        ...(reply.attachments || []),
+        ...(embedImage ? [embedImage] : []),
+      ];
+
+      const hasMedia = allMedia.length > 0;
+
+      // Handle media (attachments + embed images)
+      if (hasMedia) {
+        // Send first media with caption (including embed text if present), rest without
         messageId = await this.sendAttachment(
           connection,
           chatId,
-          reply.attachments[0],
-          reply.text,
+          allMedia[0],
+          finalText,
         );
 
-        // Send additional attachments
-        for (let i = 1; i < reply.attachments.length; i++) {
+        // Send additional media items
+        for (let i = 1; i < allMedia.length; i++) {
           await this.sendAttachment(
             connection,
             chatId,
-            reply.attachments[i],
-            reply.attachments[i].caption,
+            allMedia[i],
+            allMedia[i].caption,
           );
         }
       } else {
-        // Text-only message
+        // Text-only message (or text with embeds converted to markdown)
         const payload = {
           number: chatId,
-          text: reply.text || '',
+          text: finalText || '',
         };
 
         const response = await fetch(
@@ -789,8 +854,9 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
         messageId,
         chatId,
         messageLength: reply.text?.length || 0,
-        attachmentCount:
-          hasAttachments && reply.attachments ? reply.attachments.length : 0,
+        mediaCount: allMedia.length,
+        userAttachments: reply.attachments?.length || 0,
+        embedImages: embedImage ? 1 : 0,
       });
 
       return { providerMessageId: messageId };
@@ -899,5 +965,155 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
 
     const result = await response.json();
     return result.key?.id || 'unknown';
+  }
+
+  /**
+   * Transform universal EmbedDto to WhatsApp markdown format
+   * Platform-specific: WhatsApp has minimal formatting, so we convert to markdown text + media
+   * Supports graceful degradation for author, url, fields, footer, and timestamp
+   * Includes SSRF protection for all URLs and Markdown escaping
+   */
+  private async transformToWhatsAppEmbed(
+    embed: EmbedDto,
+  ): Promise<{ text: string; media?: string }> {
+    const parts: string[] = [];
+
+    // Author (header section)
+    if (embed.author) {
+      if (embed.author.url) {
+        try {
+          await UrlValidationUtil.validateUrl(
+            embed.author.url,
+            'embed author URL',
+          );
+          parts.push(
+            `📬 *${this.escapeMarkdown(embed.author.name)}*\n${embed.author.url}`,
+          );
+        } catch (error) {
+          this.logger.warn(
+            `Invalid or unsafe author URL: ${embed.author.url}, skipping link. ${error.message}`,
+          );
+          parts.push(`📬 *${this.escapeMarkdown(embed.author.name)}*`);
+        }
+      } else {
+        parts.push(`📬 *${this.escapeMarkdown(embed.author.name)}*`);
+      }
+      parts.push('━━━━━━━━━━━━━━━━━');
+    }
+
+    // Title in bold with optional URL
+    if (embed.title) {
+      if (embed.url) {
+        try {
+          await UrlValidationUtil.validateUrl(embed.url, 'embed URL');
+          parts.push(`*${this.escapeMarkdown(embed.title)}*\n🔗 ${embed.url}`);
+        } catch (error) {
+          this.logger.warn(
+            `Invalid or unsafe embed URL: ${embed.url}, skipping link. ${error.message}`,
+          );
+          parts.push(`*${this.escapeMarkdown(embed.title)}*`);
+        }
+      } else {
+        parts.push(`*${this.escapeMarkdown(embed.title)}*`);
+      }
+    }
+
+    // Description
+    if (embed.description) {
+      parts.push(this.escapeMarkdown(embed.description));
+    }
+
+    // Fields (structured data)
+    if (embed.fields && embed.fields.length > 0) {
+      parts.push('━━━━━━━━━━━━━━━━━');
+
+      const fieldLines: string[] = [];
+      let inlineBuffer: string[] = [];
+
+      for (const field of embed.fields) {
+        const fieldText = `*${this.escapeMarkdown(field.name)}:* ${this.escapeMarkdown(field.value)}`;
+
+        if (field.inline) {
+          inlineBuffer.push(fieldText);
+
+          // WhatsApp doesn't have real inline, so we group inline fields on same line (max 2)
+          if (inlineBuffer.length >= 2) {
+            fieldLines.push(inlineBuffer.join(' • '));
+            inlineBuffer = [];
+          }
+        } else {
+          // Flush inline buffer first
+          if (inlineBuffer.length > 0) {
+            fieldLines.push(inlineBuffer.join(' • '));
+            inlineBuffer = [];
+          }
+          fieldLines.push(fieldText);
+        }
+      }
+
+      // Flush remaining inline fields
+      if (inlineBuffer.length > 0) {
+        fieldLines.push(inlineBuffer.join(' • '));
+      }
+
+      parts.push(fieldLines.join('\n'));
+    }
+
+    // Footer and timestamp
+    if (embed.footer || embed.timestamp) {
+      parts.push('━━━━━━━━━━━━━━━━━');
+
+      if (embed.timestamp) {
+        const date = new Date(embed.timestamp);
+        if (!isNaN(date.getTime())) {
+          const formattedDate = date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+          parts.push(`⏰ ${formattedDate}`);
+        }
+      }
+
+      if (embed.footer) {
+        parts.push(`💡 ${this.escapeMarkdown(embed.footer.text)}`);
+      }
+    }
+
+    const text = parts.join('\n\n');
+    const media = embed.imageUrl || embed.thumbnailUrl;
+
+    this.logger.debug(
+      `Transformed embed to WhatsApp format: ${embed.title || 'Untitled'}, media: ${!!media}`,
+    );
+
+    return { text, media };
+  }
+
+  /**
+   * Merge embed content with existing message text
+   */
+  private mergeEmbedWithText(
+    originalText: string | undefined,
+    embedText: string | undefined,
+  ): string {
+    if (!embedText) return originalText || '';
+    if (!originalText) return embedText;
+    return `${originalText}\n\n${embedText}`;
+  }
+
+  /**
+   * Escape Markdown special characters for WhatsApp
+   * Prevents formatting injection by escaping: * _ ` ~ \
+   */
+  private escapeMarkdown(text: string): string {
+    return text
+      .replace(/\\/g, '\\\\')
+      .replace(/\*/g, '\\*')
+      .replace(/_/g, '\\_')
+      .replace(/`/g, '\\`')
+      .replace(/~/g, '\\~');
   }
 }

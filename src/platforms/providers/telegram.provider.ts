@@ -19,6 +19,8 @@ import { AttachmentDto } from '../dto/send-message.dto';
 import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
 import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
 import { PlatformCapability } from '../enums/platform-capability.enum';
+import { EmbedDto } from '../dto/send-message.dto';
+import { UrlValidationUtil } from '../../common/utils/url-validation.util';
 
 interface TelegramConnection {
   connectionKey: string; // projectId:platformId
@@ -33,7 +35,15 @@ interface TelegramConnection {
 @PlatformProviderDecorator('telegram', [
   { capability: PlatformCapability.SEND_MESSAGE },
   { capability: PlatformCapability.RECEIVE_MESSAGE },
-  { capability: PlatformCapability.ATTACHMENTS },
+  {
+    capability: PlatformCapability.ATTACHMENTS,
+    limitations: 'Max 50MB per file, varies by type',
+  },
+  {
+    capability: PlatformCapability.EMBEDS,
+    limitations:
+      'Max 1024 chars for caption (converted to HTML text + first embed image only)',
+  },
 ])
 export class TelegramProvider implements PlatformProvider, PlatformAdapter {
   private readonly logger = new Logger(TelegramProvider.name);
@@ -581,38 +591,81 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
         throw new Error('No chat ID provided');
       }
 
-      const hasAttachments = reply.attachments && reply.attachments.length > 0;
+      const hasEmbeds = reply.embeds && reply.embeds.length > 0;
       const platformLogger = this.createPlatformLogger(
         env.projectId,
         platformId,
       );
 
       let sentMessage: TelegramBot.Message;
+      let finalText = reply.text;
 
-      // Handle attachments
-      if (hasAttachments && reply.attachments && reply.attachments.length > 0) {
+      // Transform embeds to Telegram format (HTML + optional photo)
+      // Note: Telegram doesn't have native embeds, so we convert to HTML text + separate photo
+      let embedImage: AttachmentDto | undefined;
+
+      if (hasEmbeds && reply.embeds) {
+        const embedResults = await Promise.all(
+          reply.embeds.map((embed) => this.transformToTelegramEmbed(embed)),
+        );
+
+        // Merge all embed texts with message text
+        const embedTexts = embedResults
+          .map((result) => result.text)
+          .filter(Boolean);
+        if (embedTexts.length > 0) {
+          finalText = this.mergeEmbedWithText(
+            finalText,
+            embedTexts.join('\n\n---\n\n'),
+          );
+        }
+
+        // Extract ONLY FIRST embed image (Telegram doesn't have native embeds)
+        // Platform limitation: Only the first embed image is sent
+        const firstEmbedImage = embedResults.find((result) => result.photo);
+
+        if (firstEmbedImage?.photo) {
+          embedImage = { url: firstEmbedImage.photo };
+
+          platformLogger.logMessage(
+            'Extracted first embed image (platform limitation)',
+            { embedImageUrl: firstEmbedImage.photo },
+          );
+        }
+      }
+
+      // Combine user attachments + embed image (without mutating reply)
+      const allMedia: AttachmentDto[] = [
+        ...(reply.attachments || []),
+        ...(embedImage ? [embedImage] : []),
+      ];
+
+      const hasMedia = allMedia.length > 0;
+
+      // Handle media (attachments + embed images)
+      if (hasMedia) {
         // Telegram supports media groups (2-10 items of same type)
-        if (reply.attachments.length > 1) {
+        if (allMedia.length > 1) {
           sentMessage = await this.sendMediaGroup(
             connection.bot,
             chatId,
-            reply.attachments,
-            reply.text,
+            allMedia,
+            finalText,
           );
         } else {
-          // Single attachment
+          // Single media item
           sentMessage = await this.sendSingleAttachment(
             connection.bot,
             chatId,
-            reply.attachments[0],
-            reply.text,
+            allMedia[0],
+            finalText,
           );
         }
       } else {
-        // Text-only message
+        // Text-only message (or text with embeds converted to HTML)
         sentMessage = await connection.bot.sendMessage(
           chatId,
-          reply.text ?? '',
+          finalText ?? '',
           {
             parse_mode: 'HTML',
           },
@@ -623,8 +676,9 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
         messageId: sentMessage.message_id.toString(),
         chatId,
         messageLength: reply.text?.length || 0,
-        attachmentCount:
-          hasAttachments && reply.attachments ? reply.attachments.length : 0,
+        mediaCount: allMedia.length,
+        userAttachments: reply.attachments?.length || 0,
+        embedImages: embedImage ? 1 : 0,
         parseMode: 'HTML',
       });
 
@@ -782,5 +836,157 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
 
     const messages = await bot.sendMediaGroup(chatId, media);
     return messages[0]; // Return first message for ID
+  }
+
+  /**
+   * Transform universal EmbedDto to Telegram HTML format
+   * Platform-specific: Telegram doesn't have native embeds, so we convert to HTML text + photo
+   * Supports graceful degradation for author, url, fields, footer, and timestamp
+   * Includes SSRF protection for all URLs
+   */
+  private async transformToTelegramEmbed(
+    embed: EmbedDto,
+  ): Promise<{ text: string; photo?: string }> {
+    const parts: string[] = [];
+
+    // Author (header section)
+    if (embed.author) {
+      if (embed.author.url) {
+        try {
+          await UrlValidationUtil.validateUrl(
+            embed.author.url,
+            'embed author URL',
+          );
+          parts.push(
+            `📬 <a href="${this.escapeHtml(embed.author.url)}">${this.escapeHtml(embed.author.name)}</a>`,
+          );
+        } catch (error) {
+          this.logger.warn(
+            `Invalid or unsafe author URL: ${embed.author.url}, skipping link. ${error.message}`,
+          );
+          parts.push(`📬 ${this.escapeHtml(embed.author.name)}`);
+        }
+      } else {
+        parts.push(`📬 ${this.escapeHtml(embed.author.name)}`);
+      }
+      parts.push('━━━━━━━━━━━━━━━━━');
+    }
+
+    // Title (bold) with optional URL
+    if (embed.title) {
+      if (embed.url) {
+        try {
+          await UrlValidationUtil.validateUrl(embed.url, 'embed URL');
+          parts.push(
+            `<b><a href="${this.escapeHtml(embed.url)}">${this.escapeHtml(embed.title)}</a></b>`,
+          );
+        } catch (error) {
+          this.logger.warn(
+            `Invalid or unsafe embed URL: ${embed.url}, skipping link. ${error.message}`,
+          );
+          parts.push(`<b>${this.escapeHtml(embed.title)}</b>`);
+        }
+      } else {
+        parts.push(`<b>${this.escapeHtml(embed.title)}</b>`);
+      }
+    }
+
+    // Description
+    if (embed.description) {
+      parts.push(this.escapeHtml(embed.description));
+    }
+
+    // Fields (structured data)
+    if (embed.fields && embed.fields.length > 0) {
+      parts.push('━━━━━━━━━━━━━━━━━');
+
+      const fieldLines: string[] = [];
+      let inlineBuffer: string[] = [];
+
+      for (const field of embed.fields) {
+        const fieldText = `<b>${this.escapeHtml(field.name)}:</b> ${this.escapeHtml(field.value)}`;
+
+        if (field.inline) {
+          inlineBuffer.push(fieldText);
+
+          // Telegram doesn't have real inline, so we group inline fields on same line (max 2)
+          if (inlineBuffer.length >= 2) {
+            fieldLines.push(inlineBuffer.join(' • '));
+            inlineBuffer = [];
+          }
+        } else {
+          // Flush inline buffer first
+          if (inlineBuffer.length > 0) {
+            fieldLines.push(inlineBuffer.join(' • '));
+            inlineBuffer = [];
+          }
+          fieldLines.push(fieldText);
+        }
+      }
+
+      // Flush remaining inline fields
+      if (inlineBuffer.length > 0) {
+        fieldLines.push(inlineBuffer.join(' • '));
+      }
+
+      parts.push(fieldLines.join('\n'));
+    }
+
+    // Footer and timestamp
+    if (embed.footer || embed.timestamp) {
+      parts.push('━━━━━━━━━━━━━━━━━');
+
+      if (embed.timestamp) {
+        const date = new Date(embed.timestamp);
+        if (!isNaN(date.getTime())) {
+          const formattedDate = date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+          parts.push(`⏰ ${formattedDate}`);
+        }
+      }
+
+      if (embed.footer) {
+        parts.push(`💡 ${this.escapeHtml(embed.footer.text)}`);
+      }
+    }
+
+    const text = parts.join('\n\n');
+    const photo = embed.imageUrl || embed.thumbnailUrl;
+
+    this.logger.debug(
+      `Transformed embed to Telegram format: ${embed.title || 'Untitled'}, photo: ${!!photo}`,
+    );
+
+    return { text, photo };
+  }
+
+  /**
+   * Merge embed content with existing message text
+   */
+  private mergeEmbedWithText(
+    originalText: string | undefined,
+    embedText: string | undefined,
+  ): string {
+    if (!embedText) return originalText || '';
+    if (!originalText) return embedText;
+    return `${originalText}\n\n${embedText}`;
+  }
+
+  /**
+   * Escape HTML special characters for Telegram
+   * Prevents XSS attacks by escaping: & < > " '
+   */
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 }

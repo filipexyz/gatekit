@@ -5,6 +5,7 @@ import {
   GatewayIntentBits,
   Message,
   AttachmentBuilder,
+  EmbedBuilder,
 } from 'discord.js';
 import {
   PlatformProvider,
@@ -20,6 +21,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CryptoUtil } from '../../common/utils/crypto.util';
 import { AttachmentUtil } from '../../common/utils/attachment.util';
 import { PlatformCapability } from '../enums/platform-capability.enum';
+import { UrlValidationUtil } from '../../common/utils/url-validation.util';
+import { EmbedDto } from '../dto/send-message.dto';
 
 interface DiscordConnection {
   connectionKey: string; // projectId:platformId
@@ -36,7 +39,14 @@ interface DiscordConnection {
 @PlatformProviderDecorator('discord', [
   { capability: PlatformCapability.SEND_MESSAGE },
   { capability: PlatformCapability.RECEIVE_MESSAGE },
-  { capability: PlatformCapability.ATTACHMENTS },
+  {
+    capability: PlatformCapability.ATTACHMENTS,
+    limitations: 'Max 25MB per file, max 10 files per message',
+  },
+  {
+    capability: PlatformCapability.EMBEDS,
+    limitations: 'Max 6000 chars total, max 10 embeds per message',
+  },
 ])
 export class DiscordProvider
   implements PlatformProvider, PlatformAdapter, OnModuleInit
@@ -459,12 +469,13 @@ export class DiscordProvider
       // Validate message content
       const messageText = reply.text?.trim();
       const hasAttachments = reply.attachments && reply.attachments.length > 0;
+      const hasEmbeds = reply.embeds && reply.embeds.length > 0;
 
-      if (!messageText && !hasAttachments) {
+      if (!messageText && !hasAttachments && !hasEmbeds) {
         this.logger.error(
-          `Discord message has no content - reply.text: "${reply.text}", attachments: ${hasAttachments}`,
+          `Discord message has no content - reply.text: "${reply.text}", attachments: ${hasAttachments}, embeds: ${hasEmbeds}`,
         );
-        throw new Error('Message must have text or attachments');
+        throw new Error('Message must have text, attachments, or embeds');
       }
 
       this.logger.debug(
@@ -513,10 +524,28 @@ export class DiscordProvider
         }
       }
 
-      // Send message with text and/or attachments
+      // Transform embeds if present (Discord max: 10 embeds per message)
+      let discordEmbeds: EmbedBuilder[] | undefined;
+      if (reply.embeds && reply.embeds.length > 0) {
+        const embedsToSend = reply.embeds.slice(0, 10);
+
+        if (reply.embeds.length > 10) {
+          this.logger.warn(
+            `Message has ${reply.embeds.length} embeds, Discord limit is 10. Truncating.`,
+          );
+        }
+
+        discordEmbeds = await Promise.all(
+          embedsToSend.map((embed) => this.transformToDiscordEmbed(embed)),
+        );
+      }
+
+      // Send message with text, attachments, and/or embeds
       const sent = await (channel as any).send({
         content: messageText || undefined,
         files: files.length > 0 ? files : undefined,
+        embeds:
+          discordEmbeds && discordEmbeds.length > 0 ? discordEmbeds : undefined,
       });
 
       this.logger.log(
@@ -590,5 +619,179 @@ export class DiscordProvider
     // Also publish to EventBus for real-time processing
     const env = this.toEnvelope(msg, projectId);
     await this.eventBus.publish(env);
+  }
+
+  /**
+   * Transform universal EmbedDto to Discord native EmbedBuilder
+   * Platform-specific transformation with validation
+   */
+  private async transformToDiscordEmbed(
+    embed: EmbedDto,
+  ): Promise<EmbedBuilder> {
+    const builder = new EmbedBuilder();
+
+    if (embed.title) {
+      builder.setTitle(embed.title);
+    }
+
+    if (embed.description) {
+      builder.setDescription(embed.description);
+    }
+
+    if (embed.color && embed.color.length > 0) {
+      // Support both hex (#FF5733) and decimal (16734003) formats
+      const colorValue = embed.color.startsWith('#')
+        ? parseInt(embed.color.slice(1), 16)
+        : parseInt(embed.color, 10);
+
+      // Validate color is a valid number in range 0x000000 to 0xFFFFFF
+      if (!isNaN(colorValue) && colorValue >= 0 && colorValue <= 0xffffff) {
+        builder.setColor(colorValue);
+      } else {
+        this.logger.warn(
+          `Invalid Discord color value: ${embed.color}, skipping color`,
+        );
+      }
+    }
+
+    // URL - makes title clickable
+    if (embed.url) {
+      try {
+        await UrlValidationUtil.validateUrl(embed.url, 'embed URL');
+        builder.setURL(embed.url);
+      } catch (error) {
+        this.logger.warn(
+          `Invalid or unsafe URL: ${embed.url}, skipping. ${error.message}`,
+        );
+      }
+    }
+
+    if (embed.imageUrl) {
+      // Validate URL before setting (SSRF protection)
+      try {
+        await UrlValidationUtil.validateUrl(embed.imageUrl, 'embed image');
+        builder.setImage(embed.imageUrl);
+      } catch (error) {
+        this.logger.warn(
+          `Invalid or unsafe imageUrl: ${embed.imageUrl}, skipping. ${error.message}`,
+        );
+      }
+    }
+
+    if (embed.thumbnailUrl) {
+      // Validate URL before setting (SSRF protection)
+      try {
+        await UrlValidationUtil.validateUrl(
+          embed.thumbnailUrl,
+          'embed thumbnail',
+        );
+        builder.setThumbnail(embed.thumbnailUrl);
+      } catch (error) {
+        this.logger.warn(
+          `Invalid or unsafe thumbnailUrl: ${embed.thumbnailUrl}, skipping. ${error.message}`,
+        );
+      }
+    }
+
+    // Author - header with icon and name
+    if (embed.author) {
+      const authorOptions: { name: string; url?: string; iconURL?: string } = {
+        name: embed.author.name,
+      };
+
+      if (embed.author.url) {
+        try {
+          await UrlValidationUtil.validateUrl(embed.author.url, 'author URL');
+          authorOptions.url = embed.author.url;
+        } catch (error) {
+          this.logger.warn(
+            `Invalid or unsafe author URL: ${embed.author.url}, skipping URL`,
+          );
+        }
+      }
+
+      if (embed.author.iconUrl) {
+        try {
+          await UrlValidationUtil.validateUrl(
+            embed.author.iconUrl,
+            'author icon',
+          );
+          authorOptions.iconURL = embed.author.iconUrl;
+        } catch (error) {
+          this.logger.warn(
+            `Invalid or unsafe author iconUrl: ${embed.author.iconUrl}, skipping icon`,
+          );
+        }
+      }
+
+      builder.setAuthor(authorOptions);
+    }
+
+    // Footer - bottom text with optional icon
+    if (embed.footer) {
+      const footerOptions: { text: string; iconURL?: string } = {
+        text: embed.footer.text,
+      };
+
+      if (embed.footer.iconUrl) {
+        try {
+          await UrlValidationUtil.validateUrl(
+            embed.footer.iconUrl,
+            'footer icon',
+          );
+          footerOptions.iconURL = embed.footer.iconUrl;
+        } catch (error) {
+          this.logger.warn(
+            `Invalid or unsafe footer iconUrl: ${embed.footer.iconUrl}, skipping icon`,
+          );
+        }
+      }
+
+      builder.setFooter(footerOptions);
+    }
+
+    // Timestamp - shows relative time
+    if (embed.timestamp) {
+      try {
+        const date = new Date(embed.timestamp);
+        if (!isNaN(date.getTime())) {
+          builder.setTimestamp(date);
+        } else {
+          this.logger.warn(
+            `Invalid timestamp: ${embed.timestamp}, skipping timestamp`,
+          );
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Failed to parse timestamp: ${embed.timestamp}, skipping. ${error.message}`,
+        );
+      }
+    }
+
+    // Fields - structured key-value data
+    if (embed.fields && embed.fields.length > 0) {
+      // Discord limit: 25 fields max
+      const fieldsToAdd = embed.fields.slice(0, 25);
+
+      if (embed.fields.length > 25) {
+        this.logger.warn(
+          `Embed has ${embed.fields.length} fields, Discord limit is 25. Truncating.`,
+        );
+      }
+
+      builder.addFields(
+        fieldsToAdd.map((field) => ({
+          name: field.name,
+          value: field.value,
+          inline: field.inline ?? false,
+        })),
+      );
+    }
+
+    this.logger.debug(
+      `Transformed embed to Discord format: ${embed.title || 'Untitled'}`,
+    );
+
+    return builder;
   }
 }

@@ -70,6 +70,40 @@ export class ButtonDto {
   value: string;
 }
 
+export class EmbedAuthorDto {
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  url?: string;
+
+  @IsOptional()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  iconUrl?: string;
+}
+
+export class EmbedFooterDto {
+  @IsString()
+  text: string;
+
+  @IsOptional()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  iconUrl?: string;
+}
+
+export class EmbedFieldDto {
+  @IsString()
+  name: string;
+
+  @IsString()
+  value: string;
+
+  @IsOptional()
+  @IsBoolean()
+  inline?: boolean;
+}
+
 export class EmbedDto {
   @IsOptional()
   @IsString()
@@ -84,12 +118,36 @@ export class EmbedDto {
   color?: string;
 
   @IsOptional()
-  @IsString()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  url?: string;
+
+  @IsOptional()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   imageUrl?: string;
 
   @IsOptional()
-  @IsString()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   thumbnailUrl?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EmbedAuthorDto)
+  author?: EmbedAuthorDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EmbedFooterDto)
+  footer?: EmbedFooterDto;
+
+  @IsOptional()
+  @IsDateString()
+  timestamp?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EmbedFieldDto)
+  fields?: EmbedFieldDto[];
 }
 
 export class ContentDto {
