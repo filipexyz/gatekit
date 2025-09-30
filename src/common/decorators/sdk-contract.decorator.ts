@@ -12,6 +12,7 @@ export interface SdkContractOption {
     | 'number'
     | 'boolean'
     | 'object'
+    | 'array'
     | 'target_pattern'
     | 'targets_pattern';
 }

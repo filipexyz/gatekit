@@ -59,6 +59,7 @@ model Project {
   receivedMessages  ReceivedMessage[]
   sentMessages      SentMessage[]
   platformLogs      PlatformLog[]
+  webhooks          Webhook[]
 
   // New sharing relationships
   members          ProjectMember[]
@@ -237,4 +238,45 @@ model PlatformLog {
   @@index([level])
   @@index([category])
   @@map("platform_logs")
+}
+
+model Webhook {
+  id          String   @id @default(uuid())
+  projectId   String   @map("project_id")
+  name        String
+  url         String
+  events      String[] // ['message.received', 'message.sent', 'message.failed']
+  secret      String   // Auto-generated or user-provided (whsec_...)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deliveries  WebhookDelivery[]
+
+  @@index([projectId])
+  @@index([projectId, isActive])
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id            String    @id @default(uuid())
+  webhookId     String    @map("webhook_id")
+  event         String    // 'message.received', 'message.sent', 'message.failed'
+  payload       Json      // Full event payload
+  responseCode  Int?      @map("response_code")
+  responseBody  String?   @map("response_body") @db.Text
+  error         String?   @db.Text
+  attempts      Int       @default(0)
+  status        String    // 'pending', 'success', 'failed'
+  deliveredAt   DateTime? @map("delivered_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  webhook       Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([createdAt])
+  @@index([status])
+  @@index([event])
+  @@map("webhook_deliveries")
 }

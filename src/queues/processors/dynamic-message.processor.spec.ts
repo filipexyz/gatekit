@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DynamicMessageProcessor } from './dynamic-message.processor';
 import { PlatformRegistry } from '../../platforms/services/platform-registry.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
 
 // Mock CryptoUtil
 jest.mock('../../common/utils/crypto.util', () => ({
@@ -44,6 +45,10 @@ describe('DynamicMessageProcessor', () => {
     sendMessage: jest.fn(),
   };
 
+  const mockWebhookDeliveryService = {
+    deliverEvent: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -59,6 +64,10 @@ describe('DynamicMessageProcessor', () => {
         {
           provide: 'BullQueue_messages',
           useValue: mockMessageQueue,
+        },
+        {
+          provide: WebhookDeliveryService,
+          useValue: mockWebhookDeliveryService,
         },
       ],
     }).compile();

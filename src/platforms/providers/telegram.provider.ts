@@ -16,6 +16,8 @@ import { PlatformLogsService } from '../services/platform-logs.service';
 import { PlatformLogger } from '../utils/platform-logger';
 import { AttachmentUtil } from '../../common/utils/attachment.util';
 import { AttachmentDto } from '../dto/send-message.dto';
+import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
+import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
 
 interface TelegramConnection {
   connectionKey: string; // projectId:platformId
@@ -41,6 +43,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
     private readonly prisma: PrismaService,
     private readonly platformLogsService: PlatformLogsService,
+    private readonly webhookDeliveryService: WebhookDeliveryService,
   ) {
     // Constructor uses dependency injection - no initialization needed
   }
@@ -350,7 +353,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     // Store the message in database
     if (platformId) {
       try {
-        await this.prisma.receivedMessage.create({
+        const storedMessage = await this.prisma.receivedMessage.create({
           data: {
             projectId,
             platformId,
@@ -367,6 +370,24 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
         });
         this.logger.debug(
           `Stored Telegram message ${msg.message_id} for project ${projectId}`,
+        );
+
+        // Deliver webhook event for incoming message
+        await this.webhookDeliveryService.deliverEvent(
+          projectId,
+          WebhookEventType.MESSAGE_RECEIVED,
+          {
+            message_id: storedMessage.id,
+            platform: 'telegram',
+            platform_id: platformId,
+            chat_id: msg.chat.id.toString(),
+            user_id: msg.from?.id?.toString() || 'unknown',
+            user_display:
+              msg.from?.username || msg.from?.first_name || 'Unknown',
+            text: msg.text || null,
+            message_type: msg.text ? 'text' : 'other',
+            received_at: storedMessage.receivedAt.toISOString(),
+          },
         );
       } catch (error) {
         // Check if it's a duplicate message

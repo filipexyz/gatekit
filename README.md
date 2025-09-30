@@ -30,12 +30,14 @@
 **GateKit is conversational infrastructure that any AI agent can plug into.**
 
 ### **📨 What We Store:**
+
 - **Received Messages** - Every incoming message from Discord, Telegram, WhatsApp, etc.
 - **Sent Messages** - Complete delivery tracking with success/failure status
 - **Platform Logs** - All messaging activity with rich debugging metadata
 - **User Conversations** - Unified message history across all platforms
 
 ### **🔌 What We Provide:**
+
 - **Universal Send API** - Send to Discord, Telegram, WhatsApp with identical code
 - **Conversation History** - Query user conversations across platforms
 - **Platform Management** - Configure bots, update tokens, monitor health
@@ -43,6 +45,7 @@
 - **Auto-Generated Clients** - SDK, CLI, and API docs from single source
 
 ### **🤖 Perfect for AI Agents:**
+
 ```typescript
 // Any AI agent can easily integrate
 class YourAIAgent {
@@ -60,7 +63,7 @@ class YourAIAgent {
     // 3. Respond on same platform (what we HAVE)
     await this.gatekit.messages.send('project', {
       targets: [{ platformId: platform, type: 'user', id: userId }],
-      content: { text: response }
+      content: { text: response },
     });
   }
 }
@@ -69,6 +72,7 @@ class YourAIAgent {
 ## 🏗️ **Current Infrastructure (What Actually Works)**
 
 ### **✅ Core Systems Built:**
+
 - **User-Linked Projects** - Multi-tenant with `owner`/`admin`/`member`/`viewer` roles
 - **Platform Providers** - Discord (WebSocket), Telegram (Webhook), WhatsApp-Evo (Evolution API) production-ready
 - **Message Queue** - BullMQ with Redis for reliable cross-platform delivery
@@ -77,6 +81,7 @@ class YourAIAgent {
 - **Auto-Generated Clients** - Contract-driven SDK/CLI generation
 
 ### **📡 Production APIs Available:**
+
 ```bash
 # Project Management
 GET    /api/v1/projects                    # List projects
@@ -97,27 +102,34 @@ PATCH  /api/v1/projects/:slug/platforms/:id     # Update bot tokens
 GET    /api/v1/projects/:slug/messages          # Query received messages
 GET    /api/v1/projects/:slug/messages/sent     # Query sent messages
 
+# Webhook Notifications (Event Subscriptions)
+POST   /api/v1/projects/:slug/webhooks          # Subscribe to events
+GET    /api/v1/projects/:slug/webhooks          # List webhooks
+GET    /api/v1/projects/:slug/webhooks/:id/deliveries  # Delivery history
+
 # Platform Activity Monitoring
 GET    /api/v1/projects/:slug/platforms/logs         # All platform activity
 GET    /api/v1/projects/:slug/platforms/logs/stats   # Activity dashboard
 ```
 
 ### **🎮 Ready Platforms:**
-| Platform | Status | Connection | Features |
-|----------|--------|------------|-----------|
-| 💬 **Discord** | ✅ Production | WebSocket | Rich embeds, buttons, real-time |
-| 📱 **Telegram** | ✅ Production | Webhook | Inline keyboards, files, callbacks |
 
+| Platform        | Status        | Connection | Features                           |
+| --------------- | ------------- | ---------- | ---------------------------------- |
+| 💬 **Discord**  | ✅ Production | WebSocket  | Rich embeds, buttons, real-time    |
+| 📱 **Telegram** | ✅ Production | Webhook    | Inline keyboards, files, callbacks |
 
 ## 🔮 **Future: Native Agentic Layer**
 
 ### **🎯 Planned Agent Integration:**
+
 - **Memory System** - Native agent memory with MCP protocol support
 - **Event Querying** - Internal event system with queryable metrics APIs
 - **Subconscious Conversations** - Background conversation processing
 - **Agent Orchestration** - Multi-agent coordination across platforms
 
 ### **🧬 Why This Architecture Works:**
+
 1. **Message Storage** - We already store all received/sent messages
 2. **Platform Abstraction** - Universal interface works with any platform
 3. **User Tracking** - We track users across platforms
@@ -127,6 +139,7 @@ GET    /api/v1/projects/:slug/platforms/logs/stats   # Activity dashboard
 ## 🛠️ **Get Started (Agent Developers)**
 
 ### **1. Basic Setup**
+
 ```bash
 git clone https://github.com/filipexyz/gatekit.git
 cd gatekit && docker compose up -d postgres redis
@@ -134,6 +147,7 @@ npm install && npm run start:dev
 ```
 
 ### **2. Install AI-Generated CLI**
+
 ```bash
 npm install -g @gatekit/cli
 export GATEKIT_API_KEY=your-generated-key
@@ -144,12 +158,13 @@ gatekit platforms create --platform telegram --credentials '{"token":"BOT_TOKEN"
 ```
 
 ### **3. Integrate with Your Agent**
+
 ```typescript
 import { GateKit } from '@gatekit/sdk';
 
 const gk = new GateKit({
   apiUrl: 'http://localhost:3000',
-  apiKey: process.env.GATEKIT_API_KEY
+  apiKey: process.env.GATEKIT_API_KEY,
 });
 
 // Your agent now has conversational infrastructure
@@ -160,22 +175,24 @@ const logs = await gk.platformLogs.list('project', { category: 'message' });
 
 ## 📊 **Production Stats**
 
-- **✅ 300 tests passing** - Comprehensive test coverage including WhatsApp-Evo
-- **✅ 20 API endpoints** - With auto-generated SDK/CLI
-- **✅ 3 platform providers** - Discord, Telegram, WhatsApp-Evo production-ready
-- **✅ User management** - Multi-tenant with role-based access
+- **✅ 544 tests passing** - Full coverage including webhooks
+- **✅ 35 API endpoints** - Auto-generated SDK/CLI/n8n
+- **✅ 3 platform providers** - Discord, Telegram, WhatsApp-Evo
+- **✅ Webhook notifications** - Event subscriptions with HMAC signatures
 - **✅ Message storage** - Complete conversation history
-- **✅ Activity monitoring** - Rich platform logs with metadata
+- **✅ Activity monitoring** - Rich platform logs
 
 ## ⚠️ **AI Development Disclaimers**
 
 ### **🧪 Experimental Technology**
+
 - **High-velocity development** - APIs evolve rapidly
 - **AI-driven architecture** - Unconventional patterns
 - **Continuous improvement** - Features ship frequently
 - **Bleeding edge** - Some concepts are experimental
 
 ### **🎯 Production Guidelines**
+
 - **Pin exact versions** - Avoid breaking changes
 - **Test thoroughly** - Validate in staging environments
 - **Monitor platform logs** - Use built-in observability
@@ -184,11 +201,13 @@ const logs = await gk.platformLogs.list('project', { category: 'message' });
 ## 🔗 **Resources**
 
 ### **📚 Documentation**
+
 - **[Architecture Guide](CLAUDE.md)** - Complete technical overview
 - **[Contract System](CONTRACT_DRIVEN_DEVELOPMENT.md)** - Auto-generation pipeline
 - **[Testing Guide](test/CLAUDE.md)** - Comprehensive testing approach
 
 ### **📦 Generated Packages**
+
 - **[TypeScript SDK](https://github.com/filipexyz/gatekit-sdk)** - Auto-generated client
 - **[CLI Tool](https://github.com/filipexyz/gatekit-cli)** - Command interface
 - **[n8n Nodes](https://github.com/filipexyz/n8n-nodes-gatekit)** - Visual automation
@@ -197,9 +216,10 @@ const logs = await gk.platformLogs.list('project', { category: 'message' });
 
 ## 🤖 **AI-Assisted Development for AI Agents**
 
-*GateKit: Built with AI assistance under human supervision to provide conversational infrastructure for the next generation of AI agents.*
+_GateKit: Built with AI assistance under human supervision to provide conversational infrastructure for the next generation of AI agents._
 
 **Perfect foundation for:**
+
 - 🧠 **Memory-based agents** - Persistent conversation history
 - 🔗 **Multi-platform bots** - Unified interface across platforms
 - 📊 **Analytics agents** - Rich activity data for insights
@@ -210,6 +230,7 @@ const logs = await gk.platformLogs.list('project', { category: 'message' });
 ## 💬 **Community & Support**
 
 **Join our Discord community for:**
+
 - 🛠️ **Developer Support** - Get help with integration and troubleshooting
 - 🚀 **Feature Discussions** - Shape the future of GateKit
 - 🧠 **AI Agent Builders** - Connect with other developers building AI agents

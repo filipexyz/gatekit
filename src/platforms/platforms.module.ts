@@ -16,6 +16,7 @@ import { TelegramCredentialsValidator } from './validators/telegram-credentials.
 import { DiscordCredentialsValidator } from './validators/discord-credentials.validator';
 import { WhatsAppCredentialsValidator } from './validators/whatsapp-credentials.validator';
 import { PrismaModule } from '../prisma/prisma.module';
+import { WebhooksModule } from '../webhooks/webhooks.module';
 import { EVENT_BUS } from './interfaces/event-bus.interface';
 import { MessageQueue } from '../queues/message.queue';
 
@@ -27,6 +28,7 @@ import { WhatsAppProvider } from './providers/whatsapp.provider';
 @Module({
   imports: [
     PrismaModule,
+    WebhooksModule,
     DiscoveryModule,
     BullModule.registerQueue({
       name: 'messages',

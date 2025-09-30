@@ -10,6 +10,8 @@ import { PlatformRegistry } from '../../platforms/services/platform-registry.ser
 import { makeEnvelope } from '../../platforms/utils/envelope.factory';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CryptoUtil } from '../../common/utils/crypto.util';
+import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
+import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
 
 interface MessageJob {
   projectSlug: string;
@@ -51,6 +53,7 @@ export class DynamicMessageProcessor
     private readonly platformRegistry: PlatformRegistry,
     @InjectQueue('messages') private readonly messageQueue: Queue,
     private readonly prisma: PrismaService,
+    private readonly webhookDeliveryService: WebhookDeliveryService,
   ) {
     super(); // Required for WorkerHost
     this.logger.log('Queue processor initialized');
@@ -230,7 +233,7 @@ export class DynamicMessageProcessor
 
         // Update sent message status to 'sent' (using specific ID for safety)
         try {
-          await this.prisma.sentMessage.update({
+          const updatedMessage = await this.prisma.sentMessage.update({
             where: { id: sentMessageId },
             data: {
               status: 'sent',
@@ -238,6 +241,25 @@ export class DynamicMessageProcessor
               sentAt: new Date(),
             },
           });
+
+          // Deliver webhook event for successful message send
+          await this.webhookDeliveryService.deliverEvent(
+            projectId,
+            WebhookEventType.MESSAGE_SENT,
+            {
+              message_id: updatedMessage.id,
+              job_id: updatedMessage.jobId,
+              platform: updatedMessage.platform,
+              platform_id: updatedMessage.platformId,
+              target: {
+                type: updatedMessage.targetType,
+                chat_id: updatedMessage.targetChatId,
+                user_id: updatedMessage.targetUserId,
+              },
+              text: updatedMessage.messageText,
+              sent_at: updatedMessage.sentAt!.toISOString(),
+            },
+          );
         } catch (error) {
           this.logger.error(
             `Failed to update sent message status: ${error.message}`,
@@ -279,13 +301,30 @@ export class DynamicMessageProcessor
         // Update sent message status to 'failed' (using specific ID if available)
         try {
           if (sentMessageId) {
-            await this.prisma.sentMessage.update({
+            const failedMessage = await this.prisma.sentMessage.update({
               where: { id: sentMessageId },
               data: {
                 status: 'failed',
                 errorMessage: error.message,
               },
             });
+
+            // Deliver webhook event for failed message send
+            await this.webhookDeliveryService.deliverEvent(
+              projectId,
+              WebhookEventType.MESSAGE_FAILED,
+              {
+                job_id: failedMessage.jobId || job.id?.toString() || 'unknown',
+                platform: failedMessage.platform,
+                platform_id: failedMessage.platformId,
+                target: {
+                  type: failedMessage.targetType,
+                  chat_id: failedMessage.targetChatId,
+                },
+                error: error.message,
+                failed_at: new Date().toISOString(),
+              },
+            );
           } else {
             // Fallback to updateMany if sentMessage wasn't created (early failures)
             await this.prisma.sentMessage.updateMany({
@@ -299,6 +338,23 @@ export class DynamicMessageProcessor
                 errorMessage: error.message,
               },
             });
+
+            // Deliver webhook event for failed message (without full message data)
+            await this.webhookDeliveryService.deliverEvent(
+              projectId,
+              WebhookEventType.MESSAGE_FAILED,
+              {
+                job_id: job.id?.toString() || 'unknown',
+                platform: platformType,
+                platform_id: target.platformId,
+                target: {
+                  type: target.type,
+                  chat_id: target.id,
+                },
+                error: error.message,
+                failed_at: new Date().toISOString(),
+              },
+            );
           }
         } catch (updateError) {
           this.logger.error(

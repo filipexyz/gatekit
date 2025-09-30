@@ -20,7 +20,7 @@ describe('AttachmentUtil', () => {
         AttachmentUtil.validateAttachmentUrl('ftp://example.com/file.png'),
       ).rejects.toThrow(
         new BadRequestException(
-          'Only HTTP and HTTPS protocols are allowed for attachments',
+          'Only HTTP and HTTPS protocols are allowed for attachment URL',
         ),
       );
     });
@@ -30,7 +30,7 @@ describe('AttachmentUtil', () => {
         AttachmentUtil.validateAttachmentUrl('file:///etc/passwd'),
       ).rejects.toThrow(
         new BadRequestException(
-          'Only HTTP and HTTPS protocols are allowed for attachments',
+          'Only HTTP and HTTPS protocols are allowed for attachment URL',
         ),
       );
     });
@@ -148,7 +148,9 @@ describe('AttachmentUtil', () => {
     it('should reject invalid URL format', async () => {
       await expect(
         AttachmentUtil.validateAttachmentUrl('not-a-valid-url'),
-      ).rejects.toThrow(new BadRequestException('Invalid URL format'));
+      ).rejects.toThrow(
+        new BadRequestException('Invalid attachment URL format'),
+      );
     });
 
     it('should reject .localhost subdomain', async () => {
