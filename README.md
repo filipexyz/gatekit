@@ -113,13 +113,32 @@ GET    /api/v1/projects/:slug/platforms/logs         # All platform activity
 GET    /api/v1/projects/:slug/platforms/logs/stats   # Activity dashboard
 ```
 
-### **🎮 Ready Platforms:**
+### **🎮 Platform Capabilities Matrix**
 
-| Platform        | Status        | Connection | Features                                  |
-| --------------- | ------------- | ---------- | ----------------------------------------- |
-| 💬 **Discord**  | ✅ Production | WebSocket  | Rich embeds, buttons, real-time           |
-| 📱 **Telegram** | ✅ Production | Webhook    | Inline keyboards, files, callbacks        |
-| 💚 **WhatsApp** | ✅ Production | Webhook    | Evolution API, QR auth, media attachments |
+Query capabilities programmatically via: `GET /api/v1/platforms/health`
+
+| Platform        | Connection | Send | Receive | Attachments | Edit | Delete | Embeds | Buttons | Reactions | Threads |
+| --------------- | ---------- | ---- | ------- | ----------- | ---- | ------ | ------ | ------- | --------- | ------- |
+| 💬 **Discord**  | WebSocket  | ✅   | ✅      | ✅          | 🔜   | 🔜     | 🔜     | 🔜      | 🔜        | 🔜      |
+| 📱 **Telegram** | Webhook    | ✅   | ✅      | ✅          | 🔜   | 🔜     | 🔜     | 🔜      | 🔜        | 🔜      |
+| 💚 **WhatsApp** | Webhook    | ✅   | ✅      | ✅          | 🔜   | 🔜     | 🔜     | 🔜      | 🔜        | 🔜      |
+
+**Legend:** ✅ Available | 🔜 Planned
+
+**Current Capabilities:**
+
+- **Send** - Send messages to users/channels
+- **Receive** - Receive incoming messages
+- **Attachments** - Send/receive media files (images, videos, documents)
+
+**Planned Capabilities:**
+
+- **Edit** - Edit previously sent messages
+- **Delete** - Delete sent messages
+- **Embeds** - Rich embedded content
+- **Buttons** - Interactive buttons and action rows
+- **Reactions** - Message reactions/emojis
+- **Threads** - Threaded conversations
 
 ### **💚 WhatsApp Integration (Evolution API)**
 
