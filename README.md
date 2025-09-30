@@ -74,8 +74,9 @@ class YourAIAgent {
 ### **✅ Core Systems Built:**
 
 - **User-Linked Projects** - Multi-tenant with `owner`/`admin`/`member`/`viewer` roles
-- **Platform Providers** - Discord (WebSocket), Telegram (Webhook), WhatsApp-Evo (Evolution API) production-ready
+- **Platform Providers** - Discord (WebSocket), Telegram (Webhook), WhatsApp (Evolution API) production-ready
 - **Message Queue** - BullMQ with Redis for reliable cross-platform delivery
+- **Attachment Support** - URL and base64 media across all platforms (Discord, Telegram, WhatsApp)
 - **Enhanced Logging** - Platform activity monitoring with structured metadata
 - **Credential Validation** - Platform-specific format validation (bot tokens, etc.)
 - **Auto-Generated Clients** - Contract-driven SDK/CLI generation
@@ -114,10 +115,27 @@ GET    /api/v1/projects/:slug/platforms/logs/stats   # Activity dashboard
 
 ### **🎮 Ready Platforms:**
 
-| Platform        | Status        | Connection | Features                           |
-| --------------- | ------------- | ---------- | ---------------------------------- |
-| 💬 **Discord**  | ✅ Production | WebSocket  | Rich embeds, buttons, real-time    |
-| 📱 **Telegram** | ✅ Production | Webhook    | Inline keyboards, files, callbacks |
+| Platform        | Status        | Connection | Features                                  |
+| --------------- | ------------- | ---------- | ----------------------------------------- |
+| 💬 **Discord**  | ✅ Production | WebSocket  | Rich embeds, buttons, real-time           |
+| 📱 **Telegram** | ✅ Production | Webhook    | Inline keyboards, files, callbacks        |
+| 💚 **WhatsApp** | ✅ Production | Webhook    | Evolution API, QR auth, media attachments |
+
+### **💚 WhatsApp Integration (Evolution API)**
+
+GateKit integrates with WhatsApp through the [Evolution API](https://evolution-api.com/), providing robust WhatsApp messaging capabilities.
+
+**Features:**
+
+- ✅ Text & media messages (images, videos, audio, documents)
+- ✅ URL and base64 attachments support
+- ✅ Auto-webhook configuration
+- ✅ Message persistence with full metadata
+- ✅ Evolution Manager integration for connection management
+
+📚 **[Complete WhatsApp Guide](WHATSAPP_EVO.md)** - Detailed setup, troubleshooting, and API reference
+
+> **Note:** All platforms (Discord, Telegram, WhatsApp) support media attachments via URL or base64 data when sending messages.
 
 ## 🔮 **Future: Native Agentic Layer**
 
