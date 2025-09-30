@@ -558,17 +558,16 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     const platformId = (env.provider?.raw as any)?.platformId;
     if (!platformId) {
       this.logger.error('No platformId in envelope, cannot route message');
-      return { providerMessageId: 'telegram-no-platform-id' };
+      throw new Error('No platformId in envelope, cannot route message');
     }
 
     const connectionKey = `${env.projectId}:${platformId}`;
     const connection = this.connections.get(connectionKey);
 
     if (!connection || !connection.isActive) {
-      this.logger.warn(
+      throw new Error(
         `Telegram bot not ready for ${connectionKey}, cannot send message`,
       );
-      return { providerMessageId: 'telegram-not-ready' };
     }
 
     try {
@@ -641,7 +640,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
       );
 
       this.logger.error('Failed to send Telegram message:', error.message);
-      return { providerMessageId: 'telegram-send-failed' };
+      throw error; // Re-throw to propagate error to processor
     }
   }
 

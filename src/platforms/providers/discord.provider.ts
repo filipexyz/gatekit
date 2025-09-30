@@ -433,17 +433,16 @@ export class DiscordProvider
     const platformId = (env.provider?.raw as any)?.platformId;
     if (!platformId) {
       this.logger.error('No platformId in envelope, cannot route message');
-      return { providerMessageId: 'discord-no-platform-id' };
+      throw new Error('No platformId in envelope, cannot route message');
     }
 
     const connectionKey = `${env.projectId}:${platformId}`;
     const connection = this.connections.get(connectionKey);
 
     if (!connection || !connection.client.isReady()) {
-      this.logger.warn(
+      throw new Error(
         `Discord client not ready for ${connectionKey}, cannot send message`,
       );
-      return { providerMessageId: 'discord-not-ready' };
     }
 
     try {
@@ -524,7 +523,7 @@ export class DiscordProvider
         `Failed to send Discord message to ${env.threadId}:`,
         error.message,
       );
-      return { providerMessageId: 'discord-send-failed' };
+      throw error; // Re-throw to propagate error to processor
     }
   }
 

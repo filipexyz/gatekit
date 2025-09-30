@@ -232,9 +232,9 @@ describe('TelegramProvider', () => {
         provider: { raw: { platformId } },
       } as any;
 
-      const result = await provider.sendMessage(envelope, { text: 'Hello!' });
-
-      expect(result.providerMessageId).toBe('telegram-not-ready');
+      await expect(
+        provider.sendMessage(envelope, { text: 'Hello!' }),
+      ).rejects.toThrow('Telegram bot not ready');
     });
   });
 
@@ -532,16 +532,16 @@ describe('TelegramProvider', () => {
 
       mockBot.sendPhoto.mockRejectedValue(new Error('File too large'));
 
-      const result = await provider.sendMessage(envelope, {
-        attachments: [
-          {
-            url: 'https://example.com/large-image.png',
-            mimeType: 'image/png',
-          },
-        ],
-      });
-
-      expect(result.providerMessageId).toBe('telegram-send-failed');
+      await expect(
+        provider.sendMessage(envelope, {
+          attachments: [
+            {
+              url: 'https://example.com/large-image.png',
+              mimeType: 'image/png',
+            },
+          ],
+        }),
+      ).rejects.toThrow('File too large');
     });
   });
 });
