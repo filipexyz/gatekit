@@ -4,16 +4,7 @@ import { AppAuthGuard } from '../../common/guards/app-auth.guard';
 import { RequireScopes } from '../../common/decorators/scopes.decorator';
 import { SdkContract } from '../../common/decorators/sdk-contract.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
-
-export class QueryPlatformLogsDto {
-  platform?: string;
-  level?: string;
-  category?: string;
-  startDate?: string;
-  endDate?: string;
-  limit?: number;
-  offset?: number;
-}
+import { QueryPlatformLogsDto } from '../dto/query-platform-logs.dto';
 
 @Controller('api/v1/projects/:slug/platforms')
 @UseGuards(AppAuthGuard)

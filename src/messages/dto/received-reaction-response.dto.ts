@@ -2,7 +2,7 @@
  * Received reaction response DTO for API contracts
  * Represents a reaction (emoji) received on a message
  */
-export class ReceivedReaction {
+export class ReceivedReactionResponse {
   id: string;
   projectId: string;
   platformId: string;

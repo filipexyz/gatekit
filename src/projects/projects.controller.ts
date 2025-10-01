@@ -27,7 +27,7 @@ export class ProjectsController {
     category: 'Projects',
     requiredScopes: ['projects:write'],
     inputType: 'CreateProjectDto',
-    outputType: 'Project',
+    outputType: 'ProjectResponse',
     options: {
       name: { required: true, description: 'Project name', type: 'string' },
       description: { description: 'Project description', type: 'string' },
@@ -80,7 +80,7 @@ export class ProjectsController {
     description: 'List all projects',
     category: 'Projects',
     requiredScopes: ['projects:read'],
-    outputType: 'Project[]',
+    outputType: 'ProjectResponse[]',
     examples: [
       {
         description: 'List all projects',
@@ -101,6 +101,19 @@ export class ProjectsController {
 
   @Get(':slug')
   @RequireScopes('projects:read')
+  @SdkContract({
+    command: 'projects get',
+    description: 'Get project details by slug',
+    category: 'Projects',
+    requiredScopes: ['projects:read'],
+    outputType: 'ProjectResponse',
+    examples: [
+      {
+        description: 'Get project details',
+        command: 'gatekit projects get my-project',
+      },
+    ],
+  })
   findOne(@Param('slug') slug: string) {
     return this.projectsService.findOne(slug);
   }
@@ -113,7 +126,7 @@ export class ProjectsController {
     category: 'Projects',
     requiredScopes: ['projects:write'],
     inputType: 'UpdateProjectDto',
-    outputType: 'Project',
+    outputType: 'ProjectResponse',
     options: {
       name: { description: 'Project name', type: 'string' },
       description: { description: 'Project description', type: 'string' },
@@ -150,6 +163,19 @@ export class ProjectsController {
 
   @Delete(':slug')
   @RequireScopes('projects:write')
+  @SdkContract({
+    command: 'projects delete',
+    description: 'Delete a project',
+    category: 'Projects',
+    requiredScopes: ['projects:write'],
+    outputType: 'MessageResponse',
+    examples: [
+      {
+        description: 'Delete a project',
+        command: 'gatekit projects delete my-project',
+      },
+    ],
+  })
   remove(@Param('slug') slug: string, @Request() req: any) {
     if (req.authType === 'jwt') {
       return this.projectsService.remove(

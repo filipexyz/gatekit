@@ -1,23 +1,7 @@
 import { Controller, Get, UseGuards, Request } from '@nestjs/common';
 import { AppAuthGuard } from '../common/guards/app-auth.guard';
-
-export interface PermissionResponse {
-  authType: 'api-key' | 'jwt';
-  permissions: string[];
-  project?: {
-    id: string;
-    slug: string;
-    name: string;
-  };
-  user?: {
-    userId: string;
-    email?: string;
-  };
-  apiKey?: {
-    id: string;
-    name: string;
-  };
-}
+import { SdkContract } from '../common/decorators/sdk-contract.decorator';
+import { PermissionResponse } from './dto/permission-response.dto';
 
 interface ApiKeyRequest {
   authType: 'api-key';
@@ -49,6 +33,12 @@ type AuthenticatedRequest = ApiKeyRequest | JwtRequest;
 @UseGuards(AppAuthGuard)
 export class AuthController {
   @Get('whoami')
+  @SdkContract({
+    command: 'auth whoami',
+    description: 'Get current authentication context and permissions',
+    category: 'Auth',
+    outputType: 'PermissionResponse',
+  })
   getPermissions(@Request() req: any): PermissionResponse {
     if (!req) {
       throw new Error('Authentication type not found');

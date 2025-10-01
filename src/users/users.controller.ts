@@ -13,16 +13,8 @@ import { UsersService } from './users.service';
 import { AppAuthGuard } from '../common/guards/app-auth.guard';
 import { RequireScopes } from '../common/decorators/scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
-import { ProjectRole } from '@prisma/client';
-
-export class AddMemberDto {
-  email: string;
-  role: ProjectRole;
-}
-
-export class UpdateMemberRoleDto {
-  role: ProjectRole;
-}
+import { AddMemberDto } from './dto/add-member.dto';
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 
 @Controller('api/v1/projects/:slug/members')
 @UseGuards(AppAuthGuard)
@@ -36,7 +28,7 @@ export class UsersController {
     description: 'List all members of a project',
     category: 'Members',
     requiredScopes: ['members:read'],
-    outputType: 'ProjectMember[]',
+    outputType: 'ProjectMemberResponse[]',
     examples: [
       {
         description: 'List all project members',
@@ -56,7 +48,7 @@ export class UsersController {
     category: 'Members',
     requiredScopes: ['members:write'],
     inputType: 'AddMemberDto',
-    outputType: 'ProjectMember',
+    outputType: 'ProjectMemberResponse',
     options: {
       email: {
         required: true,
@@ -104,7 +96,7 @@ export class UsersController {
     category: 'Members',
     requiredScopes: ['members:write'],
     inputType: 'UpdateMemberRoleDto',
-    outputType: 'ProjectMember',
+    outputType: 'ProjectMemberResponse',
     options: {
       userId: {
         required: true,

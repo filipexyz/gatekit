@@ -20,9 +20,12 @@ import { AuthContextParam } from '../common/decorators/auth-context.decorator';
 import type { AuthContext } from '../common/utils/security.util';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { RequireScopes } from '../common/decorators/scopes.decorator';
-import { Identity, IdentityAlias } from './dto/identity-response.dto';
-import { ReceivedMessage } from '../common/types/api-responses';
-import { ReceivedReaction } from '../messages/dto/received-reaction-response.dto';
+import {
+  IdentityResponse,
+  IdentityAliasResponse,
+} from './dto/identity-response.dto';
+import { ReceivedMessageResponse } from '../messages/dto/received-message-response.dto';
+import { ReceivedReactionResponse } from '../messages/dto/received-reaction-response.dto';
 
 @Controller('api/v1/projects/:projectSlug/identities')
 @UseGuards(AppAuthGuard, ProjectAccessGuard)
@@ -37,7 +40,7 @@ export class IdentitiesController {
     category: 'Identities',
     requiredScopes: ['identities:write'],
     inputType: 'CreateIdentityDto',
-    outputType: 'Identity',
+    outputType: 'IdentityResponse',
     options: {
       displayName: {
         description: 'Display name for the identity',
@@ -84,7 +87,7 @@ export class IdentitiesController {
     description: 'List all identities for a project',
     category: 'Identities',
     requiredScopes: ['identities:read'],
-    outputType: 'Identity[]',
+    outputType: 'IdentityResponse[]',
     examples: [
       {
         description: 'List all identities',
@@ -106,7 +109,7 @@ export class IdentitiesController {
     description: 'Lookup identity by platform user ID',
     category: 'Identities',
     requiredScopes: ['identities:read'],
-    outputType: 'Identity',
+    outputType: 'IdentityResponse',
     options: {
       platformId: {
         required: true,
@@ -148,7 +151,7 @@ export class IdentitiesController {
     description: 'Get a specific identity by ID',
     category: 'Identities',
     requiredScopes: ['identities:read'],
-    outputType: 'Identity',
+    outputType: 'IdentityResponse',
     options: {
       id: {
         required: true,
@@ -179,7 +182,7 @@ export class IdentitiesController {
     category: 'Identities',
     requiredScopes: ['identities:write'],
     inputType: 'UpdateIdentityDto',
-    outputType: 'Identity',
+    outputType: 'IdentityResponse',
     options: {
       id: {
         required: true,
@@ -234,7 +237,7 @@ export class IdentitiesController {
     category: 'Identities',
     requiredScopes: ['identities:write'],
     inputType: 'AddAliasDto',
-    outputType: 'IdentityAlias',
+    outputType: 'IdentityAliasResponse',
     options: {
       id: {
         required: true,
@@ -357,7 +360,7 @@ export class IdentitiesController {
       'Get all messages for an identity (across all linked platform accounts)',
     category: 'Identities',
     requiredScopes: ['identities:read', 'messages:read'],
-    outputType: 'ReceivedMessage[]',
+    outputType: 'ReceivedMessageResponse[]',
     options: {
       id: {
         required: true,
@@ -392,7 +395,7 @@ export class IdentitiesController {
       'Get all reactions for an identity (across all linked platform accounts)',
     category: 'Identities',
     requiredScopes: ['identities:read', 'messages:read'],
-    outputType: 'ReceivedReaction[]',
+    outputType: 'ReceivedReactionResponse[]',
     options: {
       id: {
         required: true,

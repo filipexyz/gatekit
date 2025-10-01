@@ -1,0 +1,17 @@
+export class PermissionResponse {
+  authType: 'api-key' | 'jwt';
+  permissions: string[];
+  project?: {
+    id: string;
+    slug: string;
+    name: string;
+  };
+  user?: {
+    userId: string;
+    email?: string;
+  };
+  apiKey?: {
+    id: string;
+    name: string;
+  };
+}
