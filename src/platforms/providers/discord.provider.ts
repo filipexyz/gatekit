@@ -39,6 +39,10 @@ import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
 import { ReactionType } from '@prisma/client';
 import { MessagesService } from '../messages/messages.service';
 
+interface DiscordCredentials {
+  token: string;
+}
+
 interface DiscordConnection {
   connectionKey: string; // projectId:platformId
   projectId: string;

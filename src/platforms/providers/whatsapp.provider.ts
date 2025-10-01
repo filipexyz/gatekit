@@ -24,6 +24,12 @@ import { ProviderUtil } from './provider.util';
 import { ReactionType } from '@prisma/client';
 import { MessagesService } from '../messages/messages.service';
 
+interface WhatsAppCredentials {
+  evolutionApiUrl: string;
+  evolutionApiKey: string;
+  instanceName: string;
+}
+
 interface WhatsAppConnection {
   connectionKey: string; // projectId:platformId
   projectId: string;
@@ -1199,11 +1205,11 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
   ): Promise<void> {
     // Get credentials using shared utility (no connection check needed - HTTP API)
     const { platformId, credentials } =
-      await ProviderUtil.getPlatformCredentials<{
-        evolutionApiUrl: string;
-        evolutionApiKey: string;
-        instanceName: string;
-      }>(connectionKey, this.prisma, 'WhatsApp');
+      await ProviderUtil.getPlatformCredentials<WhatsAppCredentials>(
+        connectionKey,
+        this.prisma,
+        'WhatsApp',
+      );
 
     const { evolutionApiUrl, evolutionApiKey, instanceName } = credentials;
 
@@ -1265,11 +1271,11 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
   ): Promise<void> {
     // Get credentials using shared utility (no connection check needed - HTTP API)
     const { platformId, credentials } =
-      await ProviderUtil.getPlatformCredentials<{
-        evolutionApiUrl: string;
-        evolutionApiKey: string;
-        instanceName: string;
-      }>(connectionKey, this.prisma, 'WhatsApp');
+      await ProviderUtil.getPlatformCredentials<WhatsAppCredentials>(
+        connectionKey,
+        this.prisma,
+        'WhatsApp',
+      );
 
     const { evolutionApiUrl, evolutionApiKey, instanceName } = credentials;
 
