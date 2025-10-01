@@ -31,6 +31,7 @@ describe('WhatsAppCredentialsValidator', () => {
       it('should reject missing Evolution API URL', () => {
         const invalidCredentials = {
           evolutionApiKey: 'valid-key',
+          instanceName: 'test-instance',
         };
 
         const result = validator.validateCredentials(invalidCredentials);
@@ -43,6 +44,7 @@ describe('WhatsAppCredentialsValidator', () => {
         const invalidCredentials = {
           evolutionApiUrl: 12345,
           evolutionApiKey: 'valid-key',
+          instanceName: 'test-instance',
         };
 
         const result = validator.validateCredentials(invalidCredentials);
@@ -55,6 +57,7 @@ describe('WhatsAppCredentialsValidator', () => {
         const invalidCredentials = {
           evolutionApiUrl: 'not-a-valid-url',
           evolutionApiKey: 'valid-key',
+          instanceName: 'test-instance',
         };
 
         const result = validator.validateCredentials(invalidCredentials);
@@ -67,6 +70,7 @@ describe('WhatsAppCredentialsValidator', () => {
         const invalidCredentials = {
           evolutionApiUrl: 'ftp://evolution.example.com',
           evolutionApiKey: 'valid-key',
+          instanceName: 'test-instance',
         };
 
         const result = validator.validateCredentials(invalidCredentials);
@@ -81,6 +85,7 @@ describe('WhatsAppCredentialsValidator', () => {
         const localhostCredentials = {
           evolutionApiUrl: 'http://localhost:8080',
           evolutionApiKey: 'valid-key',
+          instanceName: 'test-instance',
         };
 
         const result = validator.validateCredentials(localhostCredentials);
@@ -95,6 +100,7 @@ describe('WhatsAppCredentialsValidator', () => {
         const localhostCredentials = {
           evolutionApiUrl: 'http://127.0.0.1:8080',
           evolutionApiKey: 'valid-key',
+          instanceName: 'test-instance',
         };
 
         const result = validator.validateCredentials(localhostCredentials);
@@ -110,6 +116,7 @@ describe('WhatsAppCredentialsValidator', () => {
       it('should reject missing Evolution API key', () => {
         const invalidCredentials = {
           evolutionApiUrl: 'https://evolution.example.com',
+          instanceName: 'test-instance',
         };
 
         const result = validator.validateCredentials(invalidCredentials);
@@ -122,6 +129,7 @@ describe('WhatsAppCredentialsValidator', () => {
         const invalidCredentials = {
           evolutionApiUrl: 'https://evolution.example.com',
           evolutionApiKey: 12345,
+          instanceName: 'test-instance',
         };
 
         const result = validator.validateCredentials(invalidCredentials);
@@ -134,6 +142,7 @@ describe('WhatsAppCredentialsValidator', () => {
         const shortKeyCredentials = {
           evolutionApiUrl: 'https://evolution.example.com',
           evolutionApiKey: 'short',
+          instanceName: 'test-instance',
         };
 
         const result = validator.validateCredentials(shortKeyCredentials);
@@ -148,6 +157,7 @@ describe('WhatsAppCredentialsValidator', () => {
         const testKeyCredentials = {
           evolutionApiUrl: 'https://evolution.example.com',
           evolutionApiKey: 'test-api-key-for-demo',
+          instanceName: 'test-instance',
         };
 
         const result = validator.validateCredentials(testKeyCredentials);
@@ -160,6 +170,18 @@ describe('WhatsAppCredentialsValidator', () => {
     });
 
     describe('instanceName validation', () => {
+      it('should reject missing instance name', () => {
+        const invalidCredentials = {
+          evolutionApiUrl: 'https://evolution.example.com',
+          evolutionApiKey: 'valid-key',
+        };
+
+        const result = validator.validateCredentials(invalidCredentials);
+
+        expect(result.isValid).toBe(false);
+        expect(result.errors).toContain('Instance name is required');
+      });
+
       it('should reject non-string instance name', () => {
         const invalidCredentials = {
           evolutionApiUrl: 'https://evolution.example.com',
@@ -229,6 +251,7 @@ describe('WhatsAppCredentialsValidator', () => {
         const invalidCredentials = {
           evolutionApiUrl: 'https://evolution.example.com',
           evolutionApiKey: 'valid-key',
+          instanceName: 'test-instance',
           webhookEvents: 'not-an-array',
         };
 
@@ -242,6 +265,7 @@ describe('WhatsAppCredentialsValidator', () => {
         const invalidCredentials = {
           evolutionApiUrl: 'https://evolution.example.com',
           evolutionApiKey: 'valid-key',
+          instanceName: 'test-instance',
           webhookEvents: ['QRCODE_UPDATED', 'INVALID_EVENT', 'ANOTHER_INVALID'],
         };
 
@@ -268,6 +292,7 @@ describe('WhatsAppCredentialsValidator', () => {
         const credentials = {
           evolutionApiUrl: 'https://evolution.example.com',
           evolutionApiKey: 'valid-key',
+          instanceName: 'test-instance',
           webhookEvents: validEvents,
         };
 
@@ -281,6 +306,7 @@ describe('WhatsAppCredentialsValidator', () => {
         const invalidCredentials = {
           evolutionApiUrl: 'https://evolution.example.com',
           evolutionApiKey: 'valid-key',
+          instanceName: 'test-instance',
           qrCodeTimeout: 'not-a-number',
         };
 
@@ -296,6 +322,7 @@ describe('WhatsAppCredentialsValidator', () => {
         const shortTimeoutCredentials = {
           evolutionApiUrl: 'https://evolution.example.com',
           evolutionApiKey: 'valid-key',
+          instanceName: 'test-instance',
           qrCodeTimeout: 10, // Too short
         };
 
@@ -311,6 +338,7 @@ describe('WhatsAppCredentialsValidator', () => {
         const longTimeoutCredentials = {
           evolutionApiUrl: 'https://evolution.example.com',
           evolutionApiKey: 'valid-key',
+          instanceName: 'test-instance',
           qrCodeTimeout: 600, // Too long
         };
 
@@ -329,6 +357,7 @@ describe('WhatsAppCredentialsValidator', () => {
           const credentials = {
             evolutionApiUrl: 'https://evolution.example.com',
             evolutionApiKey: 'valid-api-key-long-enough', // Make sure it's long enough
+            instanceName: 'test-instance',
             qrCodeTimeout,
           };
 
@@ -342,18 +371,18 @@ describe('WhatsAppCredentialsValidator', () => {
     describe('getRequiredFields', () => {
       it('should return correct required fields', () => {
         const requiredFields = validator.getRequiredFields();
-        expect(requiredFields).toEqual(['evolutionApiUrl', 'evolutionApiKey']);
+        expect(requiredFields).toEqual([
+          'evolutionApiUrl',
+          'evolutionApiKey',
+          'instanceName',
+        ]);
       });
     });
 
     describe('getOptionalFields', () => {
       it('should return correct optional fields', () => {
         const optionalFields = validator.getOptionalFields();
-        expect(optionalFields).toEqual([
-          'instanceName',
-          'webhookEvents',
-          'qrCodeTimeout',
-        ]);
+        expect(optionalFields).toEqual(['webhookEvents', 'qrCodeTimeout']);
       });
     });
 
@@ -380,6 +409,7 @@ describe('WhatsAppCredentialsValidator', () => {
         expect(result.isValid).toBe(false);
         expect(result.errors).toContain('Evolution API URL is required');
         expect(result.errors).toContain('Evolution API key is required');
+        expect(result.errors).toContain('Instance name is required');
       });
 
       it('should handle null and undefined values', () => {
@@ -396,6 +426,7 @@ describe('WhatsAppCredentialsValidator', () => {
         expect(result.isValid).toBe(false);
         expect(result.errors).toContain('Evolution API URL is required');
         expect(result.errors).toContain('Evolution API key is required');
+        expect(result.errors).toContain('Instance name is required');
       });
 
       it('should handle mixed valid and invalid fields', () => {

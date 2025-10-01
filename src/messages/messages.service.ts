@@ -78,6 +78,70 @@ export class MessagesService {
       this.prisma.receivedMessage.count({ where }),
     ]);
 
+    // If reactions requested, fetch them for all messages
+    if (query.reactions && messages.length > 0) {
+      const messageIds = messages.map((m) => m.providerMessageId);
+
+      // Get all reactions (both added and removed) to determine current state
+      const allReactions = await this.prisma.receivedReaction.findMany({
+        where: {
+          projectId: project.id,
+          platformId: { in: messages.map((m) => m.platformId) },
+          providerMessageId: { in: messageIds },
+        },
+        select: {
+          providerMessageId: true,
+          providerUserId: true,
+          userDisplay: true,
+          emoji: true,
+          reactionType: true,
+          receivedAt: true,
+        },
+        orderBy: { receivedAt: 'desc' },
+      });
+
+      // Filter to only show reactions where the latest event is 'added'
+      const reactionKey = (r: any) =>
+        `${r.providerMessageId}:${r.providerUserId}:${r.emoji}`;
+      const latestReactions = new Map<string, (typeof allReactions)[0]>();
+
+      allReactions.forEach((reaction) => {
+        const key = reactionKey(reaction);
+        if (!latestReactions.has(key)) {
+          latestReactions.set(key, reaction);
+        }
+      });
+
+      // Only include reactions where latest state is 'added'
+      const reactions = Array.from(latestReactions.values()).filter(
+        (r) => r.reactionType === 'added',
+      );
+
+      // Group reactions by message ID, then by emoji
+      const reactionsByMessage = reactions.reduce(
+        (acc, reaction) => {
+          if (!acc[reaction.providerMessageId]) {
+            acc[reaction.providerMessageId] = {};
+          }
+          if (!acc[reaction.providerMessageId][reaction.emoji]) {
+            acc[reaction.providerMessageId][reaction.emoji] = [];
+          }
+          // Store user as object for future extensibility
+          acc[reaction.providerMessageId][reaction.emoji].push({
+            id: reaction.providerUserId,
+            name: reaction.userDisplay || reaction.providerUserId,
+          });
+          return acc;
+        },
+        {} as Record<string, Record<string, { id: string; name: string }[]>>,
+      );
+
+      // Attach reactions to messages in clean format: { "👍": [{ id: "123", name: "John" }], "❤️": [...] }
+      messages.forEach((message: any) => {
+        message.reactions = reactionsByMessage[message.providerMessageId] || {};
+      });
+    }
+
     return {
       messages,
       pagination: {
@@ -118,7 +182,58 @@ export class MessagesService {
       throw new NotFoundException('Message not found');
     }
 
-    return message;
+    // Fetch all reactions (both added and removed) to determine current state
+    const allReactions = await this.prisma.receivedReaction.findMany({
+      where: {
+        projectId: project.id,
+        platformId: message.platformId,
+        providerMessageId: message.providerMessageId,
+      },
+      select: {
+        providerUserId: true,
+        userDisplay: true,
+        emoji: true,
+        reactionType: true,
+        receivedAt: true,
+      },
+      orderBy: { receivedAt: 'desc' },
+    });
+
+    // Filter to only show reactions where the latest event is 'added'
+    const reactionKey = (r: any) => `${r.providerUserId}:${r.emoji}`;
+    const latestReactions = new Map<string, (typeof allReactions)[0]>();
+
+    allReactions.forEach((reaction) => {
+      const key = reactionKey(reaction);
+      if (!latestReactions.has(key)) {
+        latestReactions.set(key, reaction);
+      }
+    });
+
+    // Only include reactions where latest state is 'added'
+    const reactions = Array.from(latestReactions.values()).filter(
+      (r) => r.reactionType === 'added',
+    );
+
+    // Group reactions by emoji
+    const groupedReactions = reactions.reduce(
+      (acc, reaction) => {
+        if (!acc[reaction.emoji]) {
+          acc[reaction.emoji] = [];
+        }
+        acc[reaction.emoji].push({
+          id: reaction.providerUserId,
+          name: reaction.userDisplay || reaction.providerUserId,
+        });
+        return acc;
+      },
+      {} as Record<string, { id: string; name: string }[]>,
+    );
+
+    return {
+      ...message,
+      reactions: groupedReactions,
+    };
   }
 
   async getMessageStats(projectSlug: string) {

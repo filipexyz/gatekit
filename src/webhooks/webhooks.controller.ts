@@ -49,7 +49,7 @@ export class WebhooksController {
       events: {
         required: true,
         description:
-          'Events to subscribe to (comma-separated: message.received,message.sent,message.failed)',
+          'Events to subscribe to (comma-separated: message.received,message.sent,message.failed,button.clicked,reaction.added,reaction.removed)',
         type: 'array',
       },
       secret: {
@@ -64,9 +64,14 @@ export class WebhooksController {
           'gatekit webhooks create --name "Production Webhook" --url "https://myapp.com/webhooks" --events "message.received,message.sent,message.failed"',
       },
       {
-        description: 'Create webhook with custom secret',
+        description: 'Create webhook for reactions',
         command:
-          'gatekit webhooks create --name "My Webhook" --url "https://myapp.com/webhooks" --events "message.received" --secret "my-secret-key"',
+          'gatekit webhooks create --name "Reactions Webhook" --url "https://myapp.com/webhooks" --events "reaction.added,reaction.removed"',
+      },
+      {
+        description: 'Create webhook for all events',
+        command:
+          'gatekit webhooks create --name "All Events" --url "https://myapp.com/webhooks" --events "message.received,message.sent,message.failed,button.clicked,reaction.added,reaction.removed"',
       },
     ],
   })

@@ -3,7 +3,10 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   Client,
   GatewayIntentBits,
+  Partials,
   Message,
+  MessageReaction,
+  User,
   AttachmentBuilder,
   EmbedBuilder,
   ActionRowBuilder,
@@ -32,6 +35,8 @@ import {
 } from '../dto/send-message.dto';
 import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
 import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
+import { ReactionType } from '@prisma/client';
+import { MessagesService } from '../messages/messages.service';
 
 interface DiscordConnection {
   connectionKey: string; // projectId:platformId
@@ -60,6 +65,9 @@ interface DiscordConnection {
     capability: PlatformCapability.BUTTONS,
     limitations: 'Max 25 buttons per message (5 rows × 5 buttons)',
   },
+  {
+    capability: PlatformCapability.REACTIONS,
+  },
 ])
 export class DiscordProvider
   implements PlatformProvider, PlatformAdapter, OnModuleInit
@@ -78,6 +86,7 @@ export class DiscordProvider
     private readonly eventEmitter: EventEmitter2,
     private readonly prisma: PrismaService,
     private readonly webhookDeliveryService: WebhookDeliveryService,
+    private readonly messagesService: MessagesService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -229,7 +238,9 @@ export class DiscordProvider
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.GuildMessageReactions,
       ],
+      partials: [Partials.Message, Partials.Channel, Partials.Reaction],
     });
 
     // Parse connectionKey to get projectId and platformId
@@ -362,10 +373,38 @@ export class DiscordProvider
       connection.isConnected = false;
     };
 
+    const onMessageReactionAdd = (reaction: MessageReaction, user: User) => {
+      // Handle reaction add asynchronously (fire-and-forget)
+      void this.handleReactionAdd(
+        reaction,
+        user,
+        projectId,
+        connection.platformId,
+      ).catch((err) => {
+        this.logger.error(`Error handling reaction add: ${err.message}`);
+      });
+      connection.lastActivity = new Date();
+    };
+
+    const onMessageReactionRemove = (reaction: MessageReaction, user: User) => {
+      // Handle reaction remove asynchronously (fire-and-forget)
+      void this.handleReactionRemove(
+        reaction,
+        user,
+        projectId,
+        connection.platformId,
+      ).catch((err) => {
+        this.logger.error(`Error handling reaction remove: ${err.message}`);
+      });
+      connection.lastActivity = new Date();
+    };
+
     // Register event listeners
     client.on('clientReady', onReady);
     client.on('messageCreate', onMessageCreate);
     client.on('interactionCreate', onInteractionCreate);
+    client.on('messageReactionAdd', onMessageReactionAdd);
+    client.on('messageReactionRemove', onMessageReactionRemove);
     client.on('error', onError);
     client.on('disconnect', onDisconnect);
 
@@ -374,6 +413,8 @@ export class DiscordProvider
       client.off('clientReady', onReady);
       client.off('messageCreate', onMessageCreate);
       client.off('interactionCreate', onInteractionCreate);
+      client.off('messageReactionAdd', onMessageReactionAdd);
+      client.off('messageReactionRemove', onMessageReactionRemove);
       client.off('error', onError);
       client.off('disconnect', onDisconnect);
     };
@@ -994,6 +1035,221 @@ export class DiscordProvider
       this.logger.error(
         `Failed to handle button interaction: ${error.message}`,
       );
+    }
+  }
+
+  /**
+   * Helper: Parse Discord emoji format
+   * Converts stored format <:name:id> or <a:name:id> to what Discord.js expects
+   * Supports emoji names with hyphens, spaces, and special characters
+   */
+  private parseDiscordEmoji(emoji: string): string {
+    // Check if it's a custom emoji in format <:name:id> or <a:name:id>
+    // Pattern: <(a)?:([^:]+):(\d+)> - allows any characters in name except colons
+    const customEmojiMatch = emoji.match(/^<(a)?:([^:]+):(\d+)>$/);
+    if (customEmojiMatch) {
+      // Discord.js expects just the emoji ID for custom emojis
+      return customEmojiMatch[3]; // ID is now in group 3
+    }
+    // Unicode emoji - use as-is
+    return emoji;
+  }
+
+  /**
+   * Send a reaction to a message on Discord
+   */
+  async sendReaction(
+    connectionKey: string,
+    channelId: string,
+    messageId: string,
+    emoji: string,
+    fromMe?: boolean,
+  ): Promise<void> {
+    const connection = this.connections.get(connectionKey);
+
+    if (!connection || !connection.client.isReady()) {
+      throw new Error(
+        `Discord client not ready for ${connectionKey}, cannot send reaction`,
+      );
+    }
+
+    try {
+      const channel = await connection.client.channels.fetch(channelId);
+
+      if (!channel || !channel.isTextBased()) {
+        throw new Error(`Channel ${channelId} not found or not a text channel`);
+      }
+
+      const message = await channel.messages.fetch(messageId);
+      const parsedEmoji = this.parseDiscordEmoji(emoji);
+      await message.react(parsedEmoji);
+
+      this.logger.debug(
+        `Discord reaction sent: ${emoji} to message ${messageId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send Discord reaction [${connectionKey}]: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  async unreactFromMessage(
+    connectionKey: string,
+    channelId: string,
+    messageId: string,
+    emoji: string,
+    fromMe?: boolean,
+  ): Promise<void> {
+    const connection = this.connections.get(connectionKey);
+
+    if (!connection || !connection.client.isReady()) {
+      throw new Error(
+        `Discord client not ready for ${connectionKey}, cannot remove reaction`,
+      );
+    }
+
+    try {
+      const channel = await connection.client.channels.fetch(channelId);
+
+      if (!channel || !channel.isTextBased()) {
+        throw new Error(`Channel ${channelId} not found or not a text channel`);
+      }
+
+      const message = await channel.messages.fetch(messageId);
+      const parsedEmoji = this.parseDiscordEmoji(emoji);
+      const reactions = message.reactions.cache.get(parsedEmoji);
+
+      if (reactions) {
+        await reactions.users.remove(connection.client.user.id);
+        this.logger.debug(
+          `Discord reaction removed: ${emoji} from message ${messageId}`,
+        );
+      } else {
+        this.logger.debug(
+          `No reaction ${emoji} found on message ${messageId} to remove`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to remove Discord reaction [${connectionKey}]: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Handle reaction added to a message
+   */
+  private async handleReactionAdd(
+    reaction: MessageReaction,
+    user: User,
+    projectId: string,
+    platformId: string,
+  ): Promise<void> {
+    try {
+      if (reaction.partial) await reaction.fetch();
+      if (user.bot) return;
+
+      const emoji = reaction.emoji.id
+        ? `<:${reaction.emoji.name}:${reaction.emoji.id}>`
+        : reaction.emoji.name;
+
+      if (!emoji) throw new Error(`Missing emoji in Discord reaction event`);
+
+      const success = await this.messagesService.storeIncomingReaction({
+        projectId,
+        platformId,
+        platform: 'discord',
+        providerMessageId: reaction.message.id,
+        providerChatId: reaction.message.channelId,
+        providerUserId: user.id,
+        userDisplay: user.username,
+        emoji,
+        reactionType: ReactionType.added,
+        rawData: {
+          message_id: reaction.message.id,
+          emoji: {
+            id: reaction.emoji.id,
+            name: reaction.emoji.name,
+            animated: reaction.emoji.animated,
+          },
+          user: {
+            id: user.id,
+            username: user.username,
+            discriminator: user.discriminator,
+          },
+        },
+      });
+
+      if (success) {
+        this.logger.debug(
+          `Discord reaction added: ${emoji} by ${user.username}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to handle Discord reaction add: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Handle reaction removed from a message
+   */
+  private async handleReactionRemove(
+    reaction: MessageReaction,
+    user: User,
+    projectId: string,
+    platformId: string,
+  ): Promise<void> {
+    try {
+      if (reaction.partial) await reaction.fetch();
+      if (user.bot) return;
+
+      const emoji = reaction.emoji.id
+        ? `<:${reaction.emoji.name}:${reaction.emoji.id}>`
+        : reaction.emoji.name;
+
+      if (!emoji) throw new Error(`Missing emoji in Discord reaction event`);
+
+      const success = await this.messagesService.storeIncomingReaction({
+        projectId,
+        platformId,
+        platform: 'discord',
+        providerMessageId: reaction.message.id,
+        providerChatId: reaction.message.channelId,
+        providerUserId: user.id,
+        userDisplay: user.username,
+        emoji,
+        reactionType: ReactionType.removed,
+        rawData: {
+          message_id: reaction.message.id,
+          emoji: {
+            id: reaction.emoji.id,
+            name: reaction.emoji.name,
+            animated: reaction.emoji.animated,
+          },
+          user: {
+            id: user.id,
+            username: user.username,
+            discriminator: user.discriminator,
+          },
+        },
+      });
+
+      if (success) {
+        this.logger.debug(
+          `Discord reaction removed: ${emoji} by ${user.username}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to handle Discord reaction remove: ${error.message}`,
+      );
+      throw error;
     }
   }
 }

@@ -56,4 +56,9 @@ export class QueryMessagesDto {
   @Type(() => Boolean)
   @IsBoolean()
   raw?: boolean = false;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  reactions?: boolean = false;
 }

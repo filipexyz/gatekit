@@ -520,7 +520,13 @@ export class PlatformsService {
         // Set the webhook
         const result = await bot.setWebHook(webhookUrl, {
           max_connections: 100,
-          allowed_updates: ['message', 'callback_query', 'inline_query'],
+          allowed_updates: [
+            'message',
+            'callback_query',
+            'inline_query',
+            'message_reaction',
+            'message_reaction_count',
+          ],
         });
 
         this.logger.log(
