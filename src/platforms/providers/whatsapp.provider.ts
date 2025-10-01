@@ -671,33 +671,24 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
         continue; // Skip to next message - this was a reaction, not a text message
       }
 
-      // Store message in database
+      // Store message in database using centralized service
       if (platformId) {
         try {
-          const storedMessage = await this.prisma.receivedMessage.create({
-            data: {
-              projectId: connection.projectId,
-              platformId,
-              platform: 'whatsapp-evo',
-              providerMessageId: msg.key?.id || msg.id || `evo-${Date.now()}`,
-              providerChatId: msg.key?.remoteJid || msg.remoteJid || 'unknown',
-              providerUserId:
-                msg.sender || msg.key?.remoteJid || msg.remoteJid || 'unknown',
-              userDisplay: msg.pushName || msg.senderName || 'WhatsApp User',
-              messageText: this.extractEvolutionMessageText(msg),
-              messageType: 'text',
-              rawData: msg,
-            },
+          await this.messagesService.storeIncomingMessage({
+            projectId: connection.projectId,
+            platformId,
+            platform: 'whatsapp-evo',
+            providerMessageId: msg.key?.id || msg.id || `evo-${Date.now()}`,
+            providerChatId: msg.key?.remoteJid || msg.remoteJid || 'unknown',
+            providerUserId:
+              msg.sender || msg.key?.remoteJid || msg.remoteJid || 'unknown',
+            userDisplay: msg.pushName || msg.senderName || 'WhatsApp User',
+            messageText: this.extractEvolutionMessageText(msg),
+            messageType: 'text',
+            rawData: msg,
           });
-          this.logger.debug(
-            `Stored WhatsApp message ${storedMessage.id} from ${msg.pushName || 'WhatsApp User'}`,
-          );
         } catch (error) {
-          if (error.code === 'P2002') {
-            this.logger.debug(`Message already stored (duplicate)`);
-          } else {
-            this.logger.error(`Failed to store message: ${error.message}`);
-          }
+          this.logger.error(`Failed to store message: ${error.message}`);
         }
       }
 

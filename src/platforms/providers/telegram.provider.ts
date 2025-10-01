@@ -384,54 +384,23 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
   ) {
     if (msg.from?.is_bot) return;
 
-    // Store the message in database
+    // Store the message in database using centralized service
     if (platformId) {
       try {
-        const storedMessage = await this.prisma.receivedMessage.create({
-          data: {
-            projectId,
-            platformId,
-            platform: 'telegram',
-            providerMessageId: msg.message_id.toString(),
-            providerChatId: msg.chat.id.toString(),
-            providerUserId: msg.from?.id?.toString() || 'unknown',
-            userDisplay:
-              msg.from?.username || msg.from?.first_name || 'Unknown',
-            messageText: msg.text || null,
-            messageType: msg.text ? 'text' : 'other',
-            rawData: msg as any,
-          },
-        });
-        this.logger.debug(
-          `Stored Telegram message ${msg.message_id} for project ${projectId}`,
-        );
-
-        // Deliver webhook event for incoming message
-        await this.webhookDeliveryService.deliverEvent(
+        await this.messagesService.storeIncomingMessage({
           projectId,
-          WebhookEventType.MESSAGE_RECEIVED,
-          {
-            message_id: storedMessage.id,
-            platform: 'telegram',
-            platform_id: platformId,
-            chat_id: msg.chat.id.toString(),
-            user_id: msg.from?.id?.toString() || 'unknown',
-            user_display:
-              msg.from?.username || msg.from?.first_name || 'Unknown',
-            text: msg.text || null,
-            message_type: msg.text ? 'text' : 'other',
-            received_at: storedMessage.receivedAt.toISOString(),
-          },
-        );
+          platformId,
+          platform: 'telegram',
+          providerMessageId: msg.message_id.toString(),
+          providerChatId: msg.chat.id.toString(),
+          providerUserId: msg.from?.id?.toString() || 'unknown',
+          userDisplay: msg.from?.username || msg.from?.first_name || 'Unknown',
+          messageText: msg.text || null,
+          messageType: msg.text ? 'text' : 'other',
+          rawData: msg as any,
+        });
       } catch (error) {
-        // Check if it's a duplicate message
-        if (error.code === 'P2002') {
-          this.logger.debug(
-            `Message ${msg.message_id} already stored for platform ${platformId}`,
-          );
-        } else {
-          this.logger.error(`Failed to store message: ${error.message}`);
-        }
+        this.logger.error(`Failed to store message: ${error.message}`);
       }
     }
 
@@ -444,52 +413,23 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     projectId: string,
     platformId?: string,
   ) {
-    // Store the callback query as a message
+    // Store button click using centralized service
     if (platformId && query.message) {
       try {
-        const storedCallback = await this.prisma.receivedMessage.create({
-          data: {
-            projectId,
-            platformId,
-            platform: 'telegram',
-            providerMessageId: `callback_${query.id}`,
-            providerChatId: query.message.chat.id.toString(),
-            providerUserId: query.from.id.toString(),
-            userDisplay:
-              query.from.username || query.from.first_name || 'Unknown',
-            messageText: query.data || null,
-            messageType: 'button_click',
-            rawData: query as any,
-          },
-        });
-        this.logger.debug(
-          `Stored Telegram callback ${query.id} for project ${projectId}`,
-        );
-
-        // Deliver webhook event for button click
-        await this.webhookDeliveryService.deliverEvent(
+        await this.messagesService.storeIncomingButtonClick({
           projectId,
-          WebhookEventType.BUTTON_CLICKED,
-          {
-            message_id: storedCallback.id,
-            platform: 'telegram',
-            platform_id: platformId,
-            chat_id: query.message.chat.id.toString(),
-            user_id: query.from.id.toString(),
-            user_display:
-              query.from.username || query.from.first_name || 'Unknown',
-            button_value: query.data || '',
-            clicked_at: storedCallback.receivedAt.toISOString(),
-            raw: {
-              callback_id: query.id,
-              message_id: query.message.message_id,
-            },
-          },
-        );
+          platformId,
+          platform: 'telegram',
+          providerMessageId: `callback_${query.id}`,
+          providerChatId: query.message.chat.id.toString(),
+          providerUserId: query.from.id.toString(),
+          userDisplay:
+            query.from.username || query.from.first_name || 'Unknown',
+          buttonValue: query.data || '',
+          rawData: query as any,
+        });
       } catch (error) {
-        if (error.code !== 'P2002') {
-          this.logger.error(`Failed to store callback: ${error.message}`);
-        }
+        this.logger.error(`Failed to store callback: ${error.message}`);
       }
     }
 
