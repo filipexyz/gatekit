@@ -652,60 +652,37 @@ export class DiscordProvider
     }
 
     try {
-      // Store message in database
-      const storedMessage = await this.prisma.receivedMessage.create({
-        data: {
-          projectId,
-          platformId: connection.platformId,
-          platform: 'discord',
-          providerMessageId: msg.id,
-          providerChatId: msg.channelId,
-          providerUserId: msg.author.id,
-          userDisplay: msg.author.displayName || msg.author.username,
-          messageText: msg.content,
-          messageType: 'text',
-          rawData: {
-            id: msg.id,
-            channelId: msg.channelId,
-            guildId: msg.guildId,
-            author: {
-              id: msg.author.id,
-              username: msg.author.username,
-              displayName: msg.author.displayName,
-              discriminator: msg.author.discriminator,
-            },
-            content: msg.content,
-            timestamp: msg.createdTimestamp,
-            attachments: msg.attachments.map((att) => ({
-              id: att.id,
-              url: att.url,
-              name: att.name,
-              size: att.size,
-            })),
+      // Store message in database using centralized service
+      await this.messagesService.storeIncomingMessage({
+        projectId,
+        platformId: connection.platformId,
+        platform: 'discord',
+        providerMessageId: msg.id,
+        providerChatId: msg.channelId,
+        providerUserId: msg.author.id,
+        userDisplay: msg.author.displayName || msg.author.username,
+        messageText: msg.content,
+        messageType: 'text',
+        rawData: {
+          id: msg.id,
+          channelId: msg.channelId,
+          guildId: msg.guildId,
+          author: {
+            id: msg.author.id,
+            username: msg.author.username,
+            displayName: msg.author.displayName,
+            discriminator: msg.author.discriminator,
           },
+          content: msg.content,
+          timestamp: msg.createdTimestamp,
+          attachments: msg.attachments.map((att) => ({
+            id: att.id,
+            url: att.url,
+            name: att.name,
+            size: att.size,
+          })),
         },
       });
-
-      this.logger.debug(
-        `Discord message stored: ${storedMessage.id} from ${msg.author.username}`,
-      );
-
-      // Deliver webhook event for incoming message
-      await this.webhookDeliveryService.deliverEvent(
-        projectId,
-        WebhookEventType.MESSAGE_RECEIVED,
-        {
-          message_id: storedMessage.id,
-          platform: 'discord',
-          platform_id: connection.platformId,
-          chat_id: msg.channelId,
-          user_id: msg.author.id,
-          user_display: msg.author.displayName || msg.author.username,
-          text: msg.content,
-          message_type: 'text',
-          received_at: storedMessage.receivedAt.toISOString(),
-        },
-      );
     } catch (error) {
       this.logger.error(`Failed to store Discord message: ${error.message}`);
     }
@@ -977,57 +954,32 @@ export class DiscordProvider
     platformId: string,
   ): Promise<void> {
     try {
-      // Store interaction in database
-      const storedInteraction = await this.prisma.receivedMessage.create({
-        data: {
-          projectId,
-          platformId,
-          platform: 'discord',
-          providerMessageId: `interaction_${interaction.id}`,
-          providerChatId: interaction.channelId,
-          providerUserId: interaction.user.id,
-          userDisplay: interaction.user.username,
-          messageText: interaction.customId,
-          messageType: 'button_click',
-          rawData: {
-            id: interaction.id,
-            customId: interaction.customId,
-            componentType: interaction.componentType,
-            channelId: interaction.channelId,
-            guildId: interaction.guildId,
-            user: {
-              id: interaction.user.id,
-              username: interaction.user.username,
-              discriminator: interaction.user.discriminator,
-            },
+      // Store button click using centralized service
+      await this.messagesService.storeIncomingButtonClick({
+        projectId,
+        platformId,
+        platform: 'discord',
+        providerMessageId: `interaction_${interaction.id}`,
+        providerChatId: interaction.channelId,
+        providerUserId: interaction.user.id,
+        userDisplay: interaction.user.username,
+        buttonValue: interaction.customId,
+        rawData: {
+          id: interaction.id,
+          customId: interaction.customId,
+          componentType: interaction.componentType,
+          channelId: interaction.channelId,
+          guildId: interaction.guildId,
+          user: {
+            id: interaction.user.id,
+            username: interaction.user.username,
+            discriminator: interaction.user.discriminator,
           },
+          message: interaction.message
+            ? { id: interaction.message.id }
+            : undefined,
         },
       });
-
-      this.logger.debug(
-        `Discord button interaction stored: ${storedInteraction.id} from ${interaction.user.username}`,
-      );
-
-      // Deliver webhook event for button click
-      await this.webhookDeliveryService.deliverEvent(
-        projectId,
-        WebhookEventType.BUTTON_CLICKED,
-        {
-          message_id: storedInteraction.id,
-          platform: 'discord',
-          platform_id: platformId,
-          chat_id: interaction.channelId,
-          user_id: interaction.user.id,
-          user_display: interaction.user.username,
-          button_value: interaction.customId,
-          clicked_at: storedInteraction.receivedAt.toISOString(),
-          raw: {
-            interaction_id: interaction.id,
-            component_type: interaction.componentType,
-            message_id: interaction.message?.id,
-          },
-        },
-      );
 
       // Acknowledge the interaction to Discord
       await interaction.deferUpdate();

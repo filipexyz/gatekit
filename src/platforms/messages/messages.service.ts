@@ -232,6 +232,142 @@ export class MessagesService {
   }
 
   /**
+   * Store incoming message from platform providers
+   * Returns true if stored successfully, false if duplicate (P2002)
+   * Automatically triggers webhook delivery
+   */
+  async storeIncomingMessage(data: {
+    projectId: string;
+    platformId: string;
+    platform: string;
+    providerMessageId: string;
+    providerChatId: string;
+    providerUserId: string;
+    userDisplay?: string;
+    messageText: string | null;
+    messageType: string;
+    rawData: any;
+  }): Promise<boolean> {
+    try {
+      const storedMessage = await this.prisma.receivedMessage.create({
+        data: {
+          projectId: data.projectId,
+          platformId: data.platformId,
+          platform: data.platform,
+          providerMessageId: data.providerMessageId,
+          providerChatId: data.providerChatId,
+          providerUserId: data.providerUserId,
+          userDisplay: data.userDisplay,
+          messageText: data.messageText,
+          messageType: data.messageType,
+          rawData: data.rawData,
+        },
+      });
+
+      this.logger.debug(
+        `Stored ${data.platform} message ${storedMessage.id} from ${data.userDisplay || data.providerUserId}`,
+      );
+
+      // Deliver webhook notification for incoming message
+      await this.webhookDeliveryService.deliverEvent(
+        data.projectId,
+        WebhookEventType.MESSAGE_RECEIVED,
+        {
+          message_id: storedMessage.id,
+          platform: data.platform,
+          platform_id: data.platformId,
+          chat_id: data.providerChatId,
+          user_id: data.providerUserId,
+          user_display: data.userDisplay ?? null,
+          text: data.messageText,
+          message_type: data.messageType,
+          received_at: storedMessage.receivedAt.toISOString(),
+        },
+      );
+
+      return true;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        this.logger.debug(
+          `Duplicate message ignored: ${data.providerMessageId} on platform ${data.platformId}`,
+        );
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Store incoming button click from platform providers
+   * Returns true if stored successfully, false if duplicate (P2002)
+   * Automatically triggers webhook delivery
+   */
+  async storeIncomingButtonClick(data: {
+    projectId: string;
+    platformId: string;
+    platform: string;
+    providerMessageId: string;
+    providerChatId: string;
+    providerUserId: string;
+    userDisplay?: string;
+    buttonValue: string;
+    rawData: any;
+  }): Promise<boolean> {
+    try {
+      const storedButton = await this.prisma.receivedMessage.create({
+        data: {
+          projectId: data.projectId,
+          platformId: data.platformId,
+          platform: data.platform,
+          providerMessageId: data.providerMessageId,
+          providerChatId: data.providerChatId,
+          providerUserId: data.providerUserId,
+          userDisplay: data.userDisplay,
+          messageText: data.buttonValue,
+          messageType: 'button_click',
+          rawData: data.rawData,
+        },
+      });
+
+      this.logger.debug(
+        `Stored ${data.platform} button click ${storedButton.id} from ${data.userDisplay || data.providerUserId}`,
+      );
+
+      // Deliver webhook notification for button click
+      await this.webhookDeliveryService.deliverEvent(
+        data.projectId,
+        WebhookEventType.BUTTON_CLICKED,
+        {
+          message_id: storedButton.id,
+          platform: data.platform,
+          platform_id: data.platformId,
+          chat_id: data.providerChatId,
+          user_id: data.providerUserId,
+          user_display: data.userDisplay ?? null,
+          button_value: data.buttonValue,
+          clicked_at: storedButton.receivedAt.toISOString(),
+        },
+      );
+
+      return true;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        this.logger.debug(
+          `Duplicate button click ignored: ${data.providerMessageId} on platform ${data.platformId}`,
+        );
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Store incoming reaction from platform providers
    * Returns true if stored successfully, false if duplicate (P2002)
    */
