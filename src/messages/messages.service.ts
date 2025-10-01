@@ -1,11 +1,148 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueryMessagesDto } from './dto/query-messages.dto';
 import { SecurityUtil, AuthContext } from '../common/utils/security.util';
 
+/**
+ * Identity information returned from identity resolution
+ */
+export interface IdentityInfo {
+  id: string;
+  displayName: string | null;
+  email: string | null;
+}
+
+/**
+ * User information with optional identity
+ */
+export interface UserWithIdentity {
+  id: string;
+  name: string;
+  identity: IdentityInfo | null;
+}
+
 @Injectable()
 export class MessagesService {
+  private readonly logger = new Logger(MessagesService.name);
+
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Resolve identity for a message (platform user -> identity lookup)
+   * @param projectId Project ID for security validation (defense-in-depth)
+   * @param platformId Platform configuration ID
+   * @param providerUserId Platform-specific user ID
+   * @returns Identity information or null if not found
+   *
+   * Note: While the composite unique index (platformId, providerUserId) ensures
+   * uniqueness, we validate projectId for defense-in-depth security.
+   */
+  private async resolveIdentityForMessage(
+    projectId: string,
+    platformId: string,
+    providerUserId: string,
+  ): Promise<IdentityInfo | null> {
+    const alias = await this.prisma.identityAlias.findUnique({
+      where: {
+        platformId_providerUserId: {
+          platformId,
+          providerUserId,
+        },
+      },
+      select: {
+        projectId: true,
+        identity: {
+          select: {
+            id: true,
+            displayName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Defense-in-depth: Validate project ownership
+    if (!alias || alias.projectId !== projectId) {
+      return null;
+    }
+
+    return alias.identity;
+  }
+
+  /**
+   * Batch resolve identities for multiple platform users
+   * @param projectId Project ID for security validation
+   * @param users Array of platform users to resolve
+   * @returns Map of "platformId:providerUserId" -> IdentityInfo
+   *
+   * Note: Uses a single database query with OR conditions for optimal performance.
+   * Automatically deduplicates users before querying.
+   */
+  private async batchResolveIdentities(
+    projectId: string,
+    users: Array<{ platformId: string; providerUserId: string }>,
+  ): Promise<Map<string, IdentityInfo>> {
+    const identityMap = new Map<string, IdentityInfo>();
+
+    if (users.length === 0) {
+      return identityMap;
+    }
+
+    // Deduplicate users using Map (preserves insertion order, efficient lookup)
+    // Use URL encoding to safely handle special characters (including ':') in IDs
+    const uniqueUsersMap = new Map<
+      string,
+      { platformId: string; providerUserId: string }
+    >();
+    for (const user of users) {
+      const key = `${encodeURIComponent(user.platformId)}:${encodeURIComponent(user.providerUserId)}`;
+      uniqueUsersMap.set(key, user);
+    }
+
+    const uniqueUsers = Array.from(uniqueUsersMap.values());
+
+    // Single database query with OR conditions for all users
+    const aliases = await this.prisma.identityAlias.findMany({
+      where: {
+        AND: [
+          { projectId }, // Defense-in-depth: filter by project
+          {
+            OR: uniqueUsers.map((u) => ({
+              AND: [
+                { platformId: u.platformId },
+                { providerUserId: u.providerUserId },
+              ],
+            })),
+          },
+        ],
+      },
+      select: {
+        platformId: true,
+        providerUserId: true,
+        identity: {
+          select: {
+            id: true,
+            displayName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Build map from results (use same encoding as key generation)
+    for (const alias of aliases) {
+      if (alias.identity) {
+        const key = `${encodeURIComponent(alias.platformId)}:${encodeURIComponent(alias.providerUserId)}`;
+        identityMap.set(key, alias.identity);
+      }
+    }
+
+    this.logger.debug(
+      `Resolved ${identityMap.size} identities for ${uniqueUsers.length} unique users in single query`,
+    );
+
+    return identityMap;
+  }
 
   async getMessages(
     projectSlug: string,
@@ -78,6 +215,23 @@ export class MessagesService {
       this.prisma.receivedMessage.count({ where }),
     ]);
 
+    // Resolve identities for message senders
+    if (messages.length > 0) {
+      const identityMap = await this.batchResolveIdentities(
+        project.id,
+        messages.map((m) => ({
+          platformId: m.platformId,
+          providerUserId: m.providerUserId,
+        })),
+      );
+
+      // Attach identity to each message
+      messages.forEach((message) => {
+        const userKey = `${encodeURIComponent(message.platformId)}:${encodeURIComponent(message.providerUserId)}`;
+        (message as any).identity = identityMap.get(userKey) || null;
+      });
+    }
+
     // If reactions requested, fetch them for all messages
     if (query.reactions && messages.length > 0) {
       const messageIds = messages.map((m) => m.providerMessageId);
@@ -90,6 +244,7 @@ export class MessagesService {
           providerMessageId: { in: messageIds },
         },
         select: {
+          platformId: true,
           providerMessageId: true,
           providerUserId: true,
           userDisplay: true,
@@ -117,6 +272,15 @@ export class MessagesService {
         (r) => r.reactionType === 'added',
       );
 
+      // Batch resolve identities for all unique reaction users
+      const reactionIdentityMap = await this.batchResolveIdentities(
+        project.id,
+        reactions.map((r) => ({
+          platformId: r.platformId,
+          providerUserId: r.providerUserId,
+        })),
+      );
+
       // Group reactions by message ID, then by emoji
       const reactionsByMessage = reactions.reduce(
         (acc, reaction) => {
@@ -126,19 +290,24 @@ export class MessagesService {
           if (!acc[reaction.providerMessageId][reaction.emoji]) {
             acc[reaction.providerMessageId][reaction.emoji] = [];
           }
-          // Store user as object for future extensibility
+          // Resolve identity for reaction user
+          const userKey = `${encodeURIComponent(reaction.platformId)}:${encodeURIComponent(reaction.providerUserId)}`;
+          const identity = reactionIdentityMap.get(userKey) || null;
+          // Store user with identity info
           acc[reaction.providerMessageId][reaction.emoji].push({
             id: reaction.providerUserId,
             name: reaction.userDisplay || reaction.providerUserId,
+            identity,
           });
           return acc;
         },
-        {} as Record<string, Record<string, { id: string; name: string }[]>>,
+        {} as Record<string, Record<string, UserWithIdentity[]>>,
       );
 
-      // Attach reactions to messages in clean format: { "👍": [{ id: "123", name: "John" }], "❤️": [...] }
-      messages.forEach((message: any) => {
-        message.reactions = reactionsByMessage[message.providerMessageId] || {};
+      // Attach reactions to messages in clean format: { "👍": [{ id: "123", name: "John", identity: {...} }], "❤️": [...] }
+      messages.forEach((message) => {
+        (message as any).reactions =
+          reactionsByMessage[message.providerMessageId] || {};
       });
     }
 
@@ -190,6 +359,7 @@ export class MessagesService {
         providerMessageId: message.providerMessageId,
       },
       select: {
+        platformId: true,
         providerUserId: true,
         userDisplay: true,
         emoji: true,
@@ -215,23 +385,44 @@ export class MessagesService {
       (r) => r.reactionType === 'added',
     );
 
+    // Batch resolve identities for all unique reaction users
+    const reactionIdentityMap = await this.batchResolveIdentities(
+      project.id,
+      reactions.map((r) => ({
+        platformId: r.platformId,
+        providerUserId: r.providerUserId,
+      })),
+    );
+
     // Group reactions by emoji
     const groupedReactions = reactions.reduce(
       (acc, reaction) => {
         if (!acc[reaction.emoji]) {
           acc[reaction.emoji] = [];
         }
+        // Resolve identity for reaction user
+        const userKey = `${encodeURIComponent(reaction.platformId)}:${encodeURIComponent(reaction.providerUserId)}`;
+        const identity = reactionIdentityMap.get(userKey) || null;
         acc[reaction.emoji].push({
           id: reaction.providerUserId,
           name: reaction.userDisplay || reaction.providerUserId,
+          identity,
         });
         return acc;
       },
-      {} as Record<string, { id: string; name: string }[]>,
+      {} as Record<string, UserWithIdentity[]>,
+    );
+
+    // Resolve identity for message sender
+    const identity = await this.resolveIdentityForMessage(
+      project.id,
+      message.platformId,
+      message.providerUserId,
     );
 
     return {
       ...message,
+      identity,
       reactions: groupedReactions,
     };
   }
@@ -342,14 +533,18 @@ export class MessagesService {
     };
   }
 
-  async getSentMessages(projectSlug: string, query: any) {
-    const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
-    });
-
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }
+  async getSentMessages(
+    projectSlug: string,
+    query: any,
+    authContext: AuthContext,
+  ) {
+    // SECURITY: Get project and validate access
+    const project = await SecurityUtil.getProjectWithAccess(
+      this.prisma,
+      projectSlug,
+      authContext,
+      'sent message retrieval',
+    );
 
     const where: any = {
       projectId: project.id,
@@ -374,6 +569,7 @@ export class MessagesService {
         skip: offset,
         select: {
           id: true,
+          platformId: true,
           platform: true,
           jobId: true,
           providerMessageId: true,
@@ -390,6 +586,31 @@ export class MessagesService {
       }),
       this.prisma.sentMessage.count({ where }),
     ]);
+
+    // Resolve identities for target users
+    if (messages.length > 0) {
+      const targetUsers = messages
+        .filter((m) => m.targetType === 'user' && m.targetUserId)
+        .map((m) => ({
+          platformId: m.platformId,
+          providerUserId: m.targetUserId!,
+        }));
+
+      const identityMap = await this.batchResolveIdentities(
+        project.id,
+        targetUsers,
+      );
+
+      // Attach identity to each message
+      messages.forEach((message) => {
+        if (message.targetType === 'user' && message.targetUserId) {
+          const userKey = `${encodeURIComponent(message.platformId)}:${encodeURIComponent(message.targetUserId)}`;
+          (message as any).targetIdentity = identityMap.get(userKey) || null;
+        } else {
+          (message as any).targetIdentity = null;
+        }
+      });
+    }
 
     return {
       messages,

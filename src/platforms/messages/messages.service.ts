@@ -234,7 +234,7 @@ export class MessagesService {
   /**
    * Store incoming message from platform providers
    * Returns true if stored successfully, false if duplicate (P2002)
-   * Automatically triggers webhook delivery
+   * Identity resolution happens dynamically at query time via JOIN
    */
   async storeIncomingMessage(data: {
     projectId: string;
@@ -303,7 +303,7 @@ export class MessagesService {
   /**
    * Store incoming button click from platform providers
    * Returns true if stored successfully, false if duplicate (P2002)
-   * Automatically triggers webhook delivery
+   * Identity resolution happens dynamically at query time via JOIN
    */
   async storeIncomingButtonClick(data: {
     projectId: string;
@@ -370,6 +370,7 @@ export class MessagesService {
   /**
    * Store incoming reaction from platform providers
    * Returns true if stored successfully, false if duplicate (P2002)
+   * Identity resolution happens dynamically at query time via JOIN
    */
   async storeIncomingReaction(data: {
     projectId: string;
