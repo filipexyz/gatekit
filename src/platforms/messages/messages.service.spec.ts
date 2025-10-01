@@ -3,6 +3,8 @@ import { MessagesService } from './messages.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MessageQueue } from '../../queues/message.queue';
 import { PlatformsService } from '../platforms.service';
+import { PlatformRegistry } from '../services/platform-registry.service';
+import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 describe('MessagesService', () => {
@@ -34,6 +36,14 @@ describe('MessagesService', () => {
     validatePlatformConfigById: jest.fn(),
   };
 
+  const mockPlatformRegistry = {
+    getProvider: jest.fn(),
+  };
+
+  const mockWebhookDeliveryService = {
+    deliverEvent: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -49,6 +59,14 @@ describe('MessagesService', () => {
         {
           provide: MessageQueue,
           useValue: mockMessageQueue,
+        },
+        {
+          provide: PlatformRegistry,
+          useValue: mockPlatformRegistry,
+        },
+        {
+          provide: WebhookDeliveryService,
+          useValue: mockWebhookDeliveryService,
         },
       ],
     }).compile();

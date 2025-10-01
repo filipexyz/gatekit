@@ -134,7 +134,11 @@ describe('CredentialValidationService', () => {
 
     it('should return WhatsApp-Evo required fields', () => {
       const fields = service.getRequiredFields('whatsapp-evo');
-      expect(fields).toEqual(['evolutionApiUrl', 'evolutionApiKey']);
+      expect(fields).toEqual([
+        'evolutionApiUrl',
+        'evolutionApiKey',
+        'instanceName',
+      ]);
     });
 
     it('should return empty array for unsupported platform', () => {
@@ -164,6 +168,7 @@ describe('CredentialValidationService', () => {
       const whatsappExample = service.getExampleCredentials('whatsapp-evo');
       expect(whatsappExample).toHaveProperty('evolutionApiUrl');
       expect(whatsappExample).toHaveProperty('evolutionApiKey');
+      expect(whatsappExample).toHaveProperty('instanceName');
 
       // Examples should pass validation
       expect(service.validate('telegram', telegramExample).isValid).toBe(true);

@@ -13,6 +13,7 @@ import { QueryMessagesDto } from './dto/query-messages.dto';
 // Clean interface for SDK generation
 import type { QueryMessagesDto as QueryMessagesInterface } from './interfaces/query-messages.interface';
 import { SendMessageDto } from '../platforms/dto/send-message.dto';
+import { SendReactionDto } from '../platforms/dto/send-reaction.dto';
 import { MessagesService as PlatformMessagesService } from '../platforms/messages/messages.service';
 import { AppAuthGuard } from '../common/guards/app-auth.guard';
 import { ProjectAccessGuard } from '../common/guards/project-access.guard';
@@ -86,6 +87,11 @@ export class MessagesController {
         type: 'boolean',
         default: false,
       },
+      reactions: {
+        description: 'Include reactions on each message',
+        type: 'boolean',
+        default: false,
+      },
     },
     examples: [
       {
@@ -109,6 +115,10 @@ export class MessagesController {
       {
         description: 'Get messages with raw platform data',
         command: 'gatekit messages list --raw --limit 5',
+      },
+      {
+        description: 'Get messages with reactions included',
+        command: 'gatekit messages list --reactions --limit 10',
       },
     ],
   })
@@ -351,5 +361,102 @@ export class MessagesController {
     @Query() query: any,
   ) {
     return this.messagesService.getSentMessages(projectSlug, query);
+  }
+
+  @Post('react')
+  @RequireScopes('messages:send')
+  @SdkContract({
+    command: 'messages react',
+    description: 'Add a reaction to a message',
+    category: 'Messages',
+    requiredScopes: ['messages:send'],
+    inputType: 'SendReactionDto',
+    outputType: 'MessageResponse',
+    options: {
+      platformId: {
+        required: true,
+        description: 'Platform configuration ID',
+        type: 'string',
+      },
+      messageId: {
+        required: true,
+        description: 'Message ID to react to',
+        type: 'string',
+      },
+      emoji: {
+        required: true,
+        description: 'Emoji to react with (e.g., "👍", "❤️")',
+        type: 'string',
+      },
+    },
+    examples: [
+      {
+        description: 'React with thumbs up',
+        command:
+          'gatekit messages react --platformId "platform-123" --messageId "msg-456" --emoji "👍"',
+      },
+      {
+        description: 'React with heart',
+        command:
+          'gatekit messages react --platformId "platform-123" --messageId "msg-456" --emoji "❤️"',
+      },
+    ],
+  })
+  async reactToMessage(
+    @Param('projectSlug') projectSlug: string,
+    @Body() sendReactionDto: SendReactionDto,
+    @AuthContextParam() authContext: AuthContext,
+  ) {
+    return this.platformMessagesService.reactToMessage(
+      projectSlug,
+      sendReactionDto,
+      authContext,
+    );
+  }
+
+  @Post('unreact')
+  @RequireScopes('messages:send')
+  @SdkContract({
+    command: 'messages unreact',
+    description: 'Remove a reaction from a message',
+    category: 'Messages',
+    requiredScopes: ['messages:send'],
+    inputType: 'SendReactionDto',
+    outputType: 'MessageResponse',
+    options: {
+      platformId: {
+        required: true,
+        description: 'Platform configuration ID',
+        type: 'string',
+      },
+      messageId: {
+        required: true,
+        description: 'Message ID to unreact from',
+        type: 'string',
+      },
+      emoji: {
+        required: true,
+        description: 'Emoji to remove (e.g., "👍", "❤️")',
+        type: 'string',
+      },
+    },
+    examples: [
+      {
+        description: 'Remove thumbs up reaction',
+        command:
+          'gatekit messages unreact --platformId "platform-123" --messageId "msg-456" --emoji "👍"',
+      },
+    ],
+  })
+  async unreactToMessage(
+    @Param('projectSlug') projectSlug: string,
+    @Body() sendReactionDto: SendReactionDto,
+    @AuthContextParam() authContext: AuthContext,
+  ) {
+    return this.platformMessagesService.unreactToMessage(
+      projectSlug,
+      sendReactionDto,
+      authContext,
+    );
   }
 }

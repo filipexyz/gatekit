@@ -3,6 +3,8 @@ import { WhatsAppProvider } from './whatsapp.provider';
 import { EVENT_BUS } from '../interfaces/event-bus.interface';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PlatformLogsService } from '../services/platform-logs.service';
+import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
+import { MessagesService } from '../messages/messages.service';
 import { NotFoundException } from '@nestjs/common';
 
 // Mock fetch globally
@@ -31,6 +33,14 @@ describe('WhatsAppProvider', () => {
     logActivity: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockWebhookDeliveryService = {
+    deliverEvent: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockMessagesService = {
+    storeIncomingMessage: jest.fn().mockResolvedValue(undefined),
+  };
+
   const mockCredentials = {
     evolutionApiUrl: 'https://evolution.example.com',
     evolutionApiKey: 'test-api-key',
@@ -52,6 +62,14 @@ describe('WhatsAppProvider', () => {
         {
           provide: PlatformLogsService,
           useValue: mockPlatformLogsService,
+        },
+        {
+          provide: WebhookDeliveryService,
+          useValue: mockWebhookDeliveryService,
+        },
+        {
+          provide: MessagesService,
+          useValue: mockMessagesService,
         },
       ],
     }).compile();

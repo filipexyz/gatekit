@@ -18,6 +18,11 @@ import { AttachmentUtil } from '../../common/utils/attachment.util';
 import { AttachmentDto, EmbedDto } from '../dto/send-message.dto';
 import { PlatformCapability } from '../enums/platform-capability.enum';
 import { UrlValidationUtil } from '../../common/utils/url-validation.util';
+import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
+import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
+import { ProviderUtil } from './provider.util';
+import { ReactionType } from '@prisma/client';
+import { MessagesService } from '../messages/messages.service';
 
 interface WhatsAppConnection {
   connectionKey: string; // projectId:platformId
@@ -61,6 +66,9 @@ interface EvolutionMessage {
     limitations:
       'Max 3000 chars for caption (converted to markdown text + first embed image only)',
   },
+  {
+    capability: PlatformCapability.REACTIONS,
+  },
 ])
 export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
   private readonly logger = new Logger(WhatsAppProvider.name);
@@ -75,6 +83,8 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
     private readonly prisma: PrismaService,
     private readonly platformLogsService: PlatformLogsService,
+    private readonly webhookDeliveryService: WebhookDeliveryService,
+    private readonly messagesService: MessagesService,
   ) {}
 
   async initialize(): Promise<void> {
@@ -590,6 +600,75 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
     for (const msg of messages) {
       if (msg.key?.fromMe) {
         continue; // Skip own messages
+      }
+
+      // Check if this is a reaction message (Evolution API sends reactions in messages.upsert)
+      if (msg.message?.reactionMessage && platformId) {
+        const reaction = msg.message.reactionMessage;
+        const reactionKey = reaction.key;
+
+        // Extract user info
+        const userId = msg.key?.participant || msg.key?.remoteJid || 'unknown';
+        const chatId =
+          msg.key?.remoteJid || reactionKey?.remoteJid || 'unknown';
+        const userDisplay = msg.pushName || userId;
+
+        // Determine if it's add or remove (empty text means remove)
+        const isRemove = !reaction.text || reaction.text === '';
+
+        // Get the emoji - for removals, look up the last added reaction
+        // NOTE: WhatsApp only allows one reaction per user per message (unlike Discord/Telegram).
+        // When a user changes their reaction, WhatsApp automatically removes the previous one.
+        // Evolution API sends removal events without emoji data, so we look up the last added reaction.
+        let emoji = reaction.text;
+        if (isRemove) {
+          // Find the most recent "added" reaction by this user on this message
+          const lastReaction = await this.prisma.receivedReaction.findFirst({
+            where: {
+              projectId: connection.projectId,
+              providerMessageId: reactionKey.id,
+              providerUserId: userId,
+              reactionType: 'added',
+            },
+            orderBy: {
+              receivedAt: 'desc',
+            },
+          });
+          emoji = lastReaction?.emoji;
+        }
+
+        if (!emoji) {
+          throw new Error(
+            `Missing emoji in WhatsApp reaction event - ${isRemove ? 'no previous reaction found for removal' : 'add event missing emoji'}`,
+          );
+        }
+
+        try {
+          const success = await this.messagesService.storeIncomingReaction({
+            projectId: connection.projectId,
+            platformId,
+            platform: 'whatsapp-evo',
+            providerMessageId: reactionKey.id,
+            providerChatId: chatId,
+            providerUserId: userId,
+            userDisplay,
+            emoji,
+            reactionType: isRemove ? ReactionType.removed : ReactionType.added,
+            rawData: msg,
+          });
+
+          if (success) {
+            this.logger.debug(
+              `WhatsApp reaction ${isRemove ? 'removed' : 'added'}: ${emoji} by ${userDisplay}`,
+            );
+          }
+        } catch (error) {
+          this.logger.error(
+            `Failed to handle WhatsApp reaction ${isRemove ? 'remove' : 'add'}: ${error.message}`,
+          );
+        }
+
+        continue; // Skip to next message - this was a reaction, not a text message
       }
 
       // Store message in database
@@ -1115,5 +1194,141 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
       .replace(/_/g, '\\_')
       .replace(/`/g, '\\`')
       .replace(/~/g, '\\~');
+  }
+
+  /**
+   * Send a reaction to a message on WhatsApp (Evolution API)
+   */
+  async sendReaction(
+    connectionKey: string,
+    remoteJid: string,
+    messageId: string,
+    emoji: string,
+    fromMe: boolean = false,
+  ): Promise<void> {
+    // Get credentials using shared utility (no connection check needed - HTTP API)
+    const { platformId, credentials } =
+      await ProviderUtil.getPlatformCredentials<{
+        evolutionApiUrl: string;
+        evolutionApiKey: string;
+        instanceName: string;
+      }>(connectionKey, this.prisma, 'WhatsApp');
+
+    const { evolutionApiUrl, evolutionApiKey, instanceName } = credentials;
+
+    if (!evolutionApiUrl || !evolutionApiKey || !instanceName) {
+      throw new Error(`WhatsApp credentials incomplete for ${platformId}`);
+    }
+
+    try {
+      const url = `${evolutionApiUrl}/message/sendReaction/${instanceName}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: evolutionApiKey,
+        },
+        body: JSON.stringify({
+          key: {
+            remoteJid,
+            fromMe,
+            id: messageId,
+          },
+          reaction: emoji,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(
+          `Evolution API reaction error: ${response.status} - ${error}`,
+        );
+      }
+
+      // Validate response body
+      const result = await response.json();
+      if (result.error || (result.status !== undefined && !result.status)) {
+        throw new Error(
+          `Evolution API reaction failed: ${result.message || result.error || 'Unknown error'}`,
+        );
+      }
+
+      this.logger.debug(
+        `WhatsApp reaction sent: ${emoji} to message ${messageId} (fromMe: ${fromMe})`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send WhatsApp reaction [${connectionKey}]: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  async unreactFromMessage(
+    connectionKey: string,
+    remoteJid: string,
+    messageId: string,
+    emoji: string,
+    fromMe: boolean = false,
+  ): Promise<void> {
+    // Get credentials using shared utility (no connection check needed - HTTP API)
+    const { platformId, credentials } =
+      await ProviderUtil.getPlatformCredentials<{
+        evolutionApiUrl: string;
+        evolutionApiKey: string;
+        instanceName: string;
+      }>(connectionKey, this.prisma, 'WhatsApp');
+
+    const { evolutionApiUrl, evolutionApiKey, instanceName } = credentials;
+
+    if (!evolutionApiUrl || !evolutionApiKey || !instanceName) {
+      throw new Error(`WhatsApp credentials incomplete for ${platformId}`);
+    }
+
+    try {
+      const url = `${evolutionApiUrl}/message/sendReaction/${instanceName}`;
+
+      // WhatsApp Evolution API: send empty string to remove reaction
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: evolutionApiKey,
+        },
+        body: JSON.stringify({
+          key: {
+            remoteJid,
+            fromMe,
+            id: messageId,
+          },
+          reaction: '', // Empty string removes the reaction
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(
+          `Evolution API unreact error: ${response.status} - ${error}`,
+        );
+      }
+
+      // Validate response body
+      const result = await response.json();
+      if (result.error || (result.status !== undefined && !result.status)) {
+        throw new Error(
+          `Evolution API unreact failed: ${result.message || result.error || 'Unknown error'}`,
+        );
+      }
+
+      this.logger.debug(
+        `WhatsApp reaction removed: ${emoji} from message ${messageId} (fromMe: ${fromMe})`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to remove WhatsApp reaction [${connectionKey}]: ${error.message}`,
+      );
+      throw error;
+    }
   }
 }

@@ -22,6 +22,9 @@ describe('MessagesService', () => {
       deleteMany: jest.fn(),
       count: jest.fn(),
     },
+    receivedReaction: {
+      findMany: jest.fn(),
+    },
     sentMessage: {
       findMany: jest.fn(),
       count: jest.fn(),
@@ -47,7 +50,9 @@ describe('MessagesService', () => {
 
   describe('getMessages', () => {
     const mockProject = { id: 'project-id', slug: 'test-project' };
-    const mockMessages = [
+
+    // Factory function to get fresh message objects (prevents mutation between tests)
+    const getMockMessages = () => [
       {
         id: 'msg-1',
         projectId: 'project-id',
@@ -84,7 +89,7 @@ describe('MessagesService', () => {
 
     it('should return all messages when no filters applied', async () => {
       mockPrismaService.receivedMessage.findMany.mockResolvedValue(
-        mockMessages,
+        getMockMessages(),
       );
       mockPrismaService.receivedMessage.count.mockResolvedValue(2);
 
@@ -118,7 +123,7 @@ describe('MessagesService', () => {
     });
 
     it('should filter messages by platformId', async () => {
-      const filteredMessages = [mockMessages[0]]; // Only Discord message
+      const filteredMessages = [getMockMessages()[0]]; // Only Discord message
       mockPrismaService.receivedMessage.findMany.mockResolvedValue(
         filteredMessages,
       );
@@ -158,7 +163,7 @@ describe('MessagesService', () => {
     });
 
     it('should filter messages by platform type', async () => {
-      const filteredMessages = [mockMessages[1]]; // Only Telegram message
+      const filteredMessages = [getMockMessages()[1]]; // Only Telegram message
       mockPrismaService.receivedMessage.findMany.mockResolvedValue(
         filteredMessages,
       );
@@ -199,7 +204,7 @@ describe('MessagesService', () => {
 
     it('should include raw data when raw=true', async () => {
       mockPrismaService.receivedMessage.findMany.mockResolvedValue(
-        mockMessages,
+        getMockMessages(),
       );
       mockPrismaService.receivedMessage.count.mockResolvedValue(2);
 
@@ -222,7 +227,7 @@ describe('MessagesService', () => {
     });
 
     it('should filter by chatId', async () => {
-      const filteredMessages = [mockMessages[0]];
+      const filteredMessages = [getMockMessages()[0]];
       mockPrismaService.receivedMessage.findMany.mockResolvedValue(
         filteredMessages,
       );
@@ -259,7 +264,7 @@ describe('MessagesService', () => {
     });
 
     it('should filter by userId', async () => {
-      const filteredMessages = [mockMessages[0]];
+      const filteredMessages = [getMockMessages()[0]];
       mockPrismaService.receivedMessage.findMany.mockResolvedValue(
         filteredMessages,
       );
@@ -297,7 +302,7 @@ describe('MessagesService', () => {
 
     it('should filter by date range', async () => {
       mockPrismaService.receivedMessage.findMany.mockResolvedValue(
-        mockMessages,
+        getMockMessages(),
       );
       mockPrismaService.receivedMessage.count.mockResolvedValue(2);
 
@@ -341,7 +346,7 @@ describe('MessagesService', () => {
     });
 
     it('should combine multiple filters', async () => {
-      const filteredMessages = [mockMessages[0]];
+      const filteredMessages = [getMockMessages()[0]];
       mockPrismaService.receivedMessage.findMany.mockResolvedValue(
         filteredMessages,
       );
@@ -377,7 +382,7 @@ describe('MessagesService', () => {
 
     it('should use ascending order when specified', async () => {
       mockPrismaService.receivedMessage.findMany.mockResolvedValue(
-        mockMessages,
+        getMockMessages(),
       );
       mockPrismaService.receivedMessage.count.mockResolvedValue(2);
 
@@ -419,28 +424,279 @@ describe('MessagesService', () => {
         ),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('should include reactions when reactions=true', async () => {
+      const mockReactions = [
+        {
+          providerMessageId: 'discord-msg-1',
+          providerUserId: 'user-789',
+          userDisplay: 'Alice',
+          emoji: '👍',
+          reactionType: 'added',
+          receivedAt: new Date('2024-01-01T10:00:00Z'),
+        },
+        {
+          providerMessageId: 'discord-msg-1',
+          providerUserId: 'user-456',
+          userDisplay: 'Bob',
+          emoji: '👍',
+          reactionType: 'added',
+          receivedAt: new Date('2024-01-01T10:01:00Z'),
+        },
+        {
+          providerMessageId: 'discord-msg-1',
+          providerUserId: 'user-321',
+          userDisplay: 'Charlie',
+          emoji: '❤️',
+          reactionType: 'added',
+          receivedAt: new Date('2024-01-01T10:02:00Z'),
+        },
+        {
+          providerMessageId: 'telegram-msg-1',
+          providerUserId: 'user-111',
+          userDisplay: null,
+          emoji: '🔥',
+          reactionType: 'added',
+          receivedAt: new Date('2024-01-01T10:03:00Z'),
+        },
+      ];
+
+      mockPrismaService.receivedMessage.findMany.mockResolvedValue(
+        getMockMessages(),
+      );
+      mockPrismaService.receivedMessage.count.mockResolvedValue(2);
+      mockPrismaService.receivedReaction.findMany.mockResolvedValue(
+        mockReactions,
+      );
+
+      const result = await service.getMessages(
+        'test-project',
+        { reactions: true, limit: 50, offset: 0, order: 'desc' },
+        mockAuthContext,
+      );
+
+      // Verify reactions query was called correctly
+      expect(mockPrismaService.receivedReaction.findMany).toHaveBeenCalledWith({
+        where: {
+          projectId: 'project-id',
+          platformId: { in: ['platform-1', 'platform-2'] },
+          providerMessageId: { in: ['discord-msg-1', 'telegram-msg-1'] },
+        },
+        select: {
+          providerMessageId: true,
+          providerUserId: true,
+          userDisplay: true,
+          emoji: true,
+          reactionType: true,
+          receivedAt: true,
+        },
+        orderBy: { receivedAt: 'desc' },
+      });
+
+      // Verify reactions are grouped correctly
+      expect(result.messages[0].reactions).toEqual({
+        '👍': [
+          { id: 'user-789', name: 'Alice' },
+          { id: 'user-456', name: 'Bob' },
+        ],
+        '❤️': [{ id: 'user-321', name: 'Charlie' }],
+      });
+
+      expect(result.messages[1].reactions).toEqual({
+        '🔥': [{ id: 'user-111', name: 'user-111' }], // Falls back to ID when no display name
+      });
+    });
+
+    it('should not fetch reactions when reactions=false', async () => {
+      // Fresh messages without reactions property
+      const messagesWithoutReactions = getMockMessages().map((msg) => ({
+        ...msg,
+      }));
+
+      mockPrismaService.receivedMessage.findMany.mockResolvedValue(
+        messagesWithoutReactions,
+      );
+      mockPrismaService.receivedMessage.count.mockResolvedValue(2);
+
+      const result = await service.getMessages(
+        'test-project',
+        { reactions: false, limit: 50, offset: 0, order: 'desc' },
+        mockAuthContext,
+      );
+
+      expect(
+        mockPrismaService.receivedReaction.findMany,
+      ).not.toHaveBeenCalled();
+      expect(result.messages[0].reactions).toBeUndefined();
+      expect(result.messages[1].reactions).toBeUndefined();
+    });
+
+    it('should return empty reactions object when no reactions exist', async () => {
+      mockPrismaService.receivedMessage.findMany.mockResolvedValue(
+        getMockMessages(),
+      );
+      mockPrismaService.receivedMessage.count.mockResolvedValue(2);
+      mockPrismaService.receivedReaction.findMany.mockResolvedValue([]);
+
+      const result = await service.getMessages(
+        'test-project',
+        { reactions: true, limit: 50, offset: 0, order: 'desc' },
+        mockAuthContext,
+      );
+
+      expect(result.messages[0].reactions).toEqual({});
+      expect(result.messages[1].reactions).toEqual({});
+    });
+
+    it('should exclude reactions where latest event is removed', async () => {
+      const mockReactions = [
+        // User added 👍 then removed it (latest is removed)
+        {
+          providerMessageId: 'discord-msg-1',
+          providerUserId: 'user-789',
+          userDisplay: 'Alice',
+          emoji: '👍',
+          reactionType: 'removed',
+          receivedAt: new Date('2024-01-01T10:05:00Z'),
+        },
+        {
+          providerMessageId: 'discord-msg-1',
+          providerUserId: 'user-789',
+          userDisplay: 'Alice',
+          emoji: '👍',
+          reactionType: 'added',
+          receivedAt: new Date('2024-01-01T10:00:00Z'),
+        },
+        // User added ❤️ and kept it (latest is added)
+        {
+          providerMessageId: 'discord-msg-1',
+          providerUserId: 'user-456',
+          userDisplay: 'Bob',
+          emoji: '❤️',
+          reactionType: 'added',
+          receivedAt: new Date('2024-01-01T10:00:00Z'),
+        },
+      ];
+
+      mockPrismaService.receivedMessage.findMany.mockResolvedValue(
+        getMockMessages(),
+      );
+      mockPrismaService.receivedMessage.count.mockResolvedValue(2);
+      mockPrismaService.receivedReaction.findMany.mockResolvedValue(
+        mockReactions,
+      );
+
+      const result = await service.getMessages(
+        'test-project',
+        { reactions: true, limit: 50, offset: 0, order: 'desc' },
+        mockAuthContext,
+      );
+
+      // Should only show ❤️ (not 👍, since it was removed)
+      expect(result.messages[0].reactions).toEqual({
+        '❤️': [{ id: 'user-456', name: 'Bob' }],
+      });
+    });
+
+    it('should include reactions that were removed then re-added', async () => {
+      const mockReactions = [
+        // Latest: added (should show)
+        {
+          providerMessageId: 'discord-msg-1',
+          providerUserId: 'user-789',
+          userDisplay: 'Alice',
+          emoji: '👍',
+          reactionType: 'added',
+          receivedAt: new Date('2024-01-01T10:10:00Z'),
+        },
+        // Middle: removed
+        {
+          providerMessageId: 'discord-msg-1',
+          providerUserId: 'user-789',
+          userDisplay: 'Alice',
+          emoji: '👍',
+          reactionType: 'removed',
+          receivedAt: new Date('2024-01-01T10:05:00Z'),
+        },
+        // Oldest: added
+        {
+          providerMessageId: 'discord-msg-1',
+          providerUserId: 'user-789',
+          userDisplay: 'Alice',
+          emoji: '👍',
+          reactionType: 'added',
+          receivedAt: new Date('2024-01-01T10:00:00Z'),
+        },
+      ];
+
+      mockPrismaService.receivedMessage.findMany.mockResolvedValue(
+        getMockMessages(),
+      );
+      mockPrismaService.receivedMessage.count.mockResolvedValue(2);
+      mockPrismaService.receivedReaction.findMany.mockResolvedValue(
+        mockReactions,
+      );
+
+      const result = await service.getMessages(
+        'test-project',
+        { reactions: true, limit: 50, offset: 0, order: 'desc' },
+        mockAuthContext,
+      );
+
+      // Should show 👍 because latest event is 'added'
+      expect(result.messages[0].reactions).toEqual({
+        '👍': [{ id: 'user-789', name: 'Alice' }],
+      });
+    });
   });
 
   describe('getMessage', () => {
-    it('should return single message by ID', async () => {
+    it('should return single message by ID with reactions', async () => {
       const mockProject = { id: 'project-id' };
       const mockMessage = {
         id: 'msg-1',
         projectId: 'project-id',
         platformId: 'platform-1',
         platform: 'discord',
+        providerMessageId: 'discord-msg-1',
         messageText: 'Hello',
         rawData: { discord: 'data' },
       };
+
+      const mockReactions = [
+        {
+          providerUserId: 'user-789',
+          userDisplay: 'Alice',
+          emoji: '👍',
+          reactionType: 'added',
+          receivedAt: new Date('2024-01-01T10:00:00Z'),
+        },
+        {
+          providerUserId: 'user-456',
+          userDisplay: 'Bob',
+          emoji: '👍',
+          reactionType: 'added',
+          receivedAt: new Date('2024-01-01T10:01:00Z'),
+        },
+        {
+          providerUserId: 'user-321',
+          userDisplay: null,
+          emoji: '❤️',
+          reactionType: 'added',
+          receivedAt: new Date('2024-01-01T10:02:00Z'),
+        },
+      ];
 
       mockPrismaService.project.findUnique.mockResolvedValue(mockProject);
       mockPrismaService.receivedMessage.findUnique.mockResolvedValue(
         mockMessage,
       );
+      mockPrismaService.receivedReaction.findMany.mockResolvedValue(
+        mockReactions,
+      );
 
       const result = await service.getMessage('test-project', 'msg-1');
 
-      expect(result).toEqual(mockMessage);
       expect(mockPrismaService.receivedMessage.findUnique).toHaveBeenCalledWith(
         {
           where: {
@@ -458,6 +714,52 @@ describe('MessagesService', () => {
           },
         },
       );
+
+      expect(mockPrismaService.receivedReaction.findMany).toHaveBeenCalledWith({
+        where: {
+          projectId: 'project-id',
+          platformId: 'platform-1',
+          providerMessageId: 'discord-msg-1',
+        },
+        select: {
+          providerUserId: true,
+          userDisplay: true,
+          emoji: true,
+          reactionType: true,
+          receivedAt: true,
+        },
+        orderBy: { receivedAt: 'desc' },
+      });
+
+      expect(result.reactions).toEqual({
+        '👍': [
+          { id: 'user-789', name: 'Alice' },
+          { id: 'user-456', name: 'Bob' },
+        ],
+        '❤️': [{ id: 'user-321', name: 'user-321' }], // Falls back to ID
+      });
+    });
+
+    it('should return message with empty reactions when no reactions exist', async () => {
+      const mockProject = { id: 'project-id' };
+      const mockMessage = {
+        id: 'msg-1',
+        projectId: 'project-id',
+        platformId: 'platform-1',
+        platform: 'discord',
+        providerMessageId: 'discord-msg-1',
+        messageText: 'Hello',
+      };
+
+      mockPrismaService.project.findUnique.mockResolvedValue(mockProject);
+      mockPrismaService.receivedMessage.findUnique.mockResolvedValue(
+        mockMessage,
+      );
+      mockPrismaService.receivedReaction.findMany.mockResolvedValue([]);
+
+      const result = await service.getMessage('test-project', 'msg-1');
+
+      expect(result.reactions).toEqual({});
     });
 
     it('should throw NotFoundException when message not found', async () => {

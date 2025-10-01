@@ -3,6 +3,8 @@ export enum WebhookEventType {
   MESSAGE_SENT = 'message.sent',
   MESSAGE_FAILED = 'message.failed',
   BUTTON_CLICKED = 'button.clicked',
+  REACTION_ADDED = 'reaction.added',
+  REACTION_REMOVED = 'reaction.removed',
 }
 
 /**
@@ -16,6 +18,8 @@ export enum WebhookEventType {
  *   | { event: WebhookEventType.MESSAGE_SENT; data: MessageSentData }
  *   | { event: WebhookEventType.MESSAGE_FAILED; data: MessageFailedData }
  *   | { event: WebhookEventType.BUTTON_CLICKED; data: ButtonClickedData }
+ *   | { event: WebhookEventType.REACTION_ADDED; data: ReactionAddedData }
+ *   | { event: WebhookEventType.REACTION_REMOVED; data: ReactionRemovedData }
  *
  * This allows TypeScript to narrow the data type based on the event field.
  */
@@ -27,7 +31,9 @@ export interface WebhookPayload {
     | MessageReceivedData
     | MessageSentData
     | MessageFailedData
-    | ButtonClickedData;
+    | ButtonClickedData
+    | ReactionAddedData
+    | ReactionRemovedData;
 }
 
 export interface MessageReceivedData {
@@ -78,5 +84,29 @@ export interface ButtonClickedData {
   user_display: string | null;
   button_value: string;
   clicked_at: string;
+  raw?: Record<string, unknown>; // Optional raw platform data
+}
+
+export interface ReactionAddedData {
+  message_id: string;
+  platform: string;
+  platform_id: string;
+  chat_id: string;
+  user_id: string;
+  user_display: string | null;
+  emoji: string;
+  timestamp: string;
+  raw?: Record<string, unknown>; // Optional raw platform data
+}
+
+export interface ReactionRemovedData {
+  message_id: string;
+  platform: string;
+  platform_id: string;
+  chat_id: string;
+  user_id: string;
+  user_display: string | null;
+  emoji: string;
+  timestamp: string;
   raw?: Record<string, unknown>; // Optional raw platform data
 }

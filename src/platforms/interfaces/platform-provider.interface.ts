@@ -44,4 +44,21 @@ export interface PlatformProvider {
 
   // Platform lifecycle events (optional)
   onPlatformEvent?(event: PlatformLifecycleEvent): Promise<void>;
+
+  // Reactions (optional - for platforms that support reactions)
+  sendReaction?(
+    connectionKey: string,
+    chatId: string,
+    messageId: string,
+    emoji: string,
+    fromMe?: boolean, // For WhatsApp: indicates if message is from us
+  ): Promise<void>;
+
+  unreactFromMessage?(
+    connectionKey: string,
+    chatId: string,
+    messageId: string,
+    emoji: string,
+    fromMe?: boolean, // For WhatsApp: indicates if message is from us
+  ): Promise<void>;
 }

@@ -5,9 +5,15 @@ import {
   Logger,
 } from '@nestjs/common';
 import { SendMessageDto } from '../dto/send-message.dto';
+import { SendReactionDto } from '../dto/send-reaction.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MessageQueue } from '../../queues/message.queue';
 import { PlatformsService } from '../platforms.service';
+import { PlatformRegistry } from '../services/platform-registry.service';
+import { SecurityUtil, AuthContext } from '../../common/utils/security.util';
+import { ReactionType, Prisma } from '@prisma/client';
+import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
+import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
 
 @Injectable()
 export class MessagesService {
@@ -17,6 +23,8 @@ export class MessagesService {
     private readonly platformsService: PlatformsService,
     private readonly prisma: PrismaService,
     private readonly messageQueue: MessageQueue,
+    private readonly platformRegistry: PlatformRegistry,
+    private readonly webhookDeliveryService: WebhookDeliveryService,
   ) {}
 
   async sendMessage(projectSlug: string, sendMessageDto: SendMessageDto) {
@@ -129,6 +137,257 @@ export class MessagesService {
 
   async retryMessage(jobId: string) {
     return this.messageQueue.retryFailedJob(jobId);
+  }
+
+  async reactToMessage(
+    projectSlug: string,
+    reactionDto: SendReactionDto,
+    authContext: AuthContext,
+  ) {
+    this.logger.log(
+      `Adding reaction ${reactionDto.emoji} to message ${reactionDto.messageId}`,
+    );
+
+    // Prepare context (validates platform, ownership, gets provider)
+    const { provider, connectionKey, platformConfig } =
+      await this.prepareReactionContext(projectSlug, reactionDto, authContext);
+
+    // Find message and determine origin
+    const { chatId, fromMe } = await this.findMessageAndDetermineOrigin(
+      reactionDto.messageId,
+      reactionDto.platformId,
+    );
+
+    // Validate provider supports reactions
+    if (!provider.sendReaction) {
+      throw new BadRequestException(
+        `Platform ${platformConfig.platform} does not support sending reactions`,
+      );
+    }
+
+    // Send reaction
+    await provider.sendReaction(
+      connectionKey,
+      chatId,
+      reactionDto.messageId,
+      reactionDto.emoji,
+      fromMe,
+    );
+
+    this.logger.log(`Reaction sent successfully`);
+
+    return {
+      success: true,
+      platformId: reactionDto.platformId,
+      messageId: reactionDto.messageId,
+      emoji: reactionDto.emoji,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  async unreactToMessage(
+    projectSlug: string,
+    reactionDto: SendReactionDto,
+    authContext: AuthContext,
+  ) {
+    this.logger.log(
+      `Removing reaction ${reactionDto.emoji} from message ${reactionDto.messageId}`,
+    );
+
+    // Prepare context (validates platform, ownership, gets provider)
+    const { provider, connectionKey, platformConfig } =
+      await this.prepareReactionContext(projectSlug, reactionDto, authContext);
+
+    // Find message and determine origin
+    const { chatId, fromMe } = await this.findMessageAndDetermineOrigin(
+      reactionDto.messageId,
+      reactionDto.platformId,
+    );
+
+    // Validate provider supports unreact
+    if (!provider.unreactFromMessage) {
+      throw new BadRequestException(
+        `Platform ${platformConfig.platform} does not support removing reactions`,
+      );
+    }
+
+    // Remove reaction
+    await provider.unreactFromMessage(
+      connectionKey,
+      chatId,
+      reactionDto.messageId,
+      reactionDto.emoji,
+      fromMe,
+    );
+
+    this.logger.log(`Reaction removed successfully`);
+
+    return {
+      success: true,
+      platformId: reactionDto.platformId,
+      messageId: reactionDto.messageId,
+      emoji: reactionDto.emoji,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Store incoming reaction from platform providers
+   * Returns true if stored successfully, false if duplicate (P2002)
+   */
+  async storeIncomingReaction(data: {
+    projectId: string;
+    platformId: string;
+    platform: string;
+    providerMessageId: string;
+    providerChatId: string;
+    providerUserId: string;
+    userDisplay?: string;
+    emoji: string;
+    reactionType: ReactionType;
+    rawData: any;
+  }): Promise<boolean> {
+    try {
+      const storedReaction = await this.prisma.receivedReaction.create({
+        data: {
+          projectId: data.projectId,
+          platformId: data.platformId,
+          platform: data.platform,
+          providerMessageId: data.providerMessageId,
+          providerChatId: data.providerChatId,
+          providerUserId: data.providerUserId,
+          userDisplay: data.userDisplay,
+          emoji: data.emoji,
+          reactionType: data.reactionType,
+          rawData: data.rawData,
+        },
+      });
+
+      this.logger.debug(
+        `Stored ${data.reactionType} reaction: ${data.emoji} by ${data.userDisplay || data.providerUserId}`,
+      );
+
+      // Deliver webhook notification
+      const eventType =
+        data.reactionType === ReactionType.added
+          ? WebhookEventType.REACTION_ADDED
+          : WebhookEventType.REACTION_REMOVED;
+
+      await this.webhookDeliveryService.deliverEvent(
+        data.projectId,
+        eventType,
+        {
+          message_id: storedReaction.id,
+          platform: data.platform,
+          platform_id: data.platformId,
+          chat_id: data.providerChatId,
+          user_id: data.providerUserId,
+          user_display: data.userDisplay ?? null,
+          emoji: data.emoji,
+          timestamp: storedReaction.receivedAt.toISOString(),
+          raw: {
+            original_message_id: data.providerMessageId,
+          },
+        },
+      );
+
+      return true;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        this.logger.debug(
+          `Duplicate ${data.reactionType} reaction ignored: ${data.emoji} on ${data.providerMessageId}`,
+        );
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Helper: Prepare reaction context (validates platform, ownership, gets provider)
+   */
+  private async prepareReactionContext(
+    projectSlug: string,
+    reactionDto: SendReactionDto,
+    authContext: AuthContext,
+  ) {
+    // Validate platform exists
+    const platformConfig =
+      await this.platformsService.validatePlatformConfigById(
+        reactionDto.platformId,
+      );
+
+    // SECURITY: Get project and validate access (defense-in-depth)
+    const project = await SecurityUtil.getProjectWithAccess(
+      this.prisma,
+      projectSlug,
+      authContext,
+      'send reactions',
+    );
+
+    // SECURITY: Validate platform belongs to project
+    if (platformConfig.projectId !== project.id) {
+      throw new BadRequestException(
+        `Platform ${reactionDto.platformId} does not belong to project ${projectSlug}`,
+      );
+    }
+
+    // Get provider for this platform
+    const provider = this.platformRegistry.getProvider(platformConfig.platform);
+    if (!provider) {
+      throw new BadRequestException(
+        `Provider not found for platform: ${platformConfig.platform}`,
+      );
+    }
+
+    const connectionKey = `${project.id}:${platformConfig.id}`;
+
+    return { provider, connectionKey, platformConfig };
+  }
+
+  /**
+   * Helper: Find message in DB and determine if it's from us (optimized with Promise.all)
+   */
+  private async findMessageAndDetermineOrigin(
+    messageId: string,
+    platformId: string,
+  ): Promise<{ chatId: string; fromMe: boolean }> {
+    // Optimize: Query both tables in parallel
+    const [receivedMessage, sentMessage] = await Promise.all([
+      this.prisma.receivedMessage.findFirst({
+        where: {
+          providerMessageId: messageId,
+          platformId: platformId,
+        },
+      }),
+      this.prisma.sentMessage.findFirst({
+        where: {
+          providerMessageId: messageId,
+          platformId: platformId,
+        },
+      }),
+    ]);
+
+    if (receivedMessage) {
+      return {
+        chatId: receivedMessage.providerChatId,
+        fromMe: false,
+      };
+    }
+
+    if (sentMessage) {
+      return {
+        chatId: sentMessage.targetChatId,
+        fromMe: true,
+      };
+    }
+
+    throw new NotFoundException(
+      `Message ${messageId} not found on platform ${platformId}`,
+    );
   }
 
   private async getProject(projectSlug: string) {

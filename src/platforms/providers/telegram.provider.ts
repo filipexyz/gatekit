@@ -21,6 +21,9 @@ import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
 import { PlatformCapability } from '../enums/platform-capability.enum';
 import { EmbedDto } from '../dto/send-message.dto';
 import { UrlValidationUtil } from '../../common/utils/url-validation.util';
+import { ProviderUtil } from './provider.util';
+import { ReactionType } from '@prisma/client';
+import { MessagesService } from '../messages/messages.service';
 
 interface TelegramConnection {
   connectionKey: string; // projectId:platformId
@@ -48,6 +51,11 @@ interface TelegramConnection {
     capability: PlatformCapability.BUTTONS,
     limitations: '~100 buttons per message, 1-8 buttons per row recommended',
   },
+  {
+    capability: PlatformCapability.REACTIONS,
+    limitations:
+      'Send: DMs and groups. Receive: Only in groups/channels where bot is admin (Telegram API limitation).',
+  },
 ])
 export class TelegramProvider implements PlatformProvider, PlatformAdapter {
   private readonly logger = new Logger(TelegramProvider.name);
@@ -63,6 +71,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     private readonly prisma: PrismaService,
     private readonly platformLogsService: PlatformLogsService,
     private readonly webhookDeliveryService: WebhookDeliveryService,
+    private readonly messagesService: MessagesService,
   ) {
     // Constructor uses dependency injection - no initialization needed
   }
@@ -106,8 +115,8 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     // Parse connectionKey to get projectId and platformId
     const [projectId, platformId] = connectionKey.split(':');
 
-    // Create Telegram bot (webhook mode)
-    const bot = new TelegramBot(credentials.token, { webHook: true });
+    // Create Telegram bot (webhook mode - we handle webhooks via NestJS, not library's server)
+    const bot = new TelegramBot(credentials.token, { polling: false });
 
     const connection: TelegramConnection = {
       connectionKey,
@@ -357,6 +366,12 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
         projectId,
         platformId,
       );
+    } else if ((update as any).message_reaction) {
+      await this.handleMessageReaction(
+        (update as any).message_reaction,
+        projectId,
+        platformId,
+      );
     }
 
     return true;
@@ -562,7 +577,13 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
       // Set the webhook URL
       const result = await bot.setWebHook(webhookUrl, {
         max_connections: 100,
-        allowed_updates: ['message', 'callback_query', 'inline_query'],
+        allowed_updates: [
+          'message',
+          'callback_query',
+          'inline_query',
+          'message_reaction',
+          'message_reaction_count',
+        ],
       });
 
       this.logger.log(
@@ -1102,5 +1123,217 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     );
 
     return { inline_keyboard: keyboard };
+  }
+
+  /**
+   * Send a reaction to a message on Telegram
+   */
+  async sendReaction(
+    connectionKey: string,
+    chatId: string,
+    messageId: string,
+    emoji: string,
+    fromMe?: boolean,
+  ): Promise<void> {
+    // Get credentials using shared utility
+    const { platformId, credentials } =
+      await ProviderUtil.getPlatformCredentials<{ token: string }>(
+        connectionKey,
+        this.prisma,
+        'Telegram',
+      );
+
+    const botToken = credentials.token;
+    if (!botToken) {
+      throw new Error(`Telegram bot token not found for ${platformId}`);
+    }
+
+    try {
+      // Validate and parse chat ID and message ID
+      const chatIdNum = parseInt(chatId);
+      const messageIdNum = parseInt(messageId);
+
+      if (isNaN(chatIdNum) || isNaN(messageIdNum)) {
+        throw new Error(
+          `Invalid Telegram chat ID or message ID format: chatId=${chatId}, messageId=${messageId}`,
+        );
+      }
+
+      // Create temporary bot instance for API call
+      const TelegramBot = (await import('node-telegram-bot-api')).default;
+      const bot = new TelegramBot(botToken, { polling: false });
+
+      // Telegram Bot API: setMessageReaction
+      await bot.setMessageReaction(chatIdNum, messageIdNum, {
+        reaction: [{ type: 'emoji', emoji: emoji as any }],
+      });
+
+      this.logger.debug(
+        `Telegram reaction sent: ${emoji} to message ${messageId} in chat ${chatId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send Telegram reaction [${connectionKey}]: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  async unreactFromMessage(
+    connectionKey: string,
+    chatId: string,
+    messageId: string,
+    emoji: string,
+    fromMe?: boolean,
+  ): Promise<void> {
+    // Get credentials using shared utility
+    const { platformId, credentials } =
+      await ProviderUtil.getPlatformCredentials<{ token: string }>(
+        connectionKey,
+        this.prisma,
+        'Telegram',
+      );
+
+    const botToken = credentials.token;
+    if (!botToken) {
+      throw new Error(`Telegram bot token not found for ${platformId}`);
+    }
+
+    try {
+      // Validate and parse chat ID and message ID
+      const chatIdNum = parseInt(chatId);
+      const messageIdNum = parseInt(messageId);
+
+      if (isNaN(chatIdNum) || isNaN(messageIdNum)) {
+        throw new Error(
+          `Invalid Telegram chat ID or message ID format: chatId=${chatId}, messageId=${messageId}`,
+        );
+      }
+
+      // Create temporary bot instance for API call
+      const TelegramBot = (await import('node-telegram-bot-api')).default;
+      const bot = new TelegramBot(botToken, { polling: false });
+
+      // Telegram Bot API: setMessageReaction with empty array removes all reactions
+      await bot.setMessageReaction(chatIdNum, messageIdNum, {
+        reaction: [],
+      } as any);
+
+      this.logger.debug(
+        `Telegram reaction removed: ${emoji} from message ${messageId} in chat ${chatId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to remove Telegram reaction [${connectionKey}]: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Handle incoming message reactions from Telegram
+   */
+  private async handleMessageReaction(
+    reaction: any,
+    projectId: string,
+    platformId?: string,
+  ) {
+    if (!platformId) return;
+
+    try {
+      // Validate user exists (prevent null pointer exceptions)
+      if (!reaction.user || !reaction.user.id) {
+        this.logger.warn(`Reaction event missing user data, skipping`);
+        return;
+      }
+
+      // reaction structure: { chat, user, message_id, date, old_reaction, new_reaction }
+      const oldReactions = reaction.old_reaction || [];
+      const newReactions = reaction.new_reaction || [];
+
+      // Find added reactions (in new but not in old)
+      const addedReactions = newReactions.filter(
+        (newR: any) =>
+          !oldReactions.some(
+            (oldR: any) =>
+              oldR.type === newR.type &&
+              (oldR.type === 'emoji' ? oldR.emoji === newR.emoji : true),
+          ),
+      );
+
+      // Find removed reactions (in old but not in new)
+      const removedReactions = oldReactions.filter(
+        (oldR: any) =>
+          !newReactions.some(
+            (newR: any) =>
+              newR.type === oldR.type &&
+              (newR.type === 'emoji' ? newR.emoji === oldR.emoji : true),
+          ),
+      );
+
+      // Process added reactions
+      for (const addedReaction of addedReactions) {
+        if (addedReaction.type === 'emoji') {
+          try {
+            const success = await this.messagesService.storeIncomingReaction({
+              projectId,
+              platformId,
+              platform: 'telegram',
+              providerMessageId: reaction.message_id.toString(),
+              providerChatId: reaction.chat.id.toString(),
+              providerUserId: reaction.user.id.toString(),
+              userDisplay:
+                reaction.user.username || reaction.user.first_name || 'Unknown',
+              emoji: addedReaction.emoji,
+              reactionType: ReactionType.added,
+              rawData: reaction,
+            });
+
+            if (success) {
+              this.logger.debug(
+                `Telegram reaction added: ${addedReaction.emoji} by ${reaction.user.id}`,
+              );
+            }
+          } catch (error) {
+            this.logger.error(
+              `Failed to handle Telegram reaction add: ${error.message}`,
+            );
+          }
+        }
+      }
+
+      // Process removed reactions
+      for (const removedReaction of removedReactions) {
+        if (removedReaction.type === 'emoji') {
+          try {
+            const success = await this.messagesService.storeIncomingReaction({
+              projectId,
+              platformId,
+              platform: 'telegram',
+              providerMessageId: reaction.message_id.toString(),
+              providerChatId: reaction.chat.id.toString(),
+              providerUserId: reaction.user.id.toString(),
+              userDisplay:
+                reaction.user.username || reaction.user.first_name || 'Unknown',
+              emoji: removedReaction.emoji,
+              reactionType: ReactionType.removed,
+              rawData: reaction,
+            });
+
+            if (success) {
+              this.logger.debug(
+                `Telegram reaction removed: ${removedReaction.emoji} by ${reaction.user.id}`,
+              );
+            }
+          } catch (error) {
+            this.logger.error(
+              `Failed to handle Telegram reaction remove: ${error.message}`,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Failed to handle message reaction: ${error.message}`);
+    }
   }
 }

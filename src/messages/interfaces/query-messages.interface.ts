@@ -9,4 +9,5 @@ export interface QueryMessagesDto {
   offset?: number;
   order?: 'asc' | 'desc';
   raw?: boolean;
+  reactions?: boolean;
 }

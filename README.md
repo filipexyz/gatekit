@@ -127,11 +127,11 @@ GET    /api/v1/projects/:slug/platforms/logs/stats   # Activity dashboard
 
 Query capabilities programmatically via: `GET /api/v1/platforms/health`
 
-| Platform        | Connection | Send | Receive | Attachments | Embeds | Buttons | Edit | Delete | Reactions | Threads |
-| --------------- | ---------- | ---- | ------- | ----------- | ------ | ------- | ---- | ------ | --------- | ------- |
-| 💬 **Discord**  | WebSocket  | ✅   | ✅      | ✅          | ✅     | ✅      | 🔜   | 🔜     | 🔜        | 🔜      |
-| 📱 **Telegram** | Webhook    | ✅   | ✅      | ✅          | ✅     | ✅      | 🔜   | 🔜     | 🔜        | 🔜      |
-| 💚 **WhatsApp** | Webhook    | ✅   | ✅      | ✅          | ✅     | ❌      | 🔜   | 🔜     | 🔜        | 🔜      |
+| Platform        | Connection | Send | Receive | Attachments | Embeds | Buttons | Reactions | Edit | Delete | Threads |
+| --------------- | ---------- | ---- | ------- | ----------- | ------ | ------- | --------- | ---- | ------ | ------- |
+| 💬 **Discord**  | WebSocket  | ✅   | ✅      | ✅          | ✅     | ✅      | ✅        | 🔜   | 🔜     | 🔜      |
+| 📱 **Telegram** | Webhook    | ✅   | ✅      | ✅          | ✅     | ✅      | ✅        | 🔜   | 🔜     | 🔜      |
+| 💚 **WhatsApp** | Webhook    | ✅   | ✅      | ✅          | ✅     | ❌      | ✅        | 🔜   | 🔜     | 🔜      |
 
 **Legend:** ✅ Available | 🔜 Planned | ❌ Not Supported by Platform
 
@@ -142,6 +142,7 @@ Query capabilities programmatically via: `GET /api/v1/platforms/health`
 - **Attachments** - Send/receive media files (images, videos, documents)
 - **Embeds** - Rich embedded content with graceful cross-platform degradation
 - **Buttons** - Interactive buttons with webhook callbacks (Discord & Telegram)
+- **Reactions** - Send and receive emoji reactions with webhook events (All platforms)
 
 **Embed Features:**
 
@@ -156,6 +157,13 @@ Query capabilities programmatically via: `GET /api/v1/platforms/health`
 - **Telegram** - Inline keyboard buttons with callback data or URLs
 - **Webhook Events** - Dedicated `button.clicked` event delivered to subscribed webhooks
 - **Platform Limits** - Discord: 25 buttons max (5×5 grid); Telegram: ~100 buttons (2 per row recommended)
+
+**Reaction Features:**
+
+- **Discord** - Send/receive Unicode and custom emojis in DMs, channels, and threads
+- **Telegram** - Send in DMs and groups; receive only in groups/channels where bot is admin (Telegram API limitation)
+- **WhatsApp** - Send/receive Unicode emojis in DMs and groups
+- **Webhook Events** - `reaction.added` and `reaction.removed` events delivered to subscribed webhooks
 - **Security** - SSRF protection on all button URLs (HTTPS only)
 
 **Planned Capabilities:**

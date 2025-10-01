@@ -21,6 +21,11 @@ enum ProjectRole {
   viewer
 }
 
+enum ReactionType {
+  added
+  removed
+}
+
 model User {
   id        String   @id @default(uuid())
   auth0Id   String   @unique @map("auth0_id") // Auth0 sub field
@@ -60,6 +65,7 @@ model Project {
   sentMessages      SentMessage[]
   platformLogs      PlatformLog[]
   webhooks          Webhook[]
+  receivedReactions ReceivedReaction[]
 
   // New sharing relationships
   members          ProjectMember[]
@@ -135,6 +141,7 @@ model ProjectPlatform {
   receivedMessages     ReceivedMessage[]
   sentMessages         SentMessage[]
   platformLogs         PlatformLog[]
+  receivedReactions    ReceivedReaction[]
 
   @@index([projectId])
   @@index([webhookToken])
@@ -217,6 +224,35 @@ model SentMessage {
   @@map("sent_messages")
 }
 
+model ReceivedReaction {
+  id                String           @id @default(uuid())
+  projectId         String           @map("project_id")
+  platformId        String           @map("platform_id")
+  platform          String
+  providerMessageId String           @map("provider_message_id")
+  providerChatId    String           @map("provider_chat_id")
+  providerUserId    String           @map("provider_user_id")
+  userDisplay       String?          @map("user_display")
+  emoji             String           @db.VarChar(255)
+  reactionType      ReactionType     @map("reaction_type")
+  rawData           Json             @map("raw_data")
+  receivedAt        DateTime         @default(now()) @map("received_at")
+
+  project           Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  platformConfig    ProjectPlatform  @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@unique([platformId, providerMessageId, providerUserId, emoji, reactionType])
+  @@index([projectId])
+  @@index([platformId])
+  @@index([receivedAt])
+  @@index([providerChatId])
+  @@index([providerUserId])
+  @@index([providerMessageId])
+  @@index([reactionType])
+  @@index([projectId, providerMessageId, providerUserId, reactionType, receivedAt])
+  @@map("received_reactions")
+}
+
 model PlatformLog {
   id          String   @id @default(uuid())
   projectId   String   @map("project_id")
@@ -245,7 +281,7 @@ model Webhook {
   projectId   String   @map("project_id")
   name        String
   url         String
-  events      String[] // ['message.received', 'message.sent', 'message.failed']
+  events      String[] // ['message.received', 'message.sent', 'message.failed', 'reaction.added', 'reaction.removed']
   secret      String   // Auto-generated or user-provided (whsec_...)
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -262,7 +298,7 @@ model Webhook {
 model WebhookDelivery {
   id            String    @id @default(uuid())
   webhookId     String    @map("webhook_id")
-  event         String    // 'message.received', 'message.sent', 'message.failed'
+  event         String    // 'message.received', 'message.sent', 'message.failed', 'reaction.added', 'reaction.removed'
   payload       Json      // Full event payload
   responseCode  Int?      @map("response_code")
   responseBody  String?   @map("response_body") @db.Text

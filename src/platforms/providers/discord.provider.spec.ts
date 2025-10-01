@@ -5,6 +5,7 @@ import { DiscordProvider } from './discord.provider';
 import { EVENT_BUS } from '../interfaces/event-bus.interface';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
+import { MessagesService } from '../messages/messages.service';
 
 describe('DiscordProvider', () => {
   let provider: DiscordProvider;
@@ -37,6 +38,10 @@ describe('DiscordProvider', () => {
     deliverEvent: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockMessagesService = {
+    storeIncomingMessage: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -56,6 +61,10 @@ describe('DiscordProvider', () => {
         {
           provide: WebhookDeliveryService,
           useValue: mockWebhookDeliveryService,
+        },
+        {
+          provide: MessagesService,
+          useValue: mockMessagesService,
         },
       ],
     }).compile();

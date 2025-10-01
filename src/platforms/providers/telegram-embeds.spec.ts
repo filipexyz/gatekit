@@ -5,6 +5,7 @@ import { EVENT_BUS } from '../interfaces/event-bus.interface';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PlatformLogsService } from '../services/platform-logs.service';
 import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
+import { MessagesService } from '../messages/messages.service';
 
 describe('TelegramProvider - Embed Transformation', () => {
   let provider: TelegramProvider;
@@ -38,6 +39,10 @@ describe('TelegramProvider - Embed Transformation', () => {
     deliverWebhook: jest.fn(),
   };
 
+  const mockMessagesService = {
+    storeIncomingMessage: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -61,6 +66,10 @@ describe('TelegramProvider - Embed Transformation', () => {
         {
           provide: WebhookDeliveryService,
           useValue: mockWebhookDeliveryService,
+        },
+        {
+          provide: MessagesService,
+          useValue: mockMessagesService,
         },
       ],
     }).compile();

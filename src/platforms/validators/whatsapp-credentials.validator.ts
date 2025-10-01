@@ -45,21 +45,21 @@ export class WhatsAppCredentialsValidator
       );
     }
 
-    // Optional field: instanceName
-    if (credentials.instanceName) {
-      if (typeof credentials.instanceName !== 'string') {
-        errors.push('Instance name must be a string');
-      } else {
-        // Validate instance name format (alphanumeric, hyphens, underscores only)
-        const instanceNamePattern = /^[a-zA-Z0-9_-]+$/;
-        if (!instanceNamePattern.test(credentials.instanceName)) {
-          errors.push(
-            'Instance name can only contain letters, numbers, hyphens, and underscores',
-          );
-        }
-        if (credentials.instanceName.length > 50) {
-          errors.push('Instance name must be 50 characters or less');
-        }
+    // Required field: instanceName
+    if (!credentials.instanceName) {
+      errors.push('Instance name is required');
+    } else if (typeof credentials.instanceName !== 'string') {
+      errors.push('Instance name must be a string');
+    } else {
+      // Validate instance name format (alphanumeric, hyphens, underscores only)
+      const instanceNamePattern = /^[a-zA-Z0-9_-]+$/;
+      if (!instanceNamePattern.test(credentials.instanceName)) {
+        errors.push(
+          'Instance name can only contain letters, numbers, hyphens, and underscores',
+        );
+      }
+      if (credentials.instanceName.length > 50) {
+        errors.push('Instance name must be 50 characters or less');
       }
     }
 
@@ -133,11 +133,11 @@ export class WhatsAppCredentialsValidator
   }
 
   getRequiredFields(): string[] {
-    return ['evolutionApiUrl', 'evolutionApiKey'];
+    return ['evolutionApiUrl', 'evolutionApiKey', 'instanceName'];
   }
 
   getOptionalFields(): string[] {
-    return ['instanceName', 'webhookEvents', 'qrCodeTimeout'];
+    return ['webhookEvents', 'qrCodeTimeout'];
   }
 
   getExampleCredentials(): Record<string, any> {
