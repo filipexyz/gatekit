@@ -20,6 +20,7 @@ import { DocsModule } from './docs/docs.module';
 import { MessagesModule } from './messages/messages.module';
 import { UsersModule } from './users/users.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { IdentitiesModule } from './identities/identities.module';
 import { sentryConfig } from './config/sentry.config';
 
 @Module({
@@ -98,6 +99,7 @@ import { sentryConfig } from './config/sentry.config';
     MessagesModule,
     UsersModule,
     WebhooksModule,
+    IdentitiesModule,
   ],
   controllers: [AppController],
   providers: [

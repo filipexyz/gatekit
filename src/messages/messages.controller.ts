@@ -359,8 +359,13 @@ export class MessagesController {
   async getSentMessages(
     @Param('projectSlug') projectSlug: string,
     @Query() query: any,
+    @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.messagesService.getSentMessages(projectSlug, query);
+    return this.messagesService.getSentMessages(
+      projectSlug,
+      query,
+      authContext,
+    );
   }
 
   @Post('react')

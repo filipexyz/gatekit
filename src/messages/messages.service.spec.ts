@@ -29,6 +29,10 @@ describe('MessagesService', () => {
       findMany: jest.fn(),
       count: jest.fn(),
     },
+    identityAlias: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -46,6 +50,7 @@ describe('MessagesService', () => {
     prisma = module.get<PrismaService>(PrismaService);
 
     jest.clearAllMocks();
+    mockPrismaService.identityAlias.findMany.mockResolvedValue([]);
   });
 
   describe('getMessages', () => {
@@ -85,6 +90,8 @@ describe('MessagesService', () => {
 
     beforeEach(() => {
       mockPrismaService.project.findUnique.mockResolvedValue(mockProject);
+      // Mock identity resolution to return null (no identity linked)
+      mockPrismaService.identityAlias.findUnique.mockResolvedValue(null);
     });
 
     it('should return all messages when no filters applied', async () => {
@@ -428,6 +435,7 @@ describe('MessagesService', () => {
     it('should include reactions when reactions=true', async () => {
       const mockReactions = [
         {
+          platformId: 'platform-1',
           providerMessageId: 'discord-msg-1',
           providerUserId: 'user-789',
           userDisplay: 'Alice',
@@ -436,6 +444,7 @@ describe('MessagesService', () => {
           receivedAt: new Date('2024-01-01T10:00:00Z'),
         },
         {
+          platformId: 'platform-1',
           providerMessageId: 'discord-msg-1',
           providerUserId: 'user-456',
           userDisplay: 'Bob',
@@ -444,6 +453,7 @@ describe('MessagesService', () => {
           receivedAt: new Date('2024-01-01T10:01:00Z'),
         },
         {
+          platformId: 'platform-1',
           providerMessageId: 'discord-msg-1',
           providerUserId: 'user-321',
           userDisplay: 'Charlie',
@@ -452,6 +462,7 @@ describe('MessagesService', () => {
           receivedAt: new Date('2024-01-01T10:02:00Z'),
         },
         {
+          platformId: 'platform-2',
           providerMessageId: 'telegram-msg-1',
           providerUserId: 'user-111',
           userDisplay: null,
@@ -483,6 +494,7 @@ describe('MessagesService', () => {
           providerMessageId: { in: ['discord-msg-1', 'telegram-msg-1'] },
         },
         select: {
+          platformId: true,
           providerMessageId: true,
           providerUserId: true,
           userDisplay: true,
@@ -496,14 +508,14 @@ describe('MessagesService', () => {
       // Verify reactions are grouped correctly
       expect(result.messages[0].reactions).toEqual({
         '👍': [
-          { id: 'user-789', name: 'Alice' },
-          { id: 'user-456', name: 'Bob' },
+          { id: 'user-789', name: 'Alice', identity: null },
+          { id: 'user-456', name: 'Bob', identity: null },
         ],
-        '❤️': [{ id: 'user-321', name: 'Charlie' }],
+        '❤️': [{ id: 'user-321', name: 'Charlie', identity: null }],
       });
 
       expect(result.messages[1].reactions).toEqual({
-        '🔥': [{ id: 'user-111', name: 'user-111' }], // Falls back to ID when no display name
+        '🔥': [{ id: 'user-111', name: 'user-111', identity: null }], // Falls back to ID when no display name
       });
     });
 
@@ -552,6 +564,7 @@ describe('MessagesService', () => {
       const mockReactions = [
         // User added 👍 then removed it (latest is removed)
         {
+          platformId: 'platform-1',
           providerMessageId: 'discord-msg-1',
           providerUserId: 'user-789',
           userDisplay: 'Alice',
@@ -560,6 +573,7 @@ describe('MessagesService', () => {
           receivedAt: new Date('2024-01-01T10:05:00Z'),
         },
         {
+          platformId: 'platform-1',
           providerMessageId: 'discord-msg-1',
           providerUserId: 'user-789',
           userDisplay: 'Alice',
@@ -569,6 +583,7 @@ describe('MessagesService', () => {
         },
         // User added ❤️ and kept it (latest is added)
         {
+          platformId: 'platform-1',
           providerMessageId: 'discord-msg-1',
           providerUserId: 'user-456',
           userDisplay: 'Bob',
@@ -594,7 +609,7 @@ describe('MessagesService', () => {
 
       // Should only show ❤️ (not 👍, since it was removed)
       expect(result.messages[0].reactions).toEqual({
-        '❤️': [{ id: 'user-456', name: 'Bob' }],
+        '❤️': [{ id: 'user-456', name: 'Bob', identity: null }],
       });
     });
 
@@ -602,6 +617,7 @@ describe('MessagesService', () => {
       const mockReactions = [
         // Latest: added (should show)
         {
+          platformId: 'platform-1',
           providerMessageId: 'discord-msg-1',
           providerUserId: 'user-789',
           userDisplay: 'Alice',
@@ -611,6 +627,7 @@ describe('MessagesService', () => {
         },
         // Middle: removed
         {
+          platformId: 'platform-1',
           providerMessageId: 'discord-msg-1',
           providerUserId: 'user-789',
           userDisplay: 'Alice',
@@ -620,6 +637,7 @@ describe('MessagesService', () => {
         },
         // Oldest: added
         {
+          platformId: 'platform-1',
           providerMessageId: 'discord-msg-1',
           providerUserId: 'user-789',
           userDisplay: 'Alice',
@@ -645,7 +663,7 @@ describe('MessagesService', () => {
 
       // Should show 👍 because latest event is 'added'
       expect(result.messages[0].reactions).toEqual({
-        '👍': [{ id: 'user-789', name: 'Alice' }],
+        '👍': [{ id: 'user-789', name: 'Alice', identity: null }],
       });
     });
   });
@@ -665,6 +683,7 @@ describe('MessagesService', () => {
 
       const mockReactions = [
         {
+          platformId: 'platform-1',
           providerUserId: 'user-789',
           userDisplay: 'Alice',
           emoji: '👍',
@@ -672,6 +691,7 @@ describe('MessagesService', () => {
           receivedAt: new Date('2024-01-01T10:00:00Z'),
         },
         {
+          platformId: 'platform-1',
           providerUserId: 'user-456',
           userDisplay: 'Bob',
           emoji: '👍',
@@ -679,6 +699,7 @@ describe('MessagesService', () => {
           receivedAt: new Date('2024-01-01T10:01:00Z'),
         },
         {
+          platformId: 'platform-1',
           providerUserId: 'user-321',
           userDisplay: null,
           emoji: '❤️',
@@ -722,6 +743,7 @@ describe('MessagesService', () => {
           providerMessageId: 'discord-msg-1',
         },
         select: {
+          platformId: true,
           providerUserId: true,
           userDisplay: true,
           emoji: true,
@@ -733,10 +755,10 @@ describe('MessagesService', () => {
 
       expect(result.reactions).toEqual({
         '👍': [
-          { id: 'user-789', name: 'Alice' },
-          { id: 'user-456', name: 'Bob' },
+          { id: 'user-789', name: 'Alice', identity: null },
+          { id: 'user-456', name: 'Bob', identity: null },
         ],
-        '❤️': [{ id: 'user-321', name: 'user-321' }], // Falls back to ID
+        '❤️': [{ id: 'user-321', name: 'user-321', identity: null }], // Falls back to ID
       });
     });
 

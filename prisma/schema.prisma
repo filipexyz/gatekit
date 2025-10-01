@@ -26,6 +26,11 @@ enum ReactionType {
   removed
 }
 
+enum IdentityLinkMethod {
+  manual
+  automatic
+}
+
 model User {
   id        String   @id @default(uuid())
   auth0Id   String   @unique @map("auth0_id") // Auth0 sub field
@@ -69,6 +74,10 @@ model Project {
 
   // New sharing relationships
   members          ProjectMember[]
+
+  // Identity relationships
+  identities       Identity[]
+  identityAliases  IdentityAlias[]
 
   @@index([ownerId])
   @@map("projects")
@@ -142,6 +151,7 @@ model ProjectPlatform {
   sentMessages         SentMessage[]
   platformLogs         PlatformLog[]
   receivedReactions    ReceivedReaction[]
+  identityAliases      IdentityAlias[]
 
   @@index([projectId])
   @@index([webhookToken])
@@ -190,6 +200,7 @@ model ReceivedMessage {
   @@index([receivedAt])
   @@index([providerChatId])
   @@index([providerUserId])
+  @@index([platformId, providerUserId])
   @@map("received_messages")
 }
 
@@ -249,6 +260,7 @@ model ReceivedReaction {
   @@index([providerUserId])
   @@index([providerMessageId])
   @@index([reactionType])
+  @@index([platformId, providerUserId])
   @@index([projectId, providerMessageId, providerUserId, reactionType, receivedAt])
   @@map("received_reactions")
 }
@@ -315,4 +327,55 @@ model WebhookDelivery {
   @@index([status])
   @@index([event])
   @@map("webhook_deliveries")
+}
+
+// Universal identity for users across platforms
+model Identity {
+  id            String   @id @default(uuid())
+  projectId     String   @map("project_id")
+
+  // User-provided metadata
+  displayName   String?  @map("display_name")
+  email         String?
+  metadata      Json?    // Custom fields (tags, properties, etc.)
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  aliases       IdentityAlias[]
+
+  @@index([projectId])
+  @@index([projectId, email])
+  @@index([projectId, displayName])
+  @@map("identities")
+}
+
+// Platform-specific user identifiers linked to universal identity
+model IdentityAlias {
+  id                  String               @id @default(uuid())
+  identityId          String               @map("identity_id")
+  projectId           String               @map("project_id")
+  platformId          String               @map("platform_id")
+  platform            String               // discord, telegram, whatsapp-evo
+
+  // Platform-specific identifiers
+  providerUserId      String               @map("provider_user_id")
+  providerUserDisplay String?              @map("provider_user_display")
+
+  // Link metadata
+  linkedAt            DateTime             @default(now()) @map("linked_at")
+  linkMethod          IdentityLinkMethod   @default(manual) @map("link_method")
+
+  identity            Identity             @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  project             Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  platformConfig      ProjectPlatform      @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  // Ensure one alias per platform user
+  @@unique([platformId, providerUserId])
+  @@index([identityId])
+  @@index([projectId])
+  @@index([providerUserId])
+  @@index([platformId, providerUserId])
+  @@map("identity_aliases")
 }

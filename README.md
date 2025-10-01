@@ -33,16 +33,18 @@
 
 - **Received Messages** - Every incoming message from Discord, Telegram, WhatsApp, etc.
 - **Sent Messages** - Complete delivery tracking with success/failure status
+- **Universal Identities** - Cross-platform user identity mapping and resolution
 - **Platform Logs** - All messaging activity with rich debugging metadata
-- **User Conversations** - Unified message history across all platforms
+- **User Conversations** - Unified message history across all platforms with identity linking
 
 ### **🔌 What We Provide:**
 
 - **Universal Send API** - Send to Discord, Telegram, WhatsApp with identical code
-- **Conversation History** - Query user conversations across platforms
+- **Conversation History** - Query user conversations across platforms with identity resolution
+- **Identity Management** - Create, link, and query cross-platform user identities
 - **Platform Management** - Configure bots, update tokens, monitor health
 - **User & Project Management** - Multi-tenant with role-based access
-- **Auto-Generated Clients** - SDK, CLI, and API docs from single source
+- **Auto-Generated Clients** - SDK, CLI, n8n nodes, and OpenAPI from single source
 
 ### **🤖 Perfect for AI Agents:**
 
@@ -85,11 +87,12 @@ class YourAIAgent {
 
 - **User-Linked Projects** - Multi-tenant with `owner`/`admin`/`member`/`viewer` roles
 - **Platform Providers** - Discord (WebSocket), Telegram (Webhook), WhatsApp (Evolution API) production-ready
+- **Universal Identity System** - Cross-platform user identity mapping with automatic resolution
 - **Message Queue** - BullMQ with Redis for reliable cross-platform delivery
 - **Attachment Support** - URL and base64 media across all platforms (Discord, Telegram, WhatsApp)
 - **Enhanced Logging** - Platform activity monitoring with structured metadata
 - **Credential Validation** - Platform-specific format validation (bot tokens, etc.)
-- **Auto-Generated Clients** - Contract-driven SDK/CLI generation
+- **Auto-Generated Clients** - Contract-driven SDK/CLI/n8n/OpenAPI generation from single source
 
 ### **📡 Production APIs Available:**
 
@@ -109,9 +112,18 @@ GET    /api/v1/projects/:slug/platforms         # List configured bots
 POST   /api/v1/projects/:slug/platforms         # Add bot integration
 PATCH  /api/v1/projects/:slug/platforms/:id     # Update bot tokens
 
+# Identity Management (Cross-Platform Users)
+GET    /api/v1/projects/:slug/identities              # List identities
+POST   /api/v1/projects/:slug/identities              # Create identity
+GET    /api/v1/projects/:slug/identities/:id          # Get identity details
+PATCH  /api/v1/projects/:slug/identities/:id          # Update identity
+POST   /api/v1/projects/:slug/identities/:id/aliases  # Link platform account
+GET    /api/v1/projects/:slug/identities/lookup       # Lookup by platform user
+GET    /api/v1/projects/:slug/identities/:id/messages # Get all messages for identity
+
 # Conversation History (Ready for Agents)
-GET    /api/v1/projects/:slug/messages          # Query received messages
-GET    /api/v1/projects/:slug/messages/sent     # Query sent messages
+GET    /api/v1/projects/:slug/messages          # Query received messages (with identity)
+GET    /api/v1/projects/:slug/messages/sent     # Query sent messages (with identity)
 
 # Webhook Notifications (Event Subscriptions)
 POST   /api/v1/projects/:slug/webhooks          # Subscribe to events
@@ -245,12 +257,14 @@ const logs = await gk.platformLogs.list('project', { category: 'message' });
 
 ## 📊 **Production Stats**
 
-- **✅ 544 tests passing** - Full coverage including webhooks
-- **✅ 35 API endpoints** - Auto-generated SDK/CLI/n8n
-- **✅ 3 platform providers** - Discord, Telegram, WhatsApp-Evo
+- **✅ 656 tests passing** - Comprehensive coverage including identity resolution
+- **✅ 35+ API endpoints** - Auto-generated SDK/CLI/n8n/OpenAPI
+- **✅ 3 platform providers** - Discord, Telegram, WhatsApp-Evo (production-ready)
+- **✅ Universal identity system** - Cross-platform user identity mapping
 - **✅ Webhook notifications** - Event subscriptions with HMAC signatures
-- **✅ Message storage** - Complete conversation history
-- **✅ Activity monitoring** - Rich platform logs
+- **✅ Message storage** - Complete conversation history with batch resolution
+- **✅ Activity monitoring** - Rich platform logs with structured metadata
+- **✅ Defense-in-depth security** - Multi-layer validation with guard bypass detection
 
 ## ⚠️ **AI Development Disclaimers**
 
