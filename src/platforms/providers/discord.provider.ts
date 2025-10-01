@@ -28,6 +28,7 @@ import { CryptoUtil } from '../../common/utils/crypto.util';
 import { AttachmentUtil } from '../../common/utils/attachment.util';
 import { PlatformCapability } from '../enums/platform-capability.enum';
 import { UrlValidationUtil } from '../../common/utils/url-validation.util';
+import { ProviderUtil } from './provider.util';
 import {
   EmbedDto,
   ButtonDto,
@@ -121,9 +122,10 @@ export class DiscordProvider
 
         try {
           // Decrypt credentials
-          const credentials = JSON.parse(
-            CryptoUtil.decrypt(platform.credentialsEncrypted),
-          );
+          const credentials =
+            ProviderUtil.decryptPlatformCredentials<DiscordCredentials>(
+              platform.credentialsEncrypted,
+            );
 
           await this.createAdapter(connectionKey, credentials);
           this.logger.log(

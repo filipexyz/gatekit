@@ -14,6 +14,7 @@ import { CredentialMaskUtil } from '../common/utils/credential-mask.util';
 import { CredentialValidationService } from './services/credential-validation.service';
 import { PlatformRegistry } from './services/platform-registry.service';
 import { PlatformLifecycleEvent } from './interfaces/platform-provider.interface';
+import { ProviderUtil } from './providers/provider.util';
 import TelegramBot = require('node-telegram-bot-api');
 
 @Injectable()
@@ -176,8 +177,8 @@ export class PlatformsService {
     }
 
     // Decrypt credentials and mask sensitive values
-    const decryptedCredentials = JSON.parse(
-      CryptoUtil.decrypt(platform.credentialsEncrypted),
+    const decryptedCredentials = ProviderUtil.decryptPlatformCredentials(
+      platform.credentialsEncrypted,
     );
     const maskedCredentials =
       CredentialMaskUtil.maskCredentials(decryptedCredentials);
@@ -273,8 +274,8 @@ export class PlatformsService {
     let credentials = updatePlatformDto.credentials;
     if (!credentials) {
       try {
-        credentials = JSON.parse(
-          CryptoUtil.decrypt(existingPlatform.credentialsEncrypted),
+        credentials = ProviderUtil.decryptPlatformCredentials(
+          existingPlatform.credentialsEncrypted,
         );
       } catch (error) {
         this.logger.warn(
@@ -331,8 +332,8 @@ export class PlatformsService {
     // Get credentials before deletion for cleanup event
     let credentials: any = {};
     try {
-      credentials = JSON.parse(
-        CryptoUtil.decrypt(platform.credentialsEncrypted),
+      credentials = ProviderUtil.decryptPlatformCredentials(
+        platform.credentialsEncrypted,
       );
     } catch (error) {
       this.logger.warn(
@@ -376,7 +377,9 @@ export class PlatformsService {
     }
 
     // No need to check isActive again since we already filtered by it in the query
-    return JSON.parse(CryptoUtil.decrypt(projectPlatform.credentialsEncrypted));
+    return ProviderUtil.decryptPlatformCredentials(
+      projectPlatform.credentialsEncrypted,
+    );
   }
 
   async getProjectPlatform(platformId: string) {
@@ -407,8 +410,8 @@ export class PlatformsService {
       // Decrypt credentials with timeout
       let decryptedCredentials;
       try {
-        decryptedCredentials = JSON.parse(
-          CryptoUtil.decrypt(platform.credentialsEncrypted),
+        decryptedCredentials = ProviderUtil.decryptPlatformCredentials(
+          platform.credentialsEncrypted,
         );
       } catch (error) {
         throw new BadRequestException('Failed to decrypt platform credentials');
@@ -505,8 +508,8 @@ export class PlatformsService {
     }
 
     // Decrypt credentials
-    const credentials = JSON.parse(
-      CryptoUtil.decrypt(platform.credentialsEncrypted),
+    const credentials = ProviderUtil.decryptPlatformCredentials(
+      platform.credentialsEncrypted,
     );
 
     if (platform.platform === 'telegram') {
