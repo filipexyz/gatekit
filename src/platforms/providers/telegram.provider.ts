@@ -22,6 +22,7 @@ import { PlatformCapability } from '../enums/platform-capability.enum';
 import { EmbedDto } from '../dto/send-message.dto';
 import { UrlValidationUtil } from '../../common/utils/url-validation.util';
 import { ProviderUtil } from './provider.util';
+import { EmbedTransformerUtil } from '../utils/embed-transformer.util';
 import { ReactionType } from '@prisma/client';
 import { MessagesService } from '../messages/messages.service';
 
@@ -867,63 +868,50 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
   private async transformToTelegramEmbed(
     embed: EmbedDto,
   ): Promise<{ text: string; photo?: string }> {
+    // Use centralized validation utility
+    const embedData = await EmbedTransformerUtil.validateAndProcessEmbed(
+      embed,
+      this.logger,
+    );
+
     const parts: string[] = [];
 
     // Author (header section)
-    if (embed.author) {
-      if (embed.author.url) {
-        try {
-          await UrlValidationUtil.validateUrl(
-            embed.author.url,
-            'embed author URL',
-          );
-          parts.push(
-            `📬 <a href="${this.escapeHtml(embed.author.url)}">${this.escapeHtml(embed.author.name)}</a>`,
-          );
-        } catch (error) {
-          this.logger.warn(
-            `Invalid or unsafe author URL: ${embed.author.url}, skipping link. ${error.message}`,
-          );
-          parts.push(`📬 ${this.escapeHtml(embed.author.name)}`);
-        }
+    if (embedData.author) {
+      if (embedData.author.url) {
+        parts.push(
+          `📬 <a href="${this.escapeHtml(embedData.author.url)}">${this.escapeHtml(embedData.author.name)}</a>`,
+        );
       } else {
-        parts.push(`📬 ${this.escapeHtml(embed.author.name)}`);
+        parts.push(`📬 ${this.escapeHtml(embedData.author.name)}`);
       }
       parts.push('━━━━━━━━━━━━━━━━━');
     }
 
     // Title (bold) with optional URL
-    if (embed.title) {
-      if (embed.url) {
-        try {
-          await UrlValidationUtil.validateUrl(embed.url, 'embed URL');
-          parts.push(
-            `<b><a href="${this.escapeHtml(embed.url)}">${this.escapeHtml(embed.title)}</a></b>`,
-          );
-        } catch (error) {
-          this.logger.warn(
-            `Invalid or unsafe embed URL: ${embed.url}, skipping link. ${error.message}`,
-          );
-          parts.push(`<b>${this.escapeHtml(embed.title)}</b>`);
-        }
+    if (embedData.title) {
+      if (embedData.titleUrl) {
+        parts.push(
+          `<b><a href="${this.escapeHtml(embedData.titleUrl)}">${this.escapeHtml(embedData.title)}</a></b>`,
+        );
       } else {
-        parts.push(`<b>${this.escapeHtml(embed.title)}</b>`);
+        parts.push(`<b>${this.escapeHtml(embedData.title)}</b>`);
       }
     }
 
     // Description
-    if (embed.description) {
-      parts.push(this.escapeHtml(embed.description));
+    if (embedData.description) {
+      parts.push(this.escapeHtml(embedData.description));
     }
 
     // Fields (structured data)
-    if (embed.fields && embed.fields.length > 0) {
+    if (embedData.fields.length > 0) {
       parts.push('━━━━━━━━━━━━━━━━━');
 
       const fieldLines: string[] = [];
       let inlineBuffer: string[] = [];
 
-      for (const field of embed.fields) {
+      for (const field of embedData.fields) {
         const fieldText = `<b>${this.escapeHtml(field.name)}:</b> ${this.escapeHtml(field.value)}`;
 
         if (field.inline) {
@@ -953,33 +941,30 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     }
 
     // Footer and timestamp
-    if (embed.footer || embed.timestamp) {
+    if (embedData.footer || embedData.timestamp) {
       parts.push('━━━━━━━━━━━━━━━━━');
 
-      if (embed.timestamp) {
-        const date = new Date(embed.timestamp);
-        if (!isNaN(date.getTime())) {
-          const formattedDate = date.toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          });
-          parts.push(`⏰ ${formattedDate}`);
-        }
+      if (embedData.timestamp) {
+        const formattedDate = embedData.timestamp.toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        parts.push(`⏰ ${formattedDate}`);
       }
 
-      if (embed.footer) {
-        parts.push(`💡 ${this.escapeHtml(embed.footer.text)}`);
+      if (embedData.footer) {
+        parts.push(`💡 ${this.escapeHtml(embedData.footer.text)}`);
       }
     }
 
     const text = parts.join('\n\n');
-    const photo = embed.imageUrl || embed.thumbnailUrl;
+    const photo = embedData.imageUrl || embedData.thumbnailUrl;
 
     this.logger.debug(
-      `Transformed embed to Telegram format: ${embed.title || 'Untitled'}, photo: ${!!photo}`,
+      `Transformed embed to Telegram format: ${embedData.title || 'Untitled'}, photo: ${!!photo}`,
     );
 
     return { text, photo };

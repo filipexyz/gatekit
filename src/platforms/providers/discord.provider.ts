@@ -29,6 +29,7 @@ import { AttachmentUtil } from '../../common/utils/attachment.util';
 import { PlatformCapability } from '../enums/platform-capability.enum';
 import { UrlValidationUtil } from '../../common/utils/url-validation.util';
 import { ProviderUtil } from './provider.util';
+import { EmbedTransformerUtil } from '../utils/embed-transformer.util';
 import {
   EmbedDto,
   ButtonDto,
@@ -705,168 +706,95 @@ export class DiscordProvider
   private async transformToDiscordEmbed(
     embed: EmbedDto,
   ): Promise<EmbedBuilder> {
+    // Use centralized validation utility
+    const embedData = await EmbedTransformerUtil.validateAndProcessEmbed(
+      embed,
+      this.logger,
+    );
+
     const builder = new EmbedBuilder();
 
-    if (embed.title) {
-      builder.setTitle(embed.title);
+    // Set basic properties
+    if (embedData.title) {
+      builder.setTitle(embedData.title);
     }
 
-    if (embed.description) {
-      builder.setDescription(embed.description);
+    if (embedData.description) {
+      builder.setDescription(embedData.description);
     }
 
-    if (embed.color && embed.color.length > 0) {
-      // Support both hex (#FF5733) and decimal (16734003) formats
-      const colorValue = embed.color.startsWith('#')
-        ? parseInt(embed.color.slice(1), 16)
-        : parseInt(embed.color, 10);
-
-      // Validate color is a valid number in range 0x000000 to 0xFFFFFF
-      if (!isNaN(colorValue) && colorValue >= 0 && colorValue <= 0xffffff) {
-        builder.setColor(colorValue);
-      } else {
-        this.logger.warn(
-          `Invalid Discord color value: ${embed.color}, skipping color`,
-        );
-      }
+    // Parse and set color (supports both hex #FF5733 and decimal 16734003)
+    const colorValue = EmbedTransformerUtil.parseDiscordColor(
+      embedData.color,
+      this.logger,
+    );
+    if (colorValue !== null) {
+      builder.setColor(colorValue);
     }
 
-    // URL - makes title clickable
-    if (embed.url) {
-      try {
-        await UrlValidationUtil.validateUrl(embed.url, 'embed URL');
-        builder.setURL(embed.url);
-      } catch (error) {
-        this.logger.warn(
-          `Invalid or unsafe URL: ${embed.url}, skipping. ${error.message}`,
-        );
-      }
+    // Set validated URLs
+    if (embedData.titleUrl) {
+      builder.setURL(embedData.titleUrl);
     }
 
-    if (embed.imageUrl) {
-      // Validate URL before setting (SSRF protection)
-      try {
-        await UrlValidationUtil.validateUrl(embed.imageUrl, 'embed image');
-        builder.setImage(embed.imageUrl);
-      } catch (error) {
-        this.logger.warn(
-          `Invalid or unsafe imageUrl: ${embed.imageUrl}, skipping. ${error.message}`,
-        );
-      }
+    if (embedData.imageUrl) {
+      builder.setImage(embedData.imageUrl);
     }
 
-    if (embed.thumbnailUrl) {
-      // Validate URL before setting (SSRF protection)
-      try {
-        await UrlValidationUtil.validateUrl(
-          embed.thumbnailUrl,
-          'embed thumbnail',
-        );
-        builder.setThumbnail(embed.thumbnailUrl);
-      } catch (error) {
-        this.logger.warn(
-          `Invalid or unsafe thumbnailUrl: ${embed.thumbnailUrl}, skipping. ${error.message}`,
-        );
-      }
+    if (embedData.thumbnailUrl) {
+      builder.setThumbnail(embedData.thumbnailUrl);
     }
 
-    // Author - header with icon and name
-    if (embed.author) {
+    // Set author with validated URLs
+    if (embedData.author) {
       const authorOptions: { name: string; url?: string; iconURL?: string } = {
-        name: embed.author.name,
+        name: embedData.author.name,
       };
 
-      if (embed.author.url) {
-        try {
-          await UrlValidationUtil.validateUrl(embed.author.url, 'author URL');
-          authorOptions.url = embed.author.url;
-        } catch (error) {
-          this.logger.warn(
-            `Invalid or unsafe author URL: ${embed.author.url}, skipping URL`,
-          );
-        }
+      if (embedData.author.url) {
+        authorOptions.url = embedData.author.url;
       }
 
-      if (embed.author.iconUrl) {
-        try {
-          await UrlValidationUtil.validateUrl(
-            embed.author.iconUrl,
-            'author icon',
-          );
-          authorOptions.iconURL = embed.author.iconUrl;
-        } catch (error) {
-          this.logger.warn(
-            `Invalid or unsafe author iconUrl: ${embed.author.iconUrl}, skipping icon`,
-          );
-        }
+      if (embedData.author.iconUrl) {
+        authorOptions.iconURL = embedData.author.iconUrl;
       }
 
       builder.setAuthor(authorOptions);
     }
 
-    // Footer - bottom text with optional icon
-    if (embed.footer) {
+    // Set footer with validated URLs
+    if (embedData.footer) {
       const footerOptions: { text: string; iconURL?: string } = {
-        text: embed.footer.text,
+        text: embedData.footer.text,
       };
 
-      if (embed.footer.iconUrl) {
-        try {
-          await UrlValidationUtil.validateUrl(
-            embed.footer.iconUrl,
-            'footer icon',
-          );
-          footerOptions.iconURL = embed.footer.iconUrl;
-        } catch (error) {
-          this.logger.warn(
-            `Invalid or unsafe footer iconUrl: ${embed.footer.iconUrl}, skipping icon`,
-          );
-        }
+      if (embedData.footer.iconUrl) {
+        footerOptions.iconURL = embedData.footer.iconUrl;
       }
 
       builder.setFooter(footerOptions);
     }
 
-    // Timestamp - shows relative time
-    if (embed.timestamp) {
-      try {
-        const date = new Date(embed.timestamp);
-        if (!isNaN(date.getTime())) {
-          builder.setTimestamp(date);
-        } else {
-          this.logger.warn(
-            `Invalid timestamp: ${embed.timestamp}, skipping timestamp`,
-          );
-        }
-      } catch (error) {
-        this.logger.warn(
-          `Failed to parse timestamp: ${embed.timestamp}, skipping. ${error.message}`,
-        );
-      }
+    // Set timestamp
+    if (embedData.timestamp) {
+      builder.setTimestamp(embedData.timestamp);
     }
 
-    // Fields - structured key-value data
-    if (embed.fields && embed.fields.length > 0) {
-      // Discord limit: 25 fields max
-      const fieldsToAdd = embed.fields.slice(0, 25);
+    // Add fields (Discord limit: 25 fields max)
+    if (embedData.fields.length > 0) {
+      const fieldsToAdd = embedData.fields.slice(0, 25);
 
-      if (embed.fields.length > 25) {
+      if (embedData.fields.length > 25) {
         this.logger.warn(
-          `Embed has ${embed.fields.length} fields, Discord limit is 25. Truncating.`,
+          `Embed has ${embedData.fields.length} fields, Discord limit is 25. Truncating.`,
         );
       }
 
-      builder.addFields(
-        fieldsToAdd.map((field) => ({
-          name: field.name,
-          value: field.value,
-          inline: field.inline ?? false,
-        })),
-      );
+      builder.addFields(fieldsToAdd);
     }
 
     this.logger.debug(
-      `Transformed embed to Discord format: ${embed.title || 'Untitled'}`,
+      `Transformed embed to Discord format: ${embedData.title || 'Untitled'}`,
     );
 
     return builder;

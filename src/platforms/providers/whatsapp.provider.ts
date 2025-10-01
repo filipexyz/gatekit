@@ -21,6 +21,7 @@ import { UrlValidationUtil } from '../../common/utils/url-validation.util';
 import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
 import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
 import { ProviderUtil } from './provider.util';
+import { EmbedTransformerUtil } from '../utils/embed-transformer.util';
 import { ReactionType } from '@prisma/client';
 import { MessagesService } from '../messages/messages.service';
 
@@ -1052,61 +1053,50 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
   private async transformToWhatsAppEmbed(
     embed: EmbedDto,
   ): Promise<{ text: string; media?: string }> {
+    // Use centralized validation utility
+    const embedData = await EmbedTransformerUtil.validateAndProcessEmbed(
+      embed,
+      this.logger,
+    );
+
     const parts: string[] = [];
 
     // Author (header section)
-    if (embed.author) {
-      if (embed.author.url) {
-        try {
-          await UrlValidationUtil.validateUrl(
-            embed.author.url,
-            'embed author URL',
-          );
-          parts.push(
-            `📬 *${this.escapeMarkdown(embed.author.name)}*\n${embed.author.url}`,
-          );
-        } catch (error) {
-          this.logger.warn(
-            `Invalid or unsafe author URL: ${embed.author.url}, skipping link. ${error.message}`,
-          );
-          parts.push(`📬 *${this.escapeMarkdown(embed.author.name)}*`);
-        }
+    if (embedData.author) {
+      if (embedData.author.url) {
+        parts.push(
+          `📬 *${this.escapeMarkdown(embedData.author.name)}*\n${embedData.author.url}`,
+        );
       } else {
-        parts.push(`📬 *${this.escapeMarkdown(embed.author.name)}*`);
+        parts.push(`📬 *${this.escapeMarkdown(embedData.author.name)}*`);
       }
       parts.push('━━━━━━━━━━━━━━━━━');
     }
 
     // Title in bold with optional URL
-    if (embed.title) {
-      if (embed.url) {
-        try {
-          await UrlValidationUtil.validateUrl(embed.url, 'embed URL');
-          parts.push(`*${this.escapeMarkdown(embed.title)}*\n🔗 ${embed.url}`);
-        } catch (error) {
-          this.logger.warn(
-            `Invalid or unsafe embed URL: ${embed.url}, skipping link. ${error.message}`,
-          );
-          parts.push(`*${this.escapeMarkdown(embed.title)}*`);
-        }
+    if (embedData.title) {
+      if (embedData.titleUrl) {
+        parts.push(
+          `*${this.escapeMarkdown(embedData.title)}*\n🔗 ${embedData.titleUrl}`,
+        );
       } else {
-        parts.push(`*${this.escapeMarkdown(embed.title)}*`);
+        parts.push(`*${this.escapeMarkdown(embedData.title)}*`);
       }
     }
 
     // Description
-    if (embed.description) {
-      parts.push(this.escapeMarkdown(embed.description));
+    if (embedData.description) {
+      parts.push(this.escapeMarkdown(embedData.description));
     }
 
     // Fields (structured data)
-    if (embed.fields && embed.fields.length > 0) {
+    if (embedData.fields.length > 0) {
       parts.push('━━━━━━━━━━━━━━━━━');
 
       const fieldLines: string[] = [];
       let inlineBuffer: string[] = [];
 
-      for (const field of embed.fields) {
+      for (const field of embedData.fields) {
         const fieldText = `*${this.escapeMarkdown(field.name)}:* ${this.escapeMarkdown(field.value)}`;
 
         if (field.inline) {
@@ -1136,33 +1126,30 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
     }
 
     // Footer and timestamp
-    if (embed.footer || embed.timestamp) {
+    if (embedData.footer || embedData.timestamp) {
       parts.push('━━━━━━━━━━━━━━━━━');
 
-      if (embed.timestamp) {
-        const date = new Date(embed.timestamp);
-        if (!isNaN(date.getTime())) {
-          const formattedDate = date.toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          });
-          parts.push(`⏰ ${formattedDate}`);
-        }
+      if (embedData.timestamp) {
+        const formattedDate = embedData.timestamp.toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        parts.push(`⏰ ${formattedDate}`);
       }
 
-      if (embed.footer) {
-        parts.push(`💡 ${this.escapeMarkdown(embed.footer.text)}`);
+      if (embedData.footer) {
+        parts.push(`💡 ${this.escapeMarkdown(embedData.footer.text)}`);
       }
     }
 
     const text = parts.join('\n\n');
-    const media = embed.imageUrl || embed.thumbnailUrl;
+    const media = embedData.imageUrl || embedData.thumbnailUrl;
 
     this.logger.debug(
-      `Transformed embed to WhatsApp format: ${embed.title || 'Untitled'}, media: ${!!media}`,
+      `Transformed embed to WhatsApp format: ${embedData.title || 'Untitled'}, media: ${!!media}`,
     );
 
     return { text, media };
