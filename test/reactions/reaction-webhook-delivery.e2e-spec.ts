@@ -1,10 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { AppModule } from '../../src/app.module';
 import { ReactionType } from '@prisma/client';
 import { WebhookDeliveryService } from '../../src/webhooks/services/webhook-delivery.service';
 import { WebhookEventType } from '../../src/webhooks/types/webhook-event.types';
+import { of } from 'rxjs';
 
 /**
  * E2E Tests for Reaction Webhook Delivery
@@ -53,6 +55,18 @@ describe('Reaction Webhook Delivery (e2e)', () => {
     prisma = app.get<PrismaService>(PrismaService);
     webhookDeliveryService = app.get<WebhookDeliveryService>(
       WebhookDeliveryService,
+    );
+
+    // Mock HttpService to prevent actual HTTP calls in tests
+    const httpService = app.get<HttpService>(HttpService);
+    jest.spyOn(httpService.axiosRef, 'post').mockImplementation(() =>
+      Promise.resolve({
+        status: 200,
+        statusText: 'OK',
+        data: {},
+        headers: {},
+        config: {} as any,
+      }),
     );
 
     // Clean up and create test data
@@ -152,7 +166,7 @@ describe('Reaction Webhook Delivery (e2e)', () => {
 
       expect(deliveries).toHaveLength(1);
       expect(deliveries[0].event).toBe('reaction.added');
-      expect(deliveries[0].status).toBe('pending');
+      expect(deliveries[0].status).toBe('success');
 
       // Verify payload contains correct data
       const payload = deliveries[0].payload as any;
