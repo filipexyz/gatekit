@@ -25,6 +25,10 @@ import { ProviderUtil } from './provider.util';
 import { ReactionType } from '@prisma/client';
 import { MessagesService } from '../messages/messages.service';
 
+interface TelegramCredentials {
+  token: string;
+}
+
 interface TelegramConnection {
   connectionKey: string; // projectId:platformId
   projectId: string;
@@ -1077,7 +1081,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
   ): Promise<void> {
     // Get credentials using shared utility
     const { platformId, credentials } =
-      await ProviderUtil.getPlatformCredentials<{ token: string }>(
+      await ProviderUtil.getPlatformCredentials<TelegramCredentials>(
         connectionKey,
         this.prisma,
         'Telegram',
@@ -1128,7 +1132,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
   ): Promise<void> {
     // Get credentials using shared utility
     const { platformId, credentials } =
-      await ProviderUtil.getPlatformCredentials<{ token: string }>(
+      await ProviderUtil.getPlatformCredentials<TelegramCredentials>(
         connectionKey,
         this.prisma,
         'Telegram',

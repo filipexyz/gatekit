@@ -36,10 +36,21 @@ export class ProviderUtil {
       );
     }
 
-    const credentials = JSON.parse(
-      CryptoUtil.decrypt(platformConfig.credentialsEncrypted),
-    ) as T;
+    const credentials = this.decryptPlatformCredentials<T>(
+      platformConfig.credentialsEncrypted,
+    );
 
     return { platformId, credentials };
+  }
+
+  /**
+   * Decrypt platform credentials from encrypted string
+   * @param credentialsEncrypted Encrypted credentials string
+   * @returns Decrypted credentials object
+   */
+  static decryptPlatformCredentials<T = Record<string, any>>(
+    credentialsEncrypted: string,
+  ): T {
+    return JSON.parse(CryptoUtil.decrypt(credentialsEncrypted)) as T;
   }
 }
