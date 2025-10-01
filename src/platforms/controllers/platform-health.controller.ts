@@ -3,7 +3,7 @@ import { PlatformRegistry } from '../services/platform-registry.service';
 import { CredentialValidationService } from '../services/credential-validation.service';
 import { SdkContract } from '../../common/decorators/sdk-contract.decorator';
 import { Public } from '../../common/decorators/public.decorator';
-import type { SupportedPlatformsResponse } from '../../common/types/api-responses';
+import { SupportedPlatformsResponse } from '../dto/supported-platforms-response.dto';
 
 @Controller('api/v1/platforms')
 export class PlatformHealthController {

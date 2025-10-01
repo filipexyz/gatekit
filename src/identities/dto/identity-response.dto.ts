@@ -2,7 +2,7 @@
  * Identity response DTO for API contracts
  * Represents a unified user identity across multiple platforms
  */
-export class Identity {
+export class IdentityResponse {
   id: string;
   projectId: string;
   displayName: string | null;
@@ -10,14 +10,14 @@ export class Identity {
   metadata: Record<string, any> | null;
   createdAt: Date;
   updatedAt: Date;
-  aliases: IdentityAlias[];
+  aliases: IdentityAliasResponse[];
 }
 
 /**
  * Identity alias response DTO for API contracts
  * Represents a platform-specific user identifier linked to an identity
  */
-export class IdentityAlias {
+export class IdentityAliasResponse {
   id: string;
   identityId: string;
   projectId: string;

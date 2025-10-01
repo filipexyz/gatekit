@@ -17,6 +17,7 @@ import { RequireScopes } from '../common/decorators/require-scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { AuthContextParam } from '../common/decorators/auth-context.decorator';
 import type { AuthContext } from '../common/utils/security.util';
+import { PlatformResponse } from './dto/platform-response.dto';
 
 @Controller('api/v1/projects/:projectSlug/platforms')
 @UseGuards(AppAuthGuard, ProjectAccessGuard)

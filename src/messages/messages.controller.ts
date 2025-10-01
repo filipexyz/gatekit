@@ -156,7 +156,7 @@ export class MessagesController {
     description: 'Get a specific message by ID',
     category: 'Messages',
     requiredScopes: ['messages:read'],
-    outputType: 'ReceivedMessage',
+    outputType: 'ReceivedMessageResponse',
     options: {
       messageId: {
         required: true,
@@ -326,7 +326,7 @@ export class MessagesController {
     description: 'List sent messages for a project',
     category: 'Messages',
     requiredScopes: ['messages:read'],
-    outputType: 'SentMessage[]',
+    outputType: 'SentMessageResponse[]',
     options: {
       platform: { description: 'Filter by platform', type: 'string' },
       status: {
