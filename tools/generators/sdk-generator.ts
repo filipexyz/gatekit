@@ -238,6 +238,7 @@ export interface ApiKeyResult {
     const typeImports = Array.from(usedTypes).sort().join(',\n  ');
 
     const apiGroups = Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b)) // Sort categories alphabetically for consistency
       .map(([category, contracts]) => {
         const className = `${CaseConverter.toValidClassName(category)}API`;
         const methods = contracts
@@ -269,6 +270,7 @@ export class GateKit {
 
   // API group instances
 ${Object.keys(groups)
+  .sort()
   .map(
     (category) =>
       `  readonly ${CaseConverter.toValidPropertyName(category)}: ${CaseConverter.toValidClassName(category)}API;`,
@@ -288,6 +290,7 @@ ${Object.keys(groups)
 
     // Initialize API groups after client is ready
 ${Object.keys(groups)
+  .sort()
   .map(
     (category) =>
       `    this.${CaseConverter.toValidPropertyName(category)} = new ${CaseConverter.toValidClassName(category)}API(this.client, this);`,
@@ -601,6 +604,7 @@ export const CONTRACTS_COUNT = ${contracts.length};
   private generateReadme(contracts: ExtractedContract[]): string {
     const categories = this.groupContractsByCategory(contracts);
     const categoryExamples = Object.entries(categories)
+      .sort(([a], [b]) => a.localeCompare(b)) // Sort categories alphabetically for consistency
       .map(([category, contracts]) => {
         const examples = contracts
           .slice(0, 2)

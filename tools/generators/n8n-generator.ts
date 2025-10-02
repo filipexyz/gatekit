@@ -97,10 +97,12 @@ export class GateKit implements INodeType {
     // Group contracts by category for n8n resources
     const categories = this.groupContractsByCategory(contracts);
 
-    const resourceOptions = Object.keys(categories).map((category) => ({
-      name: category,
-      value: category.toLowerCase(),
-    }));
+    const resourceOptions = Object.keys(categories)
+      .sort()
+      .map((category) => ({
+        name: category,
+        value: category.toLowerCase(),
+      }));
 
     return `{
       displayName: 'Resource',
@@ -120,6 +122,7 @@ export class GateKit implements INodeType {
     const categories = this.groupContractsByCategory(contracts);
 
     return Object.entries(categories)
+      .sort(([a], [b]) => a.localeCompare(b))
       .map(([category, categoryContracts]) => {
         const categoryValue = category.toLowerCase();
 
