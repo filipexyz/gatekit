@@ -101,8 +101,8 @@ jobs:
             echo "📦 Setting up SDK repo for analysis..."
             git clone https://x-access-token:$GITHUB_TOKEN@github.com/${{ vars.SDK_REPO }}.git sdk-repo
             cd sdk-repo
-            find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -not -name '..' -exec rm -rf {} \;
-            cp -r $GITHUB_WORKSPACE/generated/sdk/* .
+            find . -maxdepth 1 -not -name '.git' -not -name '.' -not -name '..' -exec rm -rf {} \;
+            cp -r $GITHUB_WORKSPACE/generated/sdk/. .
             git add .
             cd ..
           fi
@@ -111,8 +111,8 @@ jobs:
             echo "🖥️ Setting up CLI repo for analysis..."
             git clone https://x-access-token:$GITHUB_TOKEN@github.com/${{ vars.CLI_REPO }}.git cli-repo
             cd cli-repo
-            find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -not -name '..' -exec rm -rf {} \;
-            cp -r $GITHUB_WORKSPACE/generated/cli/* .
+            find . -maxdepth 1 -not -name '.git' -not -name '.' -not -name '..' -exec rm -rf {} \;
+            cp -r $GITHUB_WORKSPACE/generated/cli/. .
             git add .
             cd ..
           fi
@@ -121,8 +121,8 @@ jobs:
             echo "🎨 Setting up n8n repo for analysis..."
             git clone https://x-access-token:$GITHUB_TOKEN@github.com/${{ vars.N8N_REPO }}.git n8n-repo
             cd n8n-repo
-            find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -not -name '..' -exec rm -rf {} \;
-            cp -r $GITHUB_WORKSPACE/generated/n8n/* .
+            find . -maxdepth 1 -not -name '.git' -not -name '.' -not -name '..' -exec rm -rf {} \;
+            cp -r $GITHUB_WORKSPACE/generated/n8n/. .
             git add .
             cd ..
           fi
