@@ -4,13 +4,16 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ExtractedContract } from '../extractors/contract-extractor.service';
 import { CaseConverter } from '../../src/common/utils/case-converter';
+import { TemplateUtils } from './template-utils';
+import packageJson from '../../package.json';
 
 interface GeneratedCLI {
   commands: Record<string, string>; // category -> command file content
   index: string;
   config: string;
   packageJson: string;
-  readme: string;
+  contracts: ExtractedContract[]; // Keep for README generation
+  groups: Record<string, ExtractedContract[]>; // Keep for README generation
 }
 
 export class CLIGenerator {
@@ -23,6 +26,11 @@ export class CLIGenerator {
     // Load contracts
     const contractsContent = await fs.readFile(contractsPath, 'utf-8');
     const contracts: ExtractedContract[] = JSON.parse(contractsContent);
+
+    // Validate contract structure
+    if (!Array.isArray(contracts) || contracts.length === 0) {
+      throw new Error('Invalid contracts file: empty or not an array');
+    }
 
     // Generate CLI components
     const cli = this.generateCLI(contracts);
@@ -54,7 +62,8 @@ export class CLIGenerator {
       index: this.generateIndex(contracts, groups),
       config: this.generateConfig(),
       packageJson: this.generatePackageJson(),
-      readme: this.generateReadme(contracts, groups),
+      contracts,
+      groups,
     };
   }
 
@@ -239,14 +248,14 @@ ${allOptions}
         const option = options[key];
 
         if (option.type === 'object') {
-          // Parse JSON strings for object types
-          return `      ${key}: options.${key} ? JSON.parse(options.${key}) : undefined`;
+          // Parse JSON strings for object types with try-catch
+          return `      ${key}: options.${key} ? (() => { try { return JSON.parse(options.${key}); } catch (e) { throw new Error(\`Invalid JSON for --${key}: \${e instanceof Error ? e.message : String(e)}\`); } })() : undefined`;
         } else if (option.type === 'boolean') {
           // Convert string to boolean, preserve undefined when not provided
           return `      ${key}: options.${key} !== undefined ? (options.${key} === 'true' || options.${key} === true) : undefined`;
         } else if (option.type === 'number') {
-          // Convert string to number
-          return `      ${key}: options.${key} ? parseInt(options.${key}) : undefined`;
+          // Convert string to number with NaN check
+          return `      ${key}: options.${key} ? (() => { const val = parseInt(options.${key}, 10); if (isNaN(val)) throw new Error(\`Invalid number for --${key}: "\${options.${key}}"\`); return val; })() : undefined`;
         } else {
           // String type or default
           return `      ${key}: options.${key}`;
@@ -311,15 +320,27 @@ function buildMessageDto(options: any): any {
   if (options.text) {
     dto.content = { text: options.text };
   } else if (options.content) {
-    dto.content = JSON.parse(options.content);
+    try {
+      dto.content = JSON.parse(options.content);
+    } catch (e) {
+      throw new Error(\`Invalid JSON for --content: \${e instanceof Error ? e.message : String(e)}\`);
+    }
   }
 
-  // Handle optional fields
+  // Handle optional fields with error handling
   if (options.options) {
-    dto.options = JSON.parse(options.options);
+    try {
+      dto.options = JSON.parse(options.options);
+    } catch (e) {
+      throw new Error(\`Invalid JSON for --options: \${e instanceof Error ? e.message : String(e)}\`);
+    }
   }
   if (options.metadata) {
-    dto.metadata = JSON.parse(options.metadata);
+    try {
+      dto.metadata = JSON.parse(options.metadata);
+    } catch (e) {
+      throw new Error(\`Invalid JSON for --metadata: \${e instanceof Error ? e.message : String(e)}\`);
+    }
   }
 
   return dto;
@@ -377,7 +398,7 @@ const program = new Command();
 program
   .name('gatekit')
   .description('GateKit Universal Messaging Gateway CLI')
-  .version('1.0.0');
+  .version('${packageJson.version}');
 
 // Add permission-aware commands
 ${commandRegistrations}
@@ -468,7 +489,7 @@ export function handleError(error: any): void {
     return JSON.stringify(
       {
         name: '@gatekit/cli',
-        version: '1.0.0',
+        version: packageJson.version,
         description: 'Official CLI for GateKit universal messaging gateway',
         main: 'dist/index.js',
         bin: {
@@ -480,7 +501,7 @@ export function handleError(error: any): void {
           prepublishOnly: 'npm run build',
         },
         dependencies: {
-          '@gatekit/sdk': 'file:../sdk',
+          '@gatekit/sdk': `^${packageJson.version}`,
           commander: '^11.0.0',
           axios: '^1.6.0',
         },
@@ -522,59 +543,42 @@ export function handleError(error: any): void {
     outputDir: string,
     cli: GeneratedCLI,
   ): Promise<void> {
-    const srcDir = path.join(outputDir, 'src');
-    const commandsDir = path.join(srcDir, 'commands');
-    const libDir = path.join(srcDir, 'lib');
+    try {
+      // Copy template files first (tsconfig.json, .gitignore, .github/workflows, etc.)
+      const commandList = this.generateCommandList(cli.contracts, cli.groups);
+      await TemplateUtils.copyTemplateFiles('cli', outputDir, {
+        COMMAND_LIST: commandList,
+      });
 
-    await fs.mkdir(commandsDir, { recursive: true });
-    await fs.mkdir(libDir, { recursive: true });
+      // Write generated CLI code
+      const srcDir = path.join(outputDir, 'src');
+      const commandsDir = path.join(srcDir, 'commands');
+      const libDir = path.join(srcDir, 'lib');
 
-    // Write command files
-    await Promise.all(
-      Object.entries(cli.commands).map(([category, content]) =>
-        fs.writeFile(path.join(commandsDir, `${category}.ts`), content),
-      ),
-    );
+      await fs.mkdir(commandsDir, { recursive: true });
+      await fs.mkdir(libDir, { recursive: true });
 
-    // Write core files
-    await Promise.all([
-      fs.writeFile(path.join(srcDir, 'index.ts'), cli.index),
-      fs.writeFile(path.join(libDir, 'utils.ts'), cli.config),
-      fs.writeFile(path.join(outputDir, 'package.json'), cli.packageJson),
-      fs.writeFile(
-        path.join(outputDir, 'tsconfig.json'),
-        this.generateTSConfig(),
-      ),
-      fs.writeFile(path.join(outputDir, 'README.md'), cli.readme),
-    ]);
+      // Write command files
+      await Promise.all(
+        Object.entries(cli.commands).map(([category, content]) =>
+          fs.writeFile(path.join(commandsDir, `${category}.ts`), content),
+        ),
+      );
+
+      // Write core files
+      await Promise.all([
+        fs.writeFile(path.join(srcDir, 'index.ts'), cli.index),
+        fs.writeFile(path.join(libDir, 'utils.ts'), cli.config),
+        fs.writeFile(path.join(outputDir, 'package.json'), cli.packageJson),
+      ]);
+    } catch (error) {
+      throw new Error(
+        `Failed to write CLI files: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
-  private generateTSConfig(): string {
-    return JSON.stringify(
-      {
-        compilerOptions: {
-          target: 'ES2020',
-          module: 'commonjs',
-          lib: ['ES2020'],
-          outDir: './dist',
-          rootDir: './src',
-          strict: true,
-          esModuleInterop: true,
-          skipLibCheck: true,
-          forceConsistentCasingInFileNames: true,
-          declaration: true,
-          declarationMap: true,
-          sourceMap: true,
-        },
-        include: ['src/**/*'],
-        exclude: ['node_modules', 'dist'],
-      },
-      null,
-      2,
-    );
-  }
-
-  private generateReadme(
+  private generateCommandList(
     contracts: ExtractedContract[],
     groups: Record<string, ExtractedContract[]>,
   ): string {
@@ -596,138 +600,18 @@ ${example?.command || `gatekit ${contract.contractMetadata.command} --help`}
       })
       .join('\n\n');
 
-    return `# @gatekit/cli
-
-Official CLI for GateKit - Universal messaging gateway.
-
-## Installation
-
-\`\`\`bash
-npm install -g @gatekit/cli
-\`\`\`
-
-## Authentication
-
-### API Key (Recommended)
-\`\`\`bash
-export GATEKIT_API_KEY="gk_live_your_api_key_here"
-export GATEKIT_API_URL="https://api.gatekit.dev"
-\`\`\`
-
-### Environment Setup
-\`\`\`bash
-# Production
-export GATEKIT_API_URL="https://api.gatekit.dev"
-export GATEKIT_DEFAULT_PROJECT="my-project"
-
-# Local development
-export GATEKIT_API_URL="http://localhost:3000"
-export GATEKIT_DEFAULT_PROJECT="default"
-\`\`\`
-
-## Quick Start
-
-\`\`\`bash
-# Send a message (uses GATEKIT_DEFAULT_PROJECT if set)
-gatekit messages send \\
-  --target "platformId:user:123" \\
-  --text "Hello from GateKit!"
-
-# Or specify project explicitly
-gatekit messages send --project my-project-id \\
-  --target "platformId:user:123" \\
-  --text "Hello from GateKit!"
-
-# List received messages (uses default project)
-gatekit messages list --limit 10
-
-# Get message statistics for specific project
-gatekit messages stats --project production-project-id
-\`\`\`
-
-## Revolutionary Pattern System
-
-Instead of complex JSON, use simple patterns:
-
-\`\`\`bash
-# Single target
---target "platformId:user:253191879"
-
-# Multiple targets
---targets "platform1:user:123,platform2:channel:456"
-
-# Text shortcut
---text "Your message"
-\`\`\`
-
-## Command Reference
-
-${commandExamples}
-
-## Permission System
-
-The CLI automatically checks your permissions and shows only available commands:
-
-\`\`\`bash
-# If you lack permissions, you'll see:
-❌ Insufficient permissions. Required: messages:send
-
-# Get your current permissions:
-gatekit auth whoami
-\`\`\`
-
-## Advanced Usage
-
-### Complex Content
-\`\`\`bash
-gatekit messages send --project my-project \\
-  --target "platformId:user:123" \\
-  --content '{"text":"Hello","buttons":[{"text":"Click me"}]}'
-\`\`\`
-
-### Filtering Messages
-\`\`\`bash
-# Filter by platform
-gatekit messages list --platform telegram
-
-# Filter by date range
-gatekit messages list --startDate "2024-01-01T00:00:00Z"
-
-# Get failed messages
-gatekit messages sent --status failed
-\`\`\`
-
-## Error Handling
-
-The CLI provides helpful error messages:
-- **Pattern validation**: Invalid target format guidance
-- **Permission errors**: Clear permission requirements
-- **API errors**: Detailed error descriptions
-
-## Links
-
-[![View on GitHub](https://img.shields.io/badge/View%20on-GitHub-blue?logo=github)](https://github.com/filipexyz/gatekit-cli)
-[![View on npm](https://img.shields.io/badge/View%20on-npm-red?logo=npm)](https://www.npmjs.com/package/@gatekit/cli)
-
-- **📦 Repository**: [github.com/filipexyz/gatekit-cli](https://github.com/filipexyz/gatekit-cli)
-- **📥 npm Package**: [@gatekit/cli](https://www.npmjs.com/package/@gatekit/cli)
-- **🔧 SDK Package**: [@gatekit/sdk](https://www.npmjs.com/package/@gatekit/sdk)
-- **📚 Documentation**: [docs.gatekit.dev](https://docs.gatekit.dev)
-- **🎛️ Dashboard**: [app.gatekit.dev](https://app.gatekit.dev)
-
-`;
+    return commandExamples;
   }
 }
 
-// CLI execution
+// Entry point
 async function main() {
-  const generator = new CLIGenerator();
   const contractsPath = path.join(
     __dirname,
     '../../generated/contracts/contracts.json',
   );
   const outputDir = path.join(__dirname, '../../generated/cli');
-
+  const generator = new CLIGenerator();
   await generator.generateFromContracts(contractsPath, outputDir);
 }
 

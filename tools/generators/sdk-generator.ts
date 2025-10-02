@@ -4,6 +4,8 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ExtractedContract } from '../extractors/contract-extractor.service';
 import { CaseConverter } from '../../src/common/utils/case-converter';
+import { TemplateUtils } from './template-utils';
+import packageJson from '../../package.json';
 
 interface GeneratedSDK {
   types: string;
@@ -11,7 +13,7 @@ interface GeneratedSDK {
   errors: string;
   index: string;
   packageJson: string;
-  readme: string;
+  contracts: ExtractedContract[]; // Keep contracts for README generation
 }
 
 export class SDKGenerator {
@@ -25,10 +27,18 @@ export class SDKGenerator {
     const contractsContent = await fs.readFile(contractsPath, 'utf-8');
     const contracts: ExtractedContract[] = JSON.parse(contractsContent);
 
+    // Validate contract structure
+    if (!Array.isArray(contracts) || contracts.length === 0) {
+      throw new Error('Invalid contracts file: empty or not an array');
+    }
+
     // Get type definitions from contracts (single source of truth)
     const typeDefinitions = contracts[0]?.typeDefinitions || {};
-    const typeCount = Object.keys(typeDefinitions).length;
+    if (!typeDefinitions || Object.keys(typeDefinitions).length === 0) {
+      throw new Error('Invalid contracts file: missing type definitions');
+    }
 
+    const typeCount = Object.keys(typeDefinitions).length;
     console.log(`📝 Using ${typeCount} TypeScript types from contract file`);
 
     // Generate SDK components
@@ -69,7 +79,7 @@ export class SDKGenerator {
       errors: this.generateErrors(),
       index: this.generateIndex(contracts),
       packageJson: this.generatePackageJson(),
-      readme: this.generateReadme(contracts),
+      contracts, // Store for README generation
     };
   }
 
@@ -95,7 +105,7 @@ export interface GateKitConfig {
 `;
   }
 
-  private generateTypes(contracts: ExtractedContract[]): string {
+  private generateTypes(_contracts: ExtractedContract[]): string {
     return `// Generated TypeScript types for GateKit SDK
 // DO NOT EDIT - This file is auto-generated from backend DTOs
 
@@ -437,12 +447,12 @@ ${Object.keys(groups)
     pathParams.forEach((param) => {
       // Use options.project for project param, with fallback to default
       if (param === 'project') {
-        url = url.replace(
+        url = url.replaceAll(
           `:${param}`,
           `\${options?.project || this.gatekit.getDefaultProject() || ''}`,
         );
       } else {
-        url = url.replace(`:${param}`, `\${${param}}`);
+        url = url.replaceAll(`:${param}`, `\${${param}}`);
       }
     });
     return '`' + url.slice(1, -1) + '`'; // Convert to template literal
@@ -502,8 +512,6 @@ export class RateLimitError extends GateKitError {
   }
 
   private generateIndex(contracts: ExtractedContract[]): string {
-    const groups = this.groupContractsByCategory(contracts);
-
     return `// Generated main export for GateKit SDK
 // DO NOT EDIT - This file is auto-generated from backend contracts
 
@@ -512,7 +520,7 @@ export * from './types';
 export * from './errors';
 
 // Version info
-export const SDK_VERSION = '1.0.0';
+export const SDK_VERSION = '${packageJson.version}';
 export const GENERATED_AT = '${new Date().toISOString()}';
 export const CONTRACTS_COUNT = ${contracts.length};
 `;
@@ -522,7 +530,7 @@ export const CONTRACTS_COUNT = ${contracts.length};
     return JSON.stringify(
       {
         name: '@gatekit/sdk',
-        version: '1.0.0',
+        version: packageJson.version,
         description:
           'Official TypeScript SDK for GateKit universal messaging gateway',
         main: 'dist/index.js',
@@ -559,49 +567,32 @@ export const CONTRACTS_COUNT = ${contracts.length};
     outputDir: string,
     sdk: GeneratedSDK,
   ): Promise<void> {
-    const srcDir = path.join(outputDir, 'src');
-    await fs.mkdir(srcDir, { recursive: true });
+    try {
+      // Copy template files first (tsconfig.json, .gitignore, .github/workflows, etc.)
+      const categoryExamples = this.generateCategoryExamples(sdk.contracts);
+      await TemplateUtils.copyTemplateFiles('sdk', outputDir, {
+        CATEGORY_EXAMPLES: categoryExamples,
+      });
 
-    await Promise.all([
-      fs.writeFile(path.join(srcDir, 'types.ts'), sdk.types),
-      fs.writeFile(path.join(srcDir, 'client.ts'), sdk.client),
-      fs.writeFile(path.join(srcDir, 'errors.ts'), sdk.errors),
-      fs.writeFile(path.join(srcDir, 'index.ts'), sdk.index),
-      fs.writeFile(path.join(outputDir, 'package.json'), sdk.packageJson),
-      fs.writeFile(
-        path.join(outputDir, 'tsconfig.json'),
-        this.generateTSConfig(),
-      ),
-      fs.writeFile(path.join(outputDir, 'README.md'), sdk.readme),
-    ]);
+      // Write generated SDK code
+      const srcDir = path.join(outputDir, 'src');
+      await fs.mkdir(srcDir, { recursive: true });
+
+      await Promise.all([
+        fs.writeFile(path.join(srcDir, 'types.ts'), sdk.types),
+        fs.writeFile(path.join(srcDir, 'client.ts'), sdk.client),
+        fs.writeFile(path.join(srcDir, 'errors.ts'), sdk.errors),
+        fs.writeFile(path.join(srcDir, 'index.ts'), sdk.index),
+        fs.writeFile(path.join(outputDir, 'package.json'), sdk.packageJson),
+      ]);
+    } catch (error) {
+      throw new Error(
+        `Failed to write SDK files: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
-  private generateTSConfig(): string {
-    return JSON.stringify(
-      {
-        compilerOptions: {
-          target: 'ES2020',
-          module: 'commonjs',
-          lib: ['ES2020'],
-          outDir: './dist',
-          rootDir: './src',
-          strict: true,
-          esModuleInterop: true,
-          skipLibCheck: true,
-          forceConsistentCasingInFileNames: true,
-          declaration: true,
-          declarationMap: true,
-          sourceMap: true,
-        },
-        include: ['src/**/*'],
-        exclude: ['node_modules', 'dist'],
-      },
-      null,
-      2,
-    );
-  }
-
-  private generateReadme(contracts: ExtractedContract[]): string {
+  private generateCategoryExamples(contracts: ExtractedContract[]): string {
     const categories = this.groupContractsByCategory(contracts);
     const categoryExamples = Object.entries(categories)
       .sort(([a], [b]) => a.localeCompare(b)) // Sort categories alphabetically for consistency
@@ -622,95 +613,7 @@ ${this.generateSDKExample(contract)}
       })
       .join('\n\n');
 
-    return `# @gatekit/sdk
-
-TypeScript SDK for GateKit - Universal messaging gateway API.
-
-## Installation
-
-\`\`\`bash
-npm install @gatekit/sdk
-\`\`\`
-
-## Quick Start
-
-\`\`\`typescript
-import { GateKit } from '@gatekit/sdk';
-
-const gk = new GateKit({
-  apiUrl: 'https://api.gatekit.dev',
-  apiKey: 'gk_live_your_api_key_here',
-});
-
-// Send a message
-const result = await gk.messages.send({
-  project: 'my-project',  // optional if defaultProject is set
-  targets: [{ platformId: 'platform-id', type: 'user', id: '123' }],
-  content: { text: 'Hello from GateKit!' }
-});
-
-console.log('Message sent:', result.jobId);
-\`\`\`
-
-## Configuration
-
-\`\`\`typescript
-const gk = new GateKit({
-  apiUrl: 'https://api.gatekit.dev',     // API endpoint
-  apiKey: 'gk_live_your_key',           // API key authentication
-  // OR
-  jwtToken: 'your_jwt_token',           // JWT authentication
-  defaultProject: 'my-project',         // Default project (optional)
-  timeout: 30000,                       // Request timeout (ms)
-  retries: 3,                           // Retry attempts
-});
-
-// With default project set, you can omit the project field:
-await gk.messages.send({
-  targets: [...],
-  content: {...}
-});
-
-// Or specify project in the options:
-await gk.messages.send({
-  targets: [...],
-  content: {...},
-  project: 'other-project'
-});
-\`\`\`
-
-## API Reference
-
-${categoryExamples}
-
-## Error Handling
-
-\`\`\`typescript
-try {
-  const result = await gk.messages.send({ project: 'my-project', ...messageData });
-} catch (error) {
-  if (error.code === 'INSUFFICIENT_PERMISSIONS') {
-    console.error('Permission denied:', error.message);
-  } else if (error.code === 'VALIDATION_ERROR') {
-    console.error('Invalid data:', error.details);
-  } else {
-    console.error('API error:', error.message);
-  }
-}
-\`\`\`
-
-## Links
-
-[![View on GitHub](https://img.shields.io/badge/View%20on-GitHub-blue?logo=github)](https://github.com/filipexyz/gatekit-sdk)
-[![View on npm](https://img.shields.io/badge/View%20on-npm-red?logo=npm)](https://www.npmjs.com/package/@gatekit/sdk)
-
-- **📦 Repository**: [github.com/filipexyz/gatekit-sdk](https://github.com/filipexyz/gatekit-sdk)
-- **📥 npm Package**: [@gatekit/sdk](https://www.npmjs.com/package/@gatekit/sdk)
-- **🖥️ CLI Package**: [@gatekit/cli](https://www.npmjs.com/package/@gatekit/cli)
-- **📚 Documentation**: [docs.gatekit.dev](https://docs.gatekit.dev)
-- **🎛️ Dashboard**: [app.gatekit.dev](https://app.gatekit.dev)
-
-`;
+    return categoryExamples;
   }
 
   private generateSDKExample(contract: ExtractedContract): string {

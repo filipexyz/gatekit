@@ -17,7 +17,10 @@ interface OpenAPISpec {
 }
 
 export class OpenAPIGenerator {
-  async generateFromContracts(contractsPath: string, outputDir: string): Promise<void> {
+  async generateFromContracts(
+    contractsPath: string,
+    outputDir: string,
+  ): Promise<void> {
     console.log('🔧 Generating OpenAPI specification from contracts...');
 
     // Load contracts (containing all type definitions)
@@ -38,36 +41,42 @@ export class OpenAPIGenerator {
     // Write OpenAPI files
     await this.writeOpenAPIFiles(outputDir, openApiSpec);
 
-    console.log(`✅ OpenAPI specification generated successfully in ${outputDir}`);
+    console.log(
+      `✅ OpenAPI specification generated successfully in ${outputDir}`,
+    );
     console.log(`📖 Ready for: Swagger UI, Postman, API documentation tools`);
   }
 
-  private generateOpenAPISpec(contracts: ExtractedContract[], typeDefinitions: Record<string, string>): OpenAPISpec {
+  private generateOpenAPISpec(
+    contracts: ExtractedContract[],
+    typeDefinitions: Record<string, string>,
+  ): OpenAPISpec {
     return {
       openapi: '3.0.3',
       info: {
         title: 'GateKit API',
-        description: 'Universal messaging gateway API - send messages across multiple platforms',
+        description:
+          'Universal messaging gateway API - send messages across multiple platforms',
         version: '1.0.0',
         contact: {
           name: 'GateKit Support',
           url: 'https://gatekit.dev',
-          email: 'contact@gatekit.dev'
+          email: 'contact@gatekit.dev',
         },
         license: {
           name: 'MIT',
-          url: 'https://opensource.org/licenses/MIT'
-        }
+          url: 'https://opensource.org/licenses/MIT',
+        },
       },
       servers: [
         {
           url: 'https://api.gatekit.dev',
-          description: 'Production server'
+          description: 'Production server',
         },
         {
           url: 'https://gatekit-dev.fly.dev',
-          description: 'Development server'
-        }
+          description: 'Development server',
+        },
       ],
       paths: this.generatePaths(contracts),
       components: {
@@ -77,27 +86,24 @@ export class OpenAPIGenerator {
             type: 'apiKey',
             in: 'header',
             name: 'X-API-Key',
-            description: 'GateKit API key from your project dashboard'
+            description: 'GateKit API key from your project dashboard',
           },
           BearerAuth: {
             type: 'http',
             scheme: 'bearer',
             bearerFormat: 'JWT',
-            description: 'JWT token from Auth0 authentication'
-          }
-        }
+            description: 'JWT token from Auth0 authentication',
+          },
+        },
       },
-      security: [
-        { ApiKeyAuth: [] },
-        { BearerAuth: [] }
-      ]
+      security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
     };
   }
 
   private generatePaths(contracts: ExtractedContract[]): Record<string, any> {
     const paths: Record<string, any> = {};
 
-    contracts.forEach(contract => {
+    contracts.forEach((contract) => {
       const { path, httpMethod, contractMetadata } = contract;
       const method = httpMethod.toLowerCase();
 
@@ -120,10 +126,12 @@ export class OpenAPIGenerator {
             required: true,
             content: {
               'application/json': {
-                schema: { $ref: `#/components/schemas/${contractMetadata.inputType}` }
-              }
-            }
-          }
+                schema: {
+                  $ref: `#/components/schemas/${contractMetadata.inputType}`,
+                },
+              },
+            },
+          },
         }),
         responses: {
           '200': {
@@ -131,36 +139,38 @@ export class OpenAPIGenerator {
             content: {
               'application/json': {
                 schema: contractMetadata.outputType
-                  ? { $ref: `#/components/schemas/${contractMetadata.outputType.replace('[]', '')}` }
-                  : { type: 'object' }
-              }
-            }
+                  ? {
+                      $ref: `#/components/schemas/${contractMetadata.outputType.replace('[]', '')}`,
+                    }
+                  : { type: 'object' },
+              },
+            },
           },
           '401': {
             description: 'Authentication required',
             content: {
               'application/json': {
-                schema: { $ref: '#/components/schemas/ErrorResponse' }
-              }
-            }
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
           },
           '403': {
             description: 'Insufficient permissions',
             content: {
               'application/json': {
-                schema: { $ref: '#/components/schemas/ErrorResponse' }
-              }
-            }
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
           },
           '404': {
             description: 'Resource not found',
             content: {
               'application/json': {
-                schema: { $ref: '#/components/schemas/ErrorResponse' }
-              }
-            }
-          }
-        }
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+        },
       };
     });
 
@@ -173,44 +183,51 @@ export class OpenAPIGenerator {
     // Extract path parameters
     const pathParams = path.match(/:([a-zA-Z][a-zA-Z0-9]*)/g);
     if (pathParams) {
-      pathParams.forEach(param => {
+      pathParams.forEach((param) => {
         const paramName = param.substring(1);
         parameters.push({
           name: paramName,
           in: 'path',
           required: true,
           schema: { type: 'string' },
-          description: `${paramName} parameter`
+          description: `${paramName} parameter`,
         });
       });
     }
 
     // Add query parameters from contract options (for GET requests)
     if (contractMetadata.options && !contractMetadata.inputType) {
-      Object.entries(contractMetadata.options).forEach(([name, config]: [string, any]) => {
-        parameters.push({
-          name,
-          in: 'query',
-          required: config.required || false,
-          schema: {
-            type: config.type || 'string',
-            ...(config.choices && { enum: config.choices }),
-            ...(config.default !== undefined && { default: config.default })
-          },
-          description: config.description || name
-        });
-      });
+      Object.entries(contractMetadata.options).forEach(
+        ([name, config]: [string, any]) => {
+          parameters.push({
+            name,
+            in: 'query',
+            required: config.required || false,
+            schema: {
+              type: config.type || 'string',
+              ...(config.choices && { enum: config.choices }),
+              ...(config.default !== undefined && { default: config.default }),
+            },
+            description: config.description || name,
+          });
+        },
+      );
     }
 
     return parameters;
   }
 
-  private generateSchemas(typeDefinitions: Record<string, string>): Record<string, any> {
+  private generateSchemas(
+    typeDefinitions: Record<string, string>,
+  ): Record<string, any> {
     const schemas: Record<string, any> = {};
 
     // Convert TypeScript interfaces to OpenAPI schemas
     Object.entries(typeDefinitions).forEach(([typeName, definition]) => {
-      const schema = this.convertTypeScriptToOpenAPISchema(definition, typeName);
+      const schema = this.convertTypeScriptToOpenAPISchema(
+        definition,
+        typeName,
+      );
       if (schema) {
         schemas[typeName] = schema;
       }
@@ -222,24 +239,29 @@ export class OpenAPIGenerator {
       properties: {
         message: { type: 'string', description: 'Error message' },
         error: { type: 'string', description: 'Error type' },
-        statusCode: { type: 'number', description: 'HTTP status code' }
+        statusCode: { type: 'number', description: 'HTTP status code' },
       },
-      required: ['message', 'statusCode']
+      required: ['message', 'statusCode'],
     };
 
     return schemas;
   }
 
-  private convertTypeScriptToOpenAPISchema(definition: string, typeName: string): any {
+  private convertTypeScriptToOpenAPISchema(
+    definition: string,
+    typeName: string,
+  ): any {
     // Handle type aliases (enums) first
     if (definition.includes(' = ') && definition.includes('|')) {
       // This is a type alias like: export type PlatformType = 'discord' | 'telegram';
       const typeMatch = definition.match(/export type \w+ = (.+);/);
       if (typeMatch) {
-        const enumValues = typeMatch[1].split('|').map(v => v.trim().replace(/'/g, ''));
+        const enumValues = typeMatch[1]
+          .split('|')
+          .map((v) => v.trim().replace(/'/g, ''));
         return {
           type: 'string',
-          enum: enumValues
+          enum: enumValues,
         };
       }
     }
@@ -253,7 +275,12 @@ export class OpenAPIGenerator {
 
     for (const line of lines) {
       const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith('export') && !trimmed.startsWith('}') && trimmed.includes(':')) {
+      if (
+        trimmed &&
+        !trimmed.startsWith('export') &&
+        !trimmed.startsWith('}') &&
+        trimmed.includes(':')
+      ) {
         const match = trimmed.match(/(\w+)(\?)?:\s*(.+);?$/);
         if (match) {
           const [, propName, optional, propType] = match;
@@ -272,7 +299,7 @@ export class OpenAPIGenerator {
     return {
       type: 'object',
       properties,
-      ...(required.length > 0 && { required })
+      ...(required.length > 0 && { required }),
     };
   }
 
@@ -285,7 +312,7 @@ export class OpenAPIGenerator {
     if (tsType === 'any') return { type: 'object' };
     if (tsType.includes("'") && tsType.includes('|')) {
       // Handle enum types like 'development' | 'staging' | 'production'
-      const values = tsType.split('|').map(v => v.trim().replace(/'/g, ''));
+      const values = tsType.split('|').map((v) => v.trim().replace(/'/g, ''));
       return { type: 'string', enum: values };
     }
     if (tsType.endsWith('[]')) {
@@ -293,7 +320,7 @@ export class OpenAPIGenerator {
       const itemType = tsType.slice(0, -2);
       return {
         type: 'array',
-        items: this.convertTypeToOpenAPIProperty(itemType)
+        items: this.convertTypeToOpenAPIProperty(itemType),
       };
     }
     if (tsType.startsWith('Record<')) {
@@ -307,12 +334,18 @@ export class OpenAPIGenerator {
 
   private generateOperationId(command: string): string {
     // Convert "projects create" to "projectsCreate"
-    return command.split(' ').map((word, index) =>
-      index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)
-    ).join('');
+    return command
+      .split(' ')
+      .map((word, index) =>
+        index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1),
+      )
+      .join('');
   }
 
-  private async writeOpenAPIFiles(outputDir: string, spec: OpenAPISpec): Promise<void> {
+  private async writeOpenAPIFiles(
+    outputDir: string,
+    spec: OpenAPISpec,
+  ): Promise<void> {
     // Write OpenAPI JSON
     const specFile = path.join(outputDir, 'openapi.json');
     await fs.writeFile(specFile, JSON.stringify(spec, null, 2));
@@ -340,7 +373,7 @@ export class OpenAPIGenerator {
         yaml += '\n' + this.jsonToYaml(value, indent + 1);
       } else if (Array.isArray(value)) {
         yaml += '\n';
-        value.forEach(item => {
+        value.forEach((item) => {
           if (typeof item === 'object') {
             yaml += `${spaces}  -\n${this.jsonToYaml(item, indent + 2)}`;
           } else {
@@ -414,7 +447,10 @@ ${Object.keys(spec.paths).length} endpoints across ${new Set(Object.values(spec.
 // CLI execution
 async function main() {
   const generator = new OpenAPIGenerator();
-  const contractsPath = path.join(__dirname, '../../generated/contracts/contracts.json');
+  const contractsPath = path.join(
+    __dirname,
+    '../../generated/contracts/contracts.json',
+  );
   const outputDir = path.join(__dirname, '../../generated/openapi');
 
   await generator.generateFromContracts(contractsPath, outputDir);

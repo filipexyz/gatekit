@@ -3,15 +3,16 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ExtractedContract } from '../extractors/contract-extractor.service';
+import { TemplateUtils } from './template-utils';
+import packageJson from '../../package.json';
 
 interface GeneratedN8N {
   nodeFile: string;
   credentialsFile: string;
   packageJson: string;
   gulpfile: string;
-  eslintConfig: string;
   indexFile: string;
-  readme: string;
+  contracts: ExtractedContract[];
 }
 
 export class N8NGenerator {
@@ -24,6 +25,11 @@ export class N8NGenerator {
     // Load contracts (containing all type definitions)
     const contractsContent = await fs.readFile(contractsPath, 'utf-8');
     const contracts: ExtractedContract[] = JSON.parse(contractsContent);
+
+    // Validate contract structure
+    if (!Array.isArray(contracts) || contracts.length === 0) {
+      throw new Error('Invalid contracts file: empty or not an array');
+    }
 
     console.log(
       `🎯 Generating n8n node for ${contracts.length} GateKit operations`,
@@ -45,9 +51,8 @@ export class N8NGenerator {
       credentialsFile: this.generateCredentialsFile(),
       packageJson: this.generatePackageJson(),
       gulpfile: this.generateGulpfile(),
-      eslintConfig: this.generateESLintConfig(),
       indexFile: this.generateIndexFile(),
-      readme: this.generateReadme(contracts),
+      contracts,
     };
   }
 
@@ -289,7 +294,7 @@ export class GateKitApi implements ICredentialType {
     return JSON.stringify(
       {
         name: 'n8n-nodes-gatekit',
-        version: '1.0.0',
+        version: packageJson.version,
         description:
           'n8n community node for GateKit universal messaging gateway',
         keywords: [
@@ -347,74 +352,6 @@ export * from './dist/credentials/GateKitApi.credentials';
 `;
   }
 
-  private generateReadme(contracts: ExtractedContract[]): string {
-    const operations = contracts
-      .map(
-        (c) =>
-          `- **${c.contractMetadata.command}**: ${c.contractMetadata.description}`,
-      )
-      .join('\n');
-
-    return `# n8n-nodes-gatekit
-
-n8n community node for [GateKit](https://gatekit.dev) - Universal messaging gateway that provides a single API to send messages across multiple platforms.
-
-## Installation
-
-\`\`\`bash
-npm install n8n-nodes-gatekit
-\`\`\`
-
-## Configuration
-
-1. **Get your GateKit API key** from your project dashboard
-2. **Add GateKit credentials** in n8n:
-   - API URL: \`https://api.gatekit.dev\`
-   - API Key: Your project API key
-   - Project: Your project identifier
-
-## Supported Operations
-
-${operations}
-
-## Usage Examples
-
-### Send Message to Discord
-1. Select **Resource**: Messages
-2. Select **Operation**: Send
-3. Configure **Targets**: \`[{"platformId": "discord-bot-id", "type": "channel", "id": "channel-id"}]\`
-4. Set **Content**: \`{"text": "Hello from n8n!"}\`
-
-### Create New Project
-1. Select **Resource**: Projects
-2. Select **Operation**: Create
-3. Set **Name**: "My n8n Project"
-4. Choose **Environment**: development/staging/production
-
-### List Platforms
-1. Select **Resource**: Platforms
-2. Select **Operation**: List
-3. View all configured messaging platforms
-
-## Features
-
-- **Universal messaging** - Send to Discord, Telegram, Slack, WhatsApp, and more
-- **Complete API coverage** - All GateKit operations available in n8n
-- **Always up-to-date** - Automatically synced with latest GateKit API
-- **Enterprise-ready** - Full authentication and permission support
-
-## Support
-
-- 📖 [GateKit Documentation](https://docs.gatekit.dev)
-- 💬 [Discord Community](https://discord.gg/gatekit)
-- 🐛 [Report Issues](https://github.com/gatekit/n8n-nodes-gatekit/issues)
-
----
-
-**GateKit** - Universal messaging gateway for modern applications.
-`;
-  }
-
   private getN8NParameterType(contractType: string): string {
     switch (contractType) {
       case 'string':
@@ -433,13 +370,13 @@ ${operations}
   private convertPathForN8N(path: string): string {
     // Convert GateKit API paths to n8n format using proper n8n expression syntax
     // /api/v1/projects/:project/messages/send -> =/api/v1/projects/{{ $parameter["project"] }}/messages/send
+    // Dynamically replace all path parameters using regex
     return (
       '=' +
-      path
-        .replace(':project', '{{ $parameter["project"] }}')
-        .replace(':id', '{{ $parameter["id"] }}')
-        .replace(':keyId', '{{ $parameter["keyId"] }}')
-        .replace(':jobId', '{{ $parameter["jobId"] }}')
+      path.replace(
+        /:([a-zA-Z][a-zA-Z0-9]*)/g,
+        (_, param) => `{{ $parameter["${param}"] }}`,
+      )
     );
   }
 
@@ -466,38 +403,41 @@ ${operations}
     outputDir: string,
     n8nNode: GeneratedN8N,
   ): Promise<void> {
-    // Create directory structure
-    const nodesDir = path.join(outputDir, 'nodes', 'GateKit');
-    const credentialsDir = path.join(outputDir, 'credentials');
+    try {
+      // Copy template files first (tsconfig.json, .gitignore, .github/workflows, .eslintrc.js, etc.)
+      const operationsList = this.generateOperationsList(n8nNode.contracts);
+      await TemplateUtils.copyTemplateFiles('n8n', outputDir, {
+        OPERATIONS_LIST: operationsList,
+      });
 
-    await fs.mkdir(nodesDir, { recursive: true });
-    await fs.mkdir(credentialsDir, { recursive: true });
+      // Create directory structure
+      const nodesDir = path.join(outputDir, 'nodes', 'GateKit');
+      const credentialsDir = path.join(outputDir, 'credentials');
 
-    // Write all files
-    await Promise.all([
-      fs.writeFile(path.join(nodesDir, 'GateKit.node.ts'), n8nNode.nodeFile),
-      fs.writeFile(
-        path.join(nodesDir, 'GateKit.node.json'),
-        this.generateNodeCodex(),
-      ),
-      fs.writeFile(
-        path.join(credentialsDir, 'GateKitApi.credentials.ts'),
-        n8nNode.credentialsFile,
-      ),
-      fs.writeFile(path.join(outputDir, 'package.json'), n8nNode.packageJson),
-      fs.writeFile(path.join(outputDir, 'gulpfile.js'), n8nNode.gulpfile),
-      fs.writeFile(
-        path.join(outputDir, '.eslintrc.json'),
-        n8nNode.eslintConfig,
-      ),
-      fs.writeFile(path.join(outputDir, 'index.ts'), n8nNode.indexFile),
-      fs.writeFile(path.join(outputDir, 'README.md'), n8nNode.readme),
-      fs.writeFile(
-        path.join(outputDir, 'tsconfig.json'),
-        this.generateTSConfig(),
-      ),
-      this.copyGateKitIcon(outputDir),
-    ]);
+      await fs.mkdir(nodesDir, { recursive: true });
+      await fs.mkdir(credentialsDir, { recursive: true });
+
+      // Write generated n8n node files
+      await Promise.all([
+        fs.writeFile(path.join(nodesDir, 'GateKit.node.ts'), n8nNode.nodeFile),
+        fs.writeFile(
+          path.join(nodesDir, 'GateKit.node.json'),
+          this.generateNodeCodex(),
+        ),
+        fs.writeFile(
+          path.join(credentialsDir, 'GateKitApi.credentials.ts'),
+          n8nNode.credentialsFile,
+        ),
+        fs.writeFile(path.join(outputDir, 'package.json'), n8nNode.packageJson),
+        fs.writeFile(path.join(outputDir, 'gulpfile.js'), n8nNode.gulpfile),
+        fs.writeFile(path.join(outputDir, 'index.ts'), n8nNode.indexFile),
+        this.copyGateKitIcon(outputDir),
+      ]);
+    } catch (error) {
+      throw new Error(
+        `Failed to create n8n package structure: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   private generateNodeCodex(): string {
@@ -537,53 +477,6 @@ exports['build:icons'] = copyIcons;
 `;
   }
 
-  private generateESLintConfig(): string {
-    return JSON.stringify(
-      {
-        extends: ['eslint:recommended'],
-        env: {
-          node: true,
-          es2020: true,
-        },
-        parserOptions: {
-          ecmaVersion: 2020,
-          sourceType: 'module',
-        },
-        rules: {
-          'no-unused-vars': 'off',
-          'no-undef': 'off',
-        },
-      },
-      null,
-      2,
-    );
-  }
-
-  private generateTSConfig(): string {
-    return JSON.stringify(
-      {
-        compilerOptions: {
-          target: 'ES2019',
-          module: 'commonjs',
-          lib: ['ES2019'],
-          outDir: './dist',
-          rootDir: './',
-          strict: true,
-          esModuleInterop: true,
-          skipLibCheck: true,
-          forceConsistentCasingInFileNames: true,
-          declaration: true,
-          declarationMap: true,
-          sourceMap: true,
-        },
-        include: ['nodes/**/*', 'credentials/**/*'],
-        exclude: ['node_modules', 'dist'],
-      },
-      null,
-      2,
-    );
-  }
-
   private async copyGateKitIcon(outputDir: string): Promise<void> {
     // Create a simple GateKit SVG icon
     const iconSvg = `<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
@@ -593,6 +486,21 @@ exports['build:icons'] = copyIcons;
 
     const iconPath = path.join(outputDir, 'nodes', 'GateKit', 'gatekit.svg');
     await fs.writeFile(iconPath, iconSvg);
+  }
+  private generateOperationsList(contracts: ExtractedContract[]): string {
+    const categories = this.groupContractsByCategory(contracts);
+    const operationsList = Object.entries(categories)
+      .map(([category, contracts]) => {
+        const ops = contracts
+          .map(
+            (c) =>
+              `- **${c.contractMetadata.command}** - ${c.contractMetadata.description}`,
+          )
+          .join('\n');
+        return `### ${category}\n\n${ops}`;
+      })
+      .join('\n\n');
+    return operationsList;
   }
 }
 
