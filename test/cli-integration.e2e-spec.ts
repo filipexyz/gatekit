@@ -239,4 +239,182 @@ describe('CLI Integration Tests (e2e)', () => {
       expect(stdout).toContain('GATEKIT_DEFAULT_PROJECT');
     }, 30000);
   });
+
+  describe('Config command', () => {
+    const testConfigDir = path.join(testOutputDir, '.gatekit');
+    const testConfigPath = path.join(testConfigDir, 'config.json');
+    const cliIndexPath = path.join(generatedCliDir, 'dist/index.js');
+
+    beforeEach(async () => {
+      // Clean up test config before each test
+      try {
+        await fs.rm(testConfigDir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup errors
+      }
+    });
+
+    afterEach(async () => {
+      // Clean up test config after each test
+      try {
+        await fs.rm(testConfigDir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup errors
+      }
+    });
+
+    it('should show config command in help', async () => {
+      const { stdout } = await execAsync(`node ${cliIndexPath} --help`, {
+        cwd: generatedCliDir,
+        timeout: 5000,
+      });
+
+      expect(stdout).toContain('config');
+      expect(stdout).toContain('Manage CLI configuration');
+    }, 30000);
+
+    it('should show config subcommands', async () => {
+      const { stdout } = await execAsync(`node ${cliIndexPath} config --help`, {
+        cwd: generatedCliDir,
+        timeout: 5000,
+      });
+
+      expect(stdout).toContain('set <key> <value>');
+      expect(stdout).toContain('get <key>');
+      expect(stdout).toContain('list');
+    }, 30000);
+
+    it('should set and get configuration values', async () => {
+      // Override HOME to use test directory
+      const env = { ...process.env, HOME: testOutputDir };
+
+      // Set a config value
+      const { stdout: setOutput } = await execAsync(
+        `node ${cliIndexPath} config set apiUrl https://test.example.com`,
+        { cwd: generatedCliDir, timeout: 5000, env },
+      );
+
+      expect(setOutput).toContain('Set apiUrl');
+      expect(setOutput).toContain('https://test.example.com');
+
+      // Get the config value
+      const { stdout: getOutput } = await execAsync(
+        `node ${cliIndexPath} config get apiUrl`,
+        { cwd: generatedCliDir, timeout: 5000, env },
+      );
+
+      expect(getOutput).toContain('apiUrl');
+      expect(getOutput).toContain('https://test.example.com');
+    }, 30000);
+
+    it('should mask API key in output', async () => {
+      const env = { ...process.env, HOME: testOutputDir };
+
+      // Set API key
+      const { stdout: setOutput } = await execAsync(
+        `node ${cliIndexPath} config set apiKey gk_test_secret_key_12345`,
+        { cwd: generatedCliDir, timeout: 5000, env },
+      );
+
+      expect(setOutput).toContain('Set apiKey');
+      expect(setOutput).toContain('***');
+      expect(setOutput).not.toContain('gk_test_secret_key_12345');
+
+      // Get API key
+      const { stdout: getOutput } = await execAsync(
+        `node ${cliIndexPath} config get apiKey`,
+        { cwd: generatedCliDir, timeout: 5000, env },
+      );
+
+      expect(getOutput).toContain('apiKey');
+      expect(getOutput).toContain('***');
+      expect(getOutput).not.toContain('gk_test_secret_key_12345');
+    }, 30000);
+
+    it('should list all configuration', async () => {
+      const env = { ...process.env, HOME: testOutputDir };
+
+      // Set multiple values
+      await execAsync(
+        `node ${cliIndexPath} config set apiUrl https://test.example.com`,
+        { cwd: generatedCliDir, timeout: 5000, env },
+      );
+      await execAsync(
+        `node ${cliIndexPath} config set defaultProject test-project`,
+        { cwd: generatedCliDir, timeout: 5000, env },
+      );
+
+      // List config
+      const { stdout } = await execAsync(`node ${cliIndexPath} config list`, {
+        cwd: generatedCliDir,
+        timeout: 5000,
+        env,
+      });
+
+      expect(stdout).toContain('apiUrl');
+      expect(stdout).toContain('https://test.example.com');
+      expect(stdout).toContain('defaultProject');
+      expect(stdout).toContain('test-project');
+    }, 30000);
+
+    it('should create config file with secure permissions', async () => {
+      const env = { ...process.env, HOME: testOutputDir };
+
+      // Set a config value
+      await execAsync(`node ${cliIndexPath} config set apiKey gk_test_key`, {
+        cwd: generatedCliDir,
+        timeout: 5000,
+        env,
+      });
+
+      // Check file exists and has correct permissions
+      const configPath = path.join(testOutputDir, '.gatekit', 'config.json');
+      const stats = await fs.stat(configPath);
+
+      // Check file permissions (should be 600 = owner read/write only)
+      const mode = stats.mode & 0o777;
+      expect(mode).toBe(0o600);
+    }, 30000);
+
+    it('should validate config keys', async () => {
+      const env = { ...process.env, HOME: testOutputDir };
+
+      // Try to set invalid key
+      try {
+        await execAsync(
+          `node ${cliIndexPath} config set invalidKey someValue`,
+          { cwd: generatedCliDir, timeout: 5000, env },
+        );
+        fail('Should have thrown error for invalid key');
+      } catch (error: any) {
+        expect(error.stderr || error.stdout).toContain('Invalid key');
+        expect(error.stderr || error.stdout).toContain('apiUrl');
+        expect(error.stderr || error.stdout).toContain('apiKey');
+      }
+    }, 30000);
+
+    it('should handle empty config gracefully', async () => {
+      const env = { ...process.env, HOME: testOutputDir };
+
+      // Try to get value that doesn't exist
+      const { stdout } = await execAsync(
+        `node ${cliIndexPath} config get apiKey`,
+        { cwd: generatedCliDir, timeout: 5000, env },
+      );
+
+      expect(stdout).toContain('not set');
+    }, 30000);
+
+    it('should handle empty config list', async () => {
+      const env = { ...process.env, HOME: testOutputDir };
+
+      const { stdout } = await execAsync(`node ${cliIndexPath} config list`, {
+        cwd: generatedCliDir,
+        timeout: 5000,
+        env,
+      });
+
+      expect(stdout).toContain('No configuration set');
+    }, 30000);
+  });
 });
