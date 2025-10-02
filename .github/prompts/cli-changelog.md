@@ -1,139 +1,96 @@
 # CLI Changelog Generation
 
-You are generating a PR description for the **@gatekit/cli** package update.
+Generate a PR description for the **@gatekit/cli** package based on actual code changes.
 
 ## Your Task
 
-1. **Compare current CLI repo with new generated CLI**:
-
-   The CLI repo has been cloned to `$GITHUB_WORKSPACE/cli-repo/` and new files copied from `generated/cli/`.
+1. **Analyze the git diff** to see what actually changed:
 
    ```bash
    cd $GITHUB_WORKSPACE/cli-repo
    git diff --staged
    ```
 
-   This shows the differences between the old CLI (in the repo) and new CLI (just copied).
+2. **Understand the changes** - Look for:
+   - New commands
+   - Updated dependencies
+   - Command structure changes
+   - Flag/option changes
+   - Breaking changes
 
-2. **Read contract metadata**:
+3. **Write concise output files**:
+   - `/tmp/cli-pr-title.txt` - One line title (no emojis)
+   - `/tmp/cli-pr-body.md` - Markdown PR description
 
-   ```bash
-   cat $GITHUB_WORKSPACE/generated/contracts/contracts.json
-   ```
+## Output Guidelines
 
-3. **Understand what changed**:
-   - New CLI commands added
-   - Changed command patterns
-   - New flags/options
-   - Permission system updates
-   - Breaking changes in command structure
+**Title** (`/tmp/cli-pr-title.txt`):
 
-4. **Generate PR title and description**:
-   - Write PR title to `/tmp/cli-pr-title.txt` (single line, no markdown)
-   - Write PR body to `/tmp/cli-pr-body.md` (full markdown description)
+- One line, descriptive, no emojis
+- Focus on the MAIN change
+- Examples: "Update CLI dependencies", "Add message commands", "Fix config handling"
 
-## Output Format
+**Body** (`/tmp/cli-pr-body.md`):
 
-**File 1: `/tmp/cli-pr-title.txt`** (Single line, no emojis, descriptive)
+- Start with brief summary
+- List only ACTUAL changes from git diff
+- Include version info: `**Version**: v{VERSION}`
+- Link to source: `**Source**: [{COMMIT_SHA}](https://github.com/filipexyz/gatekit/commit/{COMMIT_SHA})`
+- Keep it concise and direct
 
-```
-Update CLI with [brief description of main changes]
-```
-
-Examples:
-
-- "Update CLI with new message commands"
-- "Update CLI with breaking changes to platform commands"
-- "Update CLI with permission-aware command system"
-
-**File 2: `/tmp/cli-pr-body.md`** (Full markdown description)
-
-Write a GitHub PR description to `/tmp/cli-pr-body.md` with this structure:
+## Structure (adapt as needed)
 
 ````markdown
-## 🚀 Auto-generated CLI Update
+## Summary
+
+[1-2 sentence description of what changed]
 
 **Version**: v{VERSION}
-**Source**: [{COMMIT_SHA}](https://github.com/GateKit/backend/commit/{COMMIT_SHA})
+**Source**: [{COMMIT_SHA}](https://github.com/filipexyz/gatekit/commit/{COMMIT_SHA})
 
-### 📋 Changes
+### Changes
 
-#### ✨ New Commands
+[List actual changes - be specific and direct]
 
-- `gatekit command-name` - Description
-- List all new commands added
+- If new commands: list them with brief description
+- If dependency updates: list old→new versions
+- If breaking changes: explain clearly
+- If bug fixes: mention what was fixed
 
-#### 🔧 Improvements
-
-- Enhanced pattern system
-- Better error messages
-- Permission-aware command discovery
-
-#### ⚠️ Breaking Changes
-
-(Only if applicable)
-
-- List breaking changes in command structure
-- Explain migration path for users
-
-#### 🎯 Revolutionary Pattern System
-
-Show examples of new command patterns:
+### Usage Examples (only if new features)
 
 ```bash
-# Simple targets
-gatekit messages send --target "platformId:user:123" --text "Message"
-
-# Multiple targets
-gatekit messages send --targets "p1:user:123,p2:channel:456" --text "Broadcast"
-
-# New functionality
-gatekit new-command --option "value"
+# Show actual new commands if applicable
+gatekit new-command --option value
 ```
 ````
 
-#### 📊 Technical Details
+### Migration (only if breaking changes)
 
-- X new commands generated
-- Y contracts covered
-- Z permission scopes supported
-
-### 💡 Usage Examples
-
-```bash
-# Example 1: New feature
-gatekit example-command --flag value
-
-# Example 2: Updated pattern
-gatekit updated-command --new-option
-```
-
-### 🎯 Testing Checklist
-
-- [ ] All commands compile
-- [ ] CLI help text accurate
-- [ ] Permission discovery working
-- [ ] Breaking changes documented
-
----
-
-🤖 Generated with Claude Code - Ready for review and merge
+[Instructions if needed]
 
 ```
 
 ## Important Rules
 
-- Focus ONLY on CLI changes (ignore SDK/n8n)
-- Emphasize command-line usability
-- Show practical bash examples
-- Highlight pattern system improvements
-- No hallucination - only document real changes
-- Write PR title to `/tmp/cli-pr-title.txt` (one line, no emoji)
-- Write the complete PR body to `/tmp/cli-pr-body.md`
+✅ **DO**:
+- Be flexible - adapt structure to fit actual changes
+- Focus on what matters - skip sections if not applicable
+- Be direct and concise
+- Use actual command names from git diff
+- Include only relevant information
+- Show real command examples if adding new features
 
-## Environment Variables Available
+❌ **DON'T**:
+- Add sections that don't apply
+- Include placeholder text like "X commands generated" if not relevant
+- Add generic "improvements" that aren't real
+- Use rigid template when simple is better
+- Hallucinate commands
 
-- `VERSION`: Package version
-- `COMMIT_SHA`: Git commit hash
-- `COMMIT_MSG`: Original commit message
+## Environment Variables
+
+- `VERSION` - Package version
+- `COMMIT_SHA` - Commit hash
+- `COMMIT_MSG` - Commit message
 ```

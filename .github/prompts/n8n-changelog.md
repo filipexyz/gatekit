@@ -1,127 +1,93 @@
-# n8n Node Changelog Generation
+# n8n Changelog Generation
 
-You are generating a PR description for the **n8n-nodes-gatekit** package update.
+Generate a PR description for the **n8n-nodes-gatekit** package based on actual code changes.
 
 ## Your Task
 
-1. **Compare current n8n repo with new generated n8n**:
-
-   The n8n repo has been cloned to `$GITHUB_WORKSPACE/n8n-repo/` and new files copied from `generated/n8n/`.
+1. **Analyze the git diff** to see what actually changed:
 
    ```bash
    cd $GITHUB_WORKSPACE/n8n-repo
    git diff --staged
    ```
 
-   This shows the differences between the old n8n nodes (in the repo) and new n8n nodes (just copied).
+2. **Understand the changes** - Look for:
+   - New operations
+   - Updated dependencies
+   - Node parameter changes
+   - Workflow capabilities
+   - Breaking changes
 
-2. **Read contract metadata**:
+3. **Write concise output files**:
+   - `/tmp/n8n-pr-title.txt` - One line title (no emojis)
+   - `/tmp/n8n-pr-body.md` - Markdown PR description
 
-   ```bash
-   cat $GITHUB_WORKSPACE/generated/contracts/contracts.json
-   ```
+## Output Guidelines
 
-3. **Understand what changed**:
-   - New n8n operations added
-   - Changed node parameters
-   - New workflow capabilities
-   - Visual UI improvements
-   - Breaking changes in node structure
+**Title** (`/tmp/n8n-pr-title.txt`):
 
-4. **Generate PR title and description**:
-   - Write PR title to `/tmp/n8n-pr-title.txt` (single line, no markdown)
-   - Write PR body to `/tmp/n8n-pr-body.md` (full markdown description)
+- One line, descriptive, no emojis
+- Focus on the MAIN change
+- Examples: "Update n8n dependencies", "Add webhook operations", "Fix node parameters"
 
-## Output Format
+**Body** (`/tmp/n8n-pr-body.md`):
 
-**File 1: `/tmp/n8n-pr-title.txt`** (Single line, no emojis, descriptive)
+- Start with brief summary
+- List only ACTUAL changes from git diff
+- Include version info: `**Version**: v{VERSION}`
+- Link to source: `**Source**: [{COMMIT_SHA}](https://github.com/filipexyz/gatekit/commit/{COMMIT_SHA})`
+- Keep it concise and direct
 
-```
-Update n8n nodes with [brief description of main changes]
-```
-
-Examples:
-
-- "Update n8n nodes with new messaging operations"
-- "Update n8n nodes with webhook support"
-- "Update n8n nodes with platform management operations"
-
-**File 2: `/tmp/n8n-pr-body.md`** (Full markdown description)
-
-Write a GitHub PR description to `/tmp/n8n-pr-body.md` with this structure:
+## Structure (adapt as needed)
 
 ```markdown
-## 🚀 Auto-generated n8n Nodes Update
+## Summary
+
+[1-2 sentence description of what changed]
 
 **Version**: v{VERSION}
-**Source**: [{COMMIT_SHA}](https://github.com/GateKit/backend/commit/{COMMIT_SHA})
+**Source**: [{COMMIT_SHA}](https://github.com/filipexyz/gatekit/commit/{COMMIT_SHA})
 
-### 📋 Changes
+### Changes
 
-#### ✨ New Operations
+[List actual changes - be specific and direct]
 
-- **Operation Name** - Description
-- List all new n8n operations added
+- If new operations: list them with brief description
+- If dependency updates: list old→new versions
+- If breaking changes: explain clearly
+- If bug fixes: mention what was fixed
 
-#### 🔧 Improvements
+### Workflow Impact (only if new features)
 
-- Enhanced visual workflow capabilities
-- Better parameter validation
-- Improved error handling in nodes
+[Describe how new features enable workflows]
 
-#### ⚠️ Breaking Changes
+### Migration (only if breaking changes)
 
-(Only if applicable)
-
-- List breaking changes in node structure
-- Migration guide for existing workflows
-
-#### 🎨 n8n Community Impact
-
-- 🎯 **300k+ n8n users** benefit from GateKit automation
-- 🔧 **Visual workflows** for messaging platforms
-- 🚀 **Drag-and-drop** platform management
-
-#### 📊 Technical Details
-
-- X new operations generated
-- Y contracts converted to nodes
-- Z workflow capabilities added
-
-### 💡 Workflow Examples
-
-Describe new workflow possibilities:
-```
-
-1. [Trigger] → [GateKit: New Operation] → [Action]
-2. [Schedule] → [GateKit: Send Message] → [Notification]
-
-```
-
-### 🎯 Testing Checklist
-
-- [ ] n8n package compiles
-- [ ] Node descriptions accurate
-- [ ] Parameter validation working
-- [ ] Credentials flow functional
-
----
-
-🤖 Generated with Claude Code - Ready for review and merge
+[Instructions if needed]
 ```
 
 ## Important Rules
 
-- Focus ONLY on n8n node changes (ignore SDK/CLI)
-- Emphasize visual workflow capabilities
-- Highlight community impact (300k+ users)
-- Use n8n terminology (operations, nodes, workflows)
-- No hallucination - only document real changes
-- Write PR title to `/tmp/n8n-pr-title.txt` (one line, no emoji)
-- Write the complete PR body to `/tmp/n8n-pr-body.md`
+✅ **DO**:
 
-## Environment Variables Available
+- Be flexible - adapt structure to fit actual changes
+- Focus on what matters - skip sections if not applicable
+- Be direct and concise
+- Use actual operation names from git diff
+- Include only relevant information
+- Mention workflow impact if adding new features
 
-- `VERSION`: Package version
-- `COMMIT_SHA`: Git commit hash
-- `COMMIT_MSG`: Original commit message
+❌ **DON'T**:
+
+- Add sections that don't apply
+- Include placeholder text like "X operations generated" if not relevant
+- Add generic "improvements" that aren't real
+- Use rigid template when simple is better
+- Hallucinate operations
+- Always mention "300k+ users" (only if relevant context)
+
+## Environment Variables
+
+- `VERSION` - Package version
+- `COMMIT_SHA` - Commit hash
+- `COMMIT_MSG` - Commit message

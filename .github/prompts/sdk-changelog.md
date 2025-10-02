@@ -1,125 +1,87 @@
 # SDK Changelog Generation
 
-You are generating a PR description for the **@gatekit/sdk** package update.
+Generate a PR description for the **@gatekit/sdk** package based on actual code changes.
 
 ## Your Task
 
-1. **Compare current SDK repo with new generated SDK**:
-
-   The SDK repo has been cloned to `$GITHUB_WORKSPACE/sdk-repo/` and new files copied from `generated/sdk/`.
+1. **Analyze the git diff** to see what actually changed:
 
    ```bash
    cd $GITHUB_WORKSPACE/sdk-repo
    git diff --staged
    ```
 
-   This shows the differences between the old SDK (in the repo) and new SDK (just copied).
+2. **Understand the changes** - Look for:
+   - New methods/endpoints
+   - Updated dependencies
+   - Type changes
+   - Configuration updates
+   - Breaking changes
 
-2. **Read contract metadata**:
+3. **Write concise output files**:
+   - `/tmp/sdk-pr-title.txt` - One line title (no emojis)
+   - `/tmp/sdk-pr-body.md` - Markdown PR description
 
-   ```bash
-   cat $GITHUB_WORKSPACE/generated/contracts/contracts.json
-   ```
+## Output Guidelines
 
-3. **Understand what changed**:
-   - New API endpoints added to SDK
-   - Changed method signatures
-   - New types extracted
-   - Breaking changes in contracts
-   - Removed functionality
+**Title** (`/tmp/sdk-pr-title.txt`):
 
-4. **Generate PR title and description**:
-   - Write PR title to `/tmp/sdk-pr-title.txt` (single line, no markdown)
-   - Write PR body to `/tmp/sdk-pr-body.md` (full markdown description)
+- One line, descriptive, no emojis
+- Focus on the MAIN change
+- Examples: "Update SDK dependencies", "Add webhook support", "Fix message delivery"
 
-## Output Format
+**Body** (`/tmp/sdk-pr-body.md`):
 
-**File 1: `/tmp/sdk-pr-title.txt`** (Single line, no emojis, descriptive)
+- Start with brief summary
+- List only ACTUAL changes from git diff
+- Include version info: `**Version**: v{VERSION}`
+- Link to source: `**Source**: [{COMMIT_SHA}](https://github.com/filipexyz/gatekit/commit/{COMMIT_SHA})`
+- Keep it concise and direct
 
-```
-Update SDK with [brief description of main changes]
-```
+## Structure (adapt as needed)
 
-Examples:
+```markdown
+## Summary
 
-- "Update SDK with webhook notification support"
-- "Update SDK with breaking changes to message API"
-- "Update SDK with new platform capabilities"
-
-**File 2: `/tmp/sdk-pr-body.md`** (Full markdown description)
-
-Write a GitHub PR description to `/tmp/sdk-pr-body.md` with this structure:
-
-````markdown
-## 🚀 Auto-generated SDK Update
+[1-2 sentence description of what changed]
 
 **Version**: v{VERSION}
-**Source**: [{COMMIT_SHA}](https://github.com/GateKit/backend/commit/{COMMIT_SHA})
+**Source**: [{COMMIT_SHA}](https://github.com/filipexyz/gatekit/commit/{COMMIT_SHA})
 
-### 📋 Changes
+### Changes
 
-#### ✨ New Features
+[List actual changes - be specific and direct]
 
-- List new endpoints/methods added
-- Highlight new capabilities
+- If new features: describe them
+- If dependency updates: list old→new versions
+- If breaking changes: explain clearly
+- If bug fixes: mention what was fixed
 
-#### 🔧 Improvements
+### Migration (only if breaking changes)
 
-- Enhanced type safety
-- Better error handling
-- Performance improvements
-
-#### ⚠️ Breaking Changes
-
-(Only if applicable)
-
-- List breaking changes
-- Explain migration path
-
-#### 📊 Technical Details
-
-- X contracts extracted
-- Y types auto-discovered
-- Z new methods generated
-
-### 💡 Usage Examples
-
-(Provide 1-2 code examples showing new features)
-
-```typescript
-// Example of new functionality
-const gk = new GateKit({ apiKey: 'your-key' });
-await gk.newFeature.doSomething();
-```
-````
-
-### 🎯 Testing Checklist
-
-- [ ] All TypeScript types compile
-- [ ] SDK integration tests pass
-- [ ] No breaking changes without migration guide
-- [ ] Documentation updated
-
----
-
-🤖 Generated with Claude Code - Ready for review and merge
-
+[Instructions if needed]
 ```
 
 ## Important Rules
 
-- Focus ONLY on SDK changes (ignore CLI/n8n)
-- Be concise but thorough
-- Highlight breaking changes prominently
-- Use actual examples from the code
-- No hallucination - only document real changes
-- Use emojis sparingly and professionally
-- Write PR title to `/tmp/sdk-pr-title.txt` (one line, no emoji)
-- Write the complete PR body to `/tmp/sdk-pr-body.md`
+✅ **DO**:
 
-## Environment Variables Available
+- Be flexible - adapt structure to fit actual changes
+- Focus on what matters - skip sections if not applicable
+- Be direct and concise
+- Use actual code/version numbers from git diff
+- Include only relevant information
 
-- `VERSION`: Package version
-- `COMMIT_SHA`: Git commit hash
-- `COMMIT_MSG`: Original commit message
-```
+❌ **DON'T**:
+
+- Add sections that don't apply
+- Include placeholder text like "X contracts extracted" if not relevant
+- Add generic "improvements" that aren't real
+- Use rigid template when simple is better
+- Hallucinate features
+
+## Environment Variables
+
+- `VERSION` - Package version
+- `COMMIT_SHA` - Commit hash
+- `COMMIT_MSG` - Commit message
