@@ -18,15 +18,6 @@ on:
         required: true
         default: false
         type: boolean
-      version_bump:
-        description: 'Version bump type'
-        required: true
-        default: 'patch'
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
 
 env:
   NODE_VERSION: '20'
@@ -50,43 +41,41 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate all packages
+      - name: Get backend version (coordinates all packages)
+        id: versions
+        run: |
+          # Backend version is the source of truth for all packages
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "sdk_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "cli_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "n8n_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Backend version: $VERSION (will be used for all packages)"
+
+      - name: Generate all packages with coordinated version
         run: |
           npm run extract:contracts:standalone
           npm run generate:sdk
           npm run generate:cli
           npm run generate:n8n
 
-      - name: Bump package versions individually
-        id: versions
-        run: |
-          # Bump SDK version
-          cd generated/sdk
-          CURRENT_SDK_VERSION=$(npm view @gatekit/sdk version 2>/dev/null || echo "0.0.0")
-          npm version $CURRENT_SDK_VERSION --no-git-tag-version --allow-same-version
-          npm version ${{ inputs.version_bump }} --no-git-tag-version
-          SDK_VERSION=$(node -p "require('./package.json').version")
-          echo "sdk_version=$SDK_VERSION" >> $GITHUB_OUTPUT
-          cd ../..
+          # Verify coordinated versioning
+          SDK_VER=$(node -p "require('./generated/sdk/package.json').version")
+          CLI_VER=$(node -p "require('./generated/cli/package.json').version")
+          N8N_VER=$(node -p "require('./generated/n8n/package.json').version")
+          BACKEND_VER=$(node -p "require('./package.json').version")
 
-          # Bump CLI version and sync SDK dependency
-          cd generated/cli
-          CURRENT_CLI_VERSION=$(npm view @gatekit/cli version 2>/dev/null || echo "0.0.0")
-          npm version $CURRENT_CLI_VERSION --no-git-tag-version --allow-same-version
-          npm version ${{ inputs.version_bump }} --no-git-tag-version
-          CLI_VERSION=$(node -p "require('./package.json').version")
-          npm pkg set dependencies.@gatekit/sdk="^$SDK_VERSION"
-          echo "cli_version=$CLI_VERSION" >> $GITHUB_OUTPUT
-          cd ../..
+          echo "✅ Coordinated versions:"
+          echo "   Backend: $BACKEND_VER"
+          echo "   SDK: $SDK_VER"
+          echo "   CLI: $CLI_VER"
+          echo "   n8n: $N8N_VER"
 
-          # Bump n8n version
-          cd generated/n8n
-          CURRENT_N8N_VERSION=$(npm view n8n-nodes-gatekit version 2>/dev/null || echo "0.0.0")
-          npm version $CURRENT_N8N_VERSION --no-git-tag-version --allow-same-version
-          npm version ${{ inputs.version_bump }} --no-git-tag-version
-          N8N_VERSION=$(node -p "require('./package.json').version")
-          echo "n8n_version=$N8N_VERSION" >> $GITHUB_OUTPUT
-          cd ../..
+          # Verify all match
+          if [ "$SDK_VER" != "$BACKEND_VER" ] || [ "$CLI_VER" != "$BACKEND_VER" ] || [ "$N8N_VER" != "$BACKEND_VER" ]; then
+            echo "❌ Version mismatch detected!"
+            exit 1
+          fi
 
       - name: Get commit info
         id: commit
@@ -320,7 +309,7 @@ jobs:
           echo "## 🚀 Multi-Repo Publishing Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Backend Commit**: [${{ steps.commit.outputs.commit_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})" >> $GITHUB_STEP_SUMMARY
-          echo "**Version Bump Type**: ${{ inputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Coordinated Version**: v${{ steps.versions.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 Packages Published:" >> $GITHUB_STEP_SUMMARY
           if [ "${{ inputs.publish_sdk }}" == "true" ]; then

@@ -38,19 +38,23 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Get package version
+        id: version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ github.run_number }}
-          name: CLI Release v${{ github.run_number }}
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: CLI Release v${{ steps.version.outputs.VERSION }}
           body: |
-            ## @gatekit/cli Release
+            ## @gatekit/cli v${{ steps.version.outputs.VERSION }}
 
             Auto-generated from GateKit backend contracts.
 
             ### Installation
             ```bash
-            npm install -g @gatekit/cli
+            npm install -g @gatekit/cli@${{ steps.version.outputs.VERSION }}
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

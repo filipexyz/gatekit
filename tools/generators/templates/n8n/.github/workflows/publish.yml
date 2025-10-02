@@ -34,19 +34,23 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Get package version
+        id: version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ github.run_number }}
-          name: n8n Node Release v${{ github.run_number }}
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: n8n Node Release v${{ steps.version.outputs.VERSION }}
           body: |
-            ## n8n-nodes-gatekit Release
+            ## n8n-nodes-gatekit v${{ steps.version.outputs.VERSION }}
 
             Auto-generated from GateKit backend contracts.
 
             ### Installation in n8n
             ```bash
-            npm install n8n-nodes-gatekit
+            npm install n8n-nodes-gatekit@${{ steps.version.outputs.VERSION }}
             ```
 
             Or add to your n8n instance's package.json.
