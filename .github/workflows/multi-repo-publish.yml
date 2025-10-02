@@ -134,7 +134,7 @@ jobs:
         uses: anthropics/claude-code-base-action@beta
         with:
           prompt_file: .github/prompts/sdk-changelog.md
-          allowed_tools: "Bash(git:*),Read,Write,Glob,Grep"
+          allowed_tools: "Bash(git:*),Bash(cd:*),Read(*),Write(/tmp/*),Glob,Grep"
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_env: |
             VERSION=${{ steps.versions.outputs.sdk_version }}
@@ -171,7 +171,7 @@ jobs:
         uses: anthropics/claude-code-base-action@beta
         with:
           prompt_file: .github/prompts/cli-changelog.md
-          allowed_tools: "Bash(git:*),Read,Write,Glob,Grep"
+          allowed_tools: "Bash(git:*),Bash(cd:*),Read(*),Write(/tmp/*),Glob,Grep"
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_env: |
             VERSION=${{ steps.versions.outputs.cli_version }}
@@ -208,7 +208,7 @@ jobs:
         uses: anthropics/claude-code-base-action@beta
         with:
           prompt_file: .github/prompts/n8n-changelog.md
-          allowed_tools: "Bash(git:*),Read,Write,Glob,Grep"
+          allowed_tools: "Bash(git:*),Bash(cd:*),Read(*),Write(/tmp/*),Glob,Grep"
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_env: |
             VERSION=${{ steps.versions.outputs.n8n_version }}
