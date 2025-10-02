@@ -143,8 +143,14 @@ function extractContractsFromFile(
       const metadata = parser.parseObjectLiteral(metadataText);
 
       if (metadata) {
-        // Extract method info
-        const methodInfo = extractMethodInfo(content, match.index);
+        // Extract method info - pass decorator start (for HTTP method) and end (for method name)
+        const decoratorStartIndex = match.index;
+        const decoratorEndIndex = match.index + match[0].length;
+        const methodInfo = extractMethodInfo(
+          content,
+          decoratorStartIndex,
+          decoratorEndIndex,
+        );
 
         contracts.push({
           controller: controllerName,
@@ -164,40 +170,57 @@ function extractContractsFromFile(
 
 function extractMethodInfo(
   content: string,
-  contractIndex: number,
+  decoratorStartIndex: number,
+  decoratorEndIndex: number,
 ): { name: string; httpMethod: string; path: string } {
-  // Look for method context around the @SdkContract decorator (before and after)
-  const beforeContract = content.substring(
-    Math.max(0, contractIndex - 200),
-    contractIndex,
+  // Search BOTH before and after @SdkContract for HTTP method decorator
+  // (decorator order can vary between @Patch then @SdkContract or vice versa)
+  const beforeDecorator = content.substring(
+    Math.max(0, decoratorStartIndex - 200),
+    decoratorStartIndex,
   );
-  const afterContract = content.substring(contractIndex);
-  const methodSection = beforeContract + afterContract.substring(0, 300);
+  const afterDecorator = content.substring(decoratorEndIndex);
+  const afterSearchWindow = afterDecorator.substring(0, 200);
 
-  // Extract HTTP method decorator - look more carefully
-  const httpMethodMatch = methodSection.match(
-    /@(Get|Post|Put|Patch|Delete)\s*\(\s*['"`]?([^'"`)]*)['"`]?\s*\)/i,
-  );
   let httpMethod = 'GET';
   let methodPath = '';
+
+  // Try to find HTTP method decorator BEFORE @SdkContract first
+  let httpMethodMatch = beforeDecorator.match(
+    /@(Get|Post|Put|Patch|Delete)\s*\(\s*['"`]?([^'"`)]*)['"`]?\s*\)/i,
+  );
+
+  if (!httpMethodMatch) {
+    // If not found before, try AFTER @SdkContract
+    httpMethodMatch = afterSearchWindow.match(
+      /@(Get|Post|Put|Patch|Delete)\s*\(\s*['"`]?([^'"`)]*)['"`]?\s*\)/i,
+    );
+  }
 
   if (httpMethodMatch) {
     httpMethod = httpMethodMatch[1].toUpperCase();
     methodPath = httpMethodMatch[2] || '';
   } else {
-    // Try without parentheses
-    const simpleHttpMatch = methodSection.match(
+    // Try without parentheses in both locations
+    let simpleHttpMatch = beforeDecorator.match(
       /@(Get|Post|Put|Patch|Delete)(?!\w)/i,
     );
+    if (!simpleHttpMatch) {
+      simpleHttpMatch = afterSearchWindow.match(
+        /@(Get|Post|Put|Patch|Delete)(?!\w)/i,
+      );
+    }
     if (simpleHttpMatch) {
       httpMethod = simpleHttpMatch[1].toUpperCase();
     }
   }
 
+  // Search AFTER @SdkContract for method name
+  const methodSearchWindow = afterDecorator.substring(0, 300);
+
   // Extract method name - look for method definition after decorators
-  const methodNameMatch = methodSection.match(
-    /(?:async\s+)?(\w+)\s*\([^)]*\)\s*[{:]/,
-  );
+  // Pattern: async methodName( or methodName(
+  const methodNameMatch = methodSearchWindow.match(/(?:async\s+)?(\w+)\s*\(/);
   const methodName = methodNameMatch ? methodNameMatch[1] : 'unknown';
 
   // Fallback HTTP method detection from method name
