@@ -27,6 +27,10 @@
     "generate:cli": "ts-node -r tsconfig-paths/register tools/generators/cli-generator.ts",
     "generate:n8n": "ts-node -r tsconfig-paths/register tools/generators/n8n-generator.ts",
     "generate:openapi": "ts-node -r tsconfig-paths/register tools/generators/openapi-generator.ts",
+    "version:patch": "npm version patch && npm run generate:all",
+    "version:minor": "npm version minor && npm run generate:all",
+    "version:major": "npm version major && npm run generate:all",
+    "version:check": "node -e \"const v = require('./package.json').version; console.log('Backend:', v); console.log('SDK:', require('./generated/sdk/package.json').version); console.log('CLI:', require('./generated/cli/package.json').version); console.log('n8n:', require('./generated/n8n/package.json').version);\"",
     "prepare": "[ \"$NODE_ENV\" = \"production\" ] || husky || true"
   },
   "dependencies": {

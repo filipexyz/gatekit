@@ -1,105 +1,106 @@
-# GitHub Actions for Contract-Driven Architecture
+# GitHub Actions Workflows
 
-This directory contains automated workflows for the revolutionary contract-driven SDK and CLI generation system.
+This directory contains automated workflows for the contract-driven SDK, CLI, and n8n generation system.
 
 ## Workflows
 
-### 1. `publish-packages.yml` - Production Deployment
-**Manual trigger workflow** for publishing packages to npm.
+### `multi-repo-publish.yml`
 
-**Features:**
-- ✅ **Selective publishing** - Choose SDK, CLI, or both
-- ✅ **Version management** - Automatic version bumping (patch/minor/major)
-- ✅ **Dependency sync** - CLI automatically uses latest SDK version
-- ✅ **GitHub releases** - Creates tagged releases with changelog
-- ✅ **Complete validation** - Full generation and compilation before publish
+**Manual trigger** - Publishing packages across multiple repositories.
+
+**Triggers:**
+
+- Manual workflow dispatch from GitHub Actions UI
 
 **Usage:**
-1. Go to **Actions** tab in GitHub
-2. Select **"Publish GateKit SDK and CLI"**
-3. Click **"Run workflow"**
-4. Choose options:
-   - Publish SDK: ✅/❌
-   - Publish CLI: ✅/❌
-   - Version bump: patch/minor/major
 
-### 2. `validate-generation.yml` - Quality Assurance
-**Automatic trigger** on every push/PR affecting contract system.
+1. Bump version locally: `npm run version:patch`
+2. Push to main: `git push origin main --tags`
+3. Go to GitHub Actions → "Multi-Repo Package Publishing"
+4. Click "Run workflow"
+5. Select packages to publish (SDK, CLI, n8n)
 
-**Validation Steps:**
-- ✅ **Contract extraction** - Validates @SdkContract decorators
-- ✅ **Package generation** - Tests SDK and CLI generation
-- ✅ **Compilation verification** - Ensures generated packages compile
-- ✅ **Source protection** - Verifies no backend code leaked
-- ✅ **End-to-end testing** - Tests real API functionality
-- ✅ **Artifact storage** - Saves generated packages for review
+**What it does:**
 
-## Security & Source Protection
+- Generates all packages from backend contracts
+- Verifies version coordination (all packages match backend)
+- Creates PRs in package repositories with AI-generated changelogs
+- After PR merge → packages publish to npm automatically
 
-### 🛡️ **NPM Token Security**
-Add `NPM_TOKEN` secret to repository settings:
-1. **Generate npm token**: `npm token create --access=publish`
-2. **Add to GitHub**: Settings → Secrets → Actions → `NPM_TOKEN`
+### `validate-generation.yml`
 
-### 🔒 **Source Protection Validation**
-The workflows automatically verify:
-- ❌ **No backend controllers** in published packages
-- ❌ **No NestJS imports** in compiled code
-- ❌ **No Prisma references** in generated files
-- ❌ **No database schemas** in published packages
+**Automatic trigger** - Quality assurance for contract system.
 
-## Architecture Benefits
+**Triggers:**
 
-### 🚀 **Automated Excellence**
-- **Perfect sync** - Backend changes automatically trigger package updates
-- **Quality gates** - No broken packages ever reach npm
-- **Version management** - Consistent versioning across SDK and CLI
-- **Release automation** - Tagged releases with complete changelogs
+- Push to `main` affecting `src/*/controllers/`, `src/*/decorators/`, `tools/`
+- Pull requests to `main` affecting same paths
 
-### 📦 **Published Package Quality**
-```bash
-# What gets published to npm:
-@gatekit/sdk/
-├── dist/index.js        # Clean compiled JavaScript
-├── dist/index.d.ts      # Perfect TypeScript definitions
-├── dist/client.js       # Beautiful gk.projects.create() API
-├── dist/types.js        # All 22 auto-extracted types
-└── package.json         # Professional package metadata
+**Validation steps:**
 
-@gatekit/cli/
-├── dist/index.js        # Executable CLI entry point
-├── dist/commands/       # All 14 generated commands
-├── dist/lib/utils.js    # Config and error handling
-└── package.json         # CLI binary configuration
+- Contract extraction and validation
+- Package generation (SDK, CLI, n8n)
+- Compilation verification
+- Source protection checks
+- E2E testing
+- Artifact storage (7 days)
+
+### `test-generation.yml`
+
+**Manual trigger** - Testing package generation.
+
+**Usage:**
+
+- Test compilation of generated packages
+- Validate package structure
+- Performance benchmarks
+
+### `ci.yml`
+
+**Automatic trigger** - Main CI/CD pipeline.
+
+**Triggers:**
+
+- All pushes and pull requests
+
+**Runs:**
+
+- Unit tests
+- E2E tests
+- Linting
+- Build verification
+
+## Version Management
+
+**Coordinated Versioning:**
+
+All packages share the same version from backend `package.json`:
+
+```
+Backend v1.2.1 → @gatekit/sdk@1.2.1
+                 @gatekit/cli@1.2.1
+                 n8n-nodes-gatekit@1.2.1
 ```
 
-### 🎯 **Revolutionary Features**
-- **Contract-driven** - Single source of truth generates everything
-- **Type-safe** - Zero `any` types throughout
-- **Permission-aware** - CLI adapts to user capabilities
-- **Source-protected** - Backend code never exposed
-- **Enterprise-ready** - Complete CI/CD with quality gates
+**Commands:**
 
-## Usage Examples
-
-### Publishing Both Packages
 ```bash
-# Triggers both SDK and CLI publish with minor version bump
-# Creates GitHub release with changelog
-# Updates CLI to use latest SDK version
+npm run version:patch   # 1.2.1 → 1.2.2
+npm run version:minor   # 1.2.1 → 1.3.0
+npm run version:major   # 1.2.1 → 2.0.0
+npm run version:check   # Verify coordination
 ```
 
-### Publishing SDK Only
-```bash
-# Updates SDK with patch version
-# Useful for SDK-only improvements
-# CLI remains on previous SDK version
-```
+See [VERSIONING.md](../VERSIONING.md) for complete guide.
 
-### Development Workflow
-1. **Add @SdkContract decorators** to new endpoints
-2. **Push to main branch** - validation runs automatically
-3. **Review generated packages** in workflow artifacts
-4. **Manually trigger publish** when ready for release
+## Required GitHub Secrets
 
-This revolutionary architecture ensures that GateKit maintains the most advanced API tooling in the messaging space with zero maintenance overhead!
+- `NPM_TOKEN` - npm publishing (`npm token create --access=publish`)
+- `PERSONAL_ACCESS_TOKEN` - Multi-repo access (GitHub Settings → Developer settings)
+- `CLAUDE_CODE_OAUTH_TOKEN` - AI changelog generation
+
+## Links
+
+- [CONTRIBUTING.md](../CONTRIBUTING.md) - Development workflow and troubleshooting
+- [VERSIONING.md](../VERSIONING.md) - Complete versioning guide
+- [CONTRACT_DRIVEN_DEVELOPMENT.md](../CONTRACT_DRIVEN_DEVELOPMENT.md) - Contract system documentation

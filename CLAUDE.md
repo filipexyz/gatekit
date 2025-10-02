@@ -491,6 +491,35 @@ cd ../n8n && npm publish
 # 4. OpenAPI available at /docs/openapi.json
 ```
 
+## Version Management
+
+### Coordinated Versioning System
+
+GateKit uses **synchronized versioning** across all packages. Backend `package.json` is the single source of truth.
+
+**Version Bump Workflow:**
+
+```bash
+# Bump version (auto-generates all packages)
+npm run version:patch  # 1.2.1 → 1.2.2
+npm run version:minor  # 1.2.1 → 1.3.0
+npm run version:major  # 1.2.1 → 2.0.0
+
+# Verify all packages have same version
+npm run version:check
+
+# Push with tags
+git push origin main --tags
+```
+
+**All packages coordinate automatically:**
+
+- `@gatekit/sdk` → Inherits backend version
+- `@gatekit/cli` → Inherits backend version, references SDK
+- `n8n-nodes-gatekit` → Inherits backend version
+
+**Complete guide:** See [VERSIONING.md](./VERSIONING.md)
+
 ## Deployment
 
 ```bash
