@@ -330,12 +330,12 @@ export class GateKitApi implements ICredentialType {
           nodes: ['dist/nodes/GateKit/GateKit.node.js'],
         },
         devDependencies: {
-          '@types/node': '^20.0.0',
-          eslint: '^8.0.0',
-          gulp: '^4.0.2',
+          '@types/node': '^24.6.2',
+          eslint: '^9.36.0',
+          gulp: '^5.0.1',
           'n8n-workflow': '*',
-          prettier: '^3.0.0',
-          typescript: '^5.0.0',
+          prettier: '^3.6.2',
+          typescript: '^5.9.3',
         },
         peerDependencies: {
           'n8n-workflow': '*',
