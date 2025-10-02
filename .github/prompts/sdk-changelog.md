@@ -34,8 +34,8 @@ Generate a PR description for the **@gatekit/sdk** package based on actual code 
 
 - Start with brief summary
 - List only ACTUAL changes from git diff
-- Include version info: `**Version**: v{VERSION}`
-- Link to source: `**Source**: [{COMMIT_SHA}](https://github.com/filipexyz/gatekit/commit/{COMMIT_SHA})`
+- Include version info using $VERSION: `**Version**: v$VERSION`
+- Link to source backend: `**Source**: [GateKit Backend](https://github.com/filipexyz/gatekit)`
 - Keep it concise and direct
 
 ## Structure (adapt as needed)
@@ -45,8 +45,8 @@ Generate a PR description for the **@gatekit/sdk** package based on actual code 
 
 [1-2 sentence description of what changed]
 
-**Version**: v{VERSION}
-**Source**: [{COMMIT_SHA}](https://github.com/filipexyz/gatekit/commit/{COMMIT_SHA})
+**Version**: v$VERSION
+**Source**: [GateKit Backend](https://github.com/filipexyz/gatekit)
 
 ### Changes
 
@@ -82,6 +82,11 @@ Generate a PR description for the **@gatekit/sdk** package based on actual code 
 
 ## Environment Variables
 
-- `VERSION` - Package version
-- `COMMIT_SHA` - Commit hash
-- `COMMIT_MSG` - Commit message
+Available as shell environment variables (access with `$VARIABLE_NAME`):
+
+- `$VERSION` - Package version (e.g., "1.2.1")
+- `$COMMIT_SHA` - Commit hash (e.g., "a1b2c3d")
+- `$COMMIT_MSG` - Commit message
+- `$GITHUB_WORKSPACE` - Workspace directory
+
+**IMPORTANT**: Use these actual values in your output, not placeholder text!
