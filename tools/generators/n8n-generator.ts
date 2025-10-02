@@ -4,6 +4,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ExtractedContract } from '../extractors/contract-extractor.service';
 import { TemplateUtils } from './template-utils';
+import packageJson from '../../package.json';
 
 interface GeneratedN8N {
   nodeFile: string;
@@ -293,7 +294,7 @@ export class GateKitApi implements ICredentialType {
     return JSON.stringify(
       {
         name: 'n8n-nodes-gatekit',
-        version: '1.0.0',
+        version: packageJson.version,
         description:
           'n8n community node for GateKit universal messaging gateway',
         keywords: [

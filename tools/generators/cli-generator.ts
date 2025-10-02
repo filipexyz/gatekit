@@ -5,6 +5,7 @@ import * as path from 'path';
 import { ExtractedContract } from '../extractors/contract-extractor.service';
 import { CaseConverter } from '../../src/common/utils/case-converter';
 import { TemplateUtils } from './template-utils';
+import packageJson from '../../package.json';
 
 interface GeneratedCLI {
   commands: Record<string, string>; // category -> command file content
@@ -397,7 +398,7 @@ const program = new Command();
 program
   .name('gatekit')
   .description('GateKit Universal Messaging Gateway CLI')
-  .version('1.0.0');
+  .version('${packageJson.version}');
 
 // Add permission-aware commands
 ${commandRegistrations}
@@ -488,7 +489,7 @@ export function handleError(error: any): void {
     return JSON.stringify(
       {
         name: '@gatekit/cli',
-        version: '1.0.0',
+        version: packageJson.version,
         description: 'Official CLI for GateKit universal messaging gateway',
         main: 'dist/index.js',
         bin: {
@@ -500,7 +501,7 @@ export function handleError(error: any): void {
           prepublishOnly: 'npm run build',
         },
         dependencies: {
-          '@gatekit/sdk': 'file:../sdk',
+          '@gatekit/sdk': `^${packageJson.version}`,
           commander: '^11.0.0',
           axios: '^1.6.0',
         },

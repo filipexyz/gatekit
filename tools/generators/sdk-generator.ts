@@ -5,6 +5,7 @@ import * as path from 'path';
 import { ExtractedContract } from '../extractors/contract-extractor.service';
 import { CaseConverter } from '../../src/common/utils/case-converter';
 import { TemplateUtils } from './template-utils';
+import packageJson from '../../package.json';
 
 interface GeneratedSDK {
   types: string;
@@ -519,7 +520,7 @@ export * from './types';
 export * from './errors';
 
 // Version info
-export const SDK_VERSION = '1.0.0';
+export const SDK_VERSION = '${packageJson.version}';
 export const GENERATED_AT = '${new Date().toISOString()}';
 export const CONTRACTS_COUNT = ${contracts.length};
 `;
@@ -529,7 +530,7 @@ export const CONTRACTS_COUNT = ${contracts.length};
     return JSON.stringify(
       {
         name: '@gatekit/sdk',
-        version: '1.0.0',
+        version: packageJson.version,
         description:
           'Official TypeScript SDK for GateKit universal messaging gateway',
         main: 'dist/index.js',
