@@ -541,10 +541,10 @@ export const CONTRACTS_COUNT = ${contracts.length};
           prepublishOnly: 'npm run build',
         },
         dependencies: {
-          axios: '^1.6.0',
+          axios: '^1.12.2',
         },
         peerDependencies: {
-          typescript: '>=4.5.0',
+          typescript: '>=5.0.0',
         },
         keywords: ['gatekit', 'messaging', 'sdk', 'api-client'],
         author: 'GateKit',

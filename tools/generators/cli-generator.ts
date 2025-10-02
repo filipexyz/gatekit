@@ -502,11 +502,11 @@ export function handleError(error: any): void {
         },
         dependencies: {
           '@gatekit/sdk': `^${packageJson.version}`,
-          commander: '^11.0.0',
-          axios: '^1.6.0',
+          commander: '^14.0.1',
+          axios: '^1.12.2',
         },
         peerDependencies: {
-          typescript: '>=4.5.0',
+          typescript: '>=5.0.0',
         },
         keywords: ['gatekit', 'cli', 'messaging', 'universal'],
         author: 'GateKit',
