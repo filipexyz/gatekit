@@ -71,6 +71,20 @@ jobs:
           test -f generated/cli/package.json
           echo "✅ CLI structure valid"
 
+      - name: Validate n8n generation
+        run: |
+          echo "🔧 Testing n8n generation..."
+          npm run generate:n8n
+
+          echo "📦 Generated n8n structure:"
+          ls -la generated/n8n/
+
+          # Check for critical files
+          test -f generated/n8n/nodes/GateKit/GateKit.node.ts
+          test -f generated/n8n/credentials/GateKitApi.credentials.ts
+          test -f generated/n8n/package.json
+          echo "✅ n8n structure valid"
+
       - name: Validate compilation
         run: |
           echo "🧪 Testing package compilation..."
@@ -119,6 +133,7 @@ jobs:
           echo "✅ Controllers covered: $CONTROLLERS"
           echo "✅ SDK generation: PASSED"
           echo "✅ CLI generation: PASSED"
+          echo "✅ n8n generation: PASSED"
           echo "✅ Compilation: PASSED"
           echo "✅ Source protection: VERIFIED"
           echo "✅ End-to-end testing: PASSED"
@@ -133,4 +148,5 @@ jobs:
             generated/contracts/
             generated/sdk/dist/
             generated/cli/dist/
+            generated/n8n/dist/
           retention-days: 30
