@@ -254,9 +254,10 @@ jobs:
           git push origin $BRANCH_NAME
 
           # Create PR with Claude-generated title and changelog
+          echo "${{ steps.sdk_pr.outputs.body }}" > /tmp/sdk-pr-body.md
           gh pr create \
             --title "${{ steps.sdk_pr.outputs.title }}" \
-            --body "${{ steps.sdk_pr.outputs.body }}" \
+            --body-file /tmp/sdk-pr-body.md \
             --head $BRANCH_NAME \
             --base main
 
@@ -276,9 +277,10 @@ jobs:
           git push origin $BRANCH_NAME
 
           # Create PR with Claude-generated title and changelog
+          echo "${{ steps.cli_pr.outputs.body }}" > /tmp/cli-pr-body.md
           gh pr create \
             --title "${{ steps.cli_pr.outputs.title }}" \
-            --body "${{ steps.cli_pr.outputs.body }}" \
+            --body-file /tmp/cli-pr-body.md \
             --head $BRANCH_NAME \
             --base main
 
@@ -298,9 +300,10 @@ jobs:
           git push origin $BRANCH_NAME
 
           # Create PR with Claude-generated title and changelog
+          echo "${{ steps.n8n_pr.outputs.body }}" > /tmp/n8n-pr-body.md
           gh pr create \
             --title "${{ steps.n8n_pr.outputs.title }}" \
-            --body "${{ steps.n8n_pr.outputs.body }}" \
+            --body-file /tmp/n8n-pr-body.md \
             --head $BRANCH_NAME \
             --base main
 
