@@ -27,6 +27,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CryptoUtil } from '../../common/utils/crypto.util';
 import { AttachmentUtil } from '../../common/utils/attachment.util';
 import { PlatformCapability } from '../enums/platform-capability.enum';
+import { PlatformType } from '../../common/enums/platform-type.enum';
 import { UrlValidationUtil } from '../../common/utils/url-validation.util';
 import { ProviderUtil } from './provider.util';
 import { EmbedTransformerUtil } from '../utils/embed-transformer.util';
@@ -56,7 +57,7 @@ interface DiscordConnection {
 }
 
 @Injectable()
-@PlatformProviderDecorator('discord', [
+@PlatformProviderDecorator(PlatformType.DISCORD, [
   { capability: PlatformCapability.SEND_MESSAGE },
   { capability: PlatformCapability.RECEIVE_MESSAGE },
   {
@@ -82,10 +83,10 @@ export class DiscordProvider
   private readonly connections = new Map<string, DiscordConnection>();
   private readonly MAX_CONNECTIONS = 100;
 
-  readonly name = 'discord';
+  readonly name = PlatformType.DISCORD;
   readonly displayName = 'Discord';
   readonly connectionType = 'websocket' as const;
-  readonly channel = 'discord' as const;
+  readonly channel = PlatformType.DISCORD;
 
   constructor(
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
@@ -104,7 +105,7 @@ export class DiscordProvider
       // Query for all active Discord platforms
       const activePlatforms = await this.prisma.projectPlatform.findMany({
         where: {
-          platform: 'discord',
+          platform: PlatformType.DISCORD,
           isActive: true,
         },
         include: {
@@ -488,7 +489,7 @@ export class DiscordProvider
 
   toEnvelope(msg: Message, projectId: string): MessageEnvelopeV1 {
     return makeEnvelope({
-      channel: 'discord',
+      channel: PlatformType.DISCORD,
       projectId,
       threadId: msg.channelId,
       user: {
@@ -663,7 +664,7 @@ export class DiscordProvider
       await this.messagesService.storeIncomingMessage({
         projectId,
         platformId: connection.platformId,
-        platform: 'discord',
+        platform: PlatformType.DISCORD,
         providerMessageId: msg.id,
         providerChatId: msg.channelId,
         providerUserId: msg.author.id,
@@ -892,7 +893,7 @@ export class DiscordProvider
       await this.messagesService.storeIncomingButtonClick({
         projectId,
         platformId,
-        platform: 'discord',
+        platform: PlatformType.DISCORD,
         providerMessageId: `interaction_${interaction.id}`,
         providerChatId: interaction.channelId,
         providerUserId: interaction.user.id,
@@ -1047,7 +1048,7 @@ export class DiscordProvider
       const success = await this.messagesService.storeIncomingReaction({
         projectId,
         platformId,
-        platform: 'discord',
+        platform: PlatformType.DISCORD,
         providerMessageId: reaction.message.id,
         providerChatId: reaction.message.channelId,
         providerUserId: user.id,
@@ -1104,7 +1105,7 @@ export class DiscordProvider
       const success = await this.messagesService.storeIncomingReaction({
         projectId,
         platformId,
-        platform: 'discord',
+        platform: PlatformType.DISCORD,
         providerMessageId: reaction.message.id,
         providerChatId: reaction.message.channelId,
         providerUserId: user.id,

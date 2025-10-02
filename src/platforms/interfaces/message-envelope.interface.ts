@@ -1,4 +1,6 @@
-export type ChannelType = 'discord' | 'telegram' | 'whatsapp-evo';
+import { PlatformType } from '../../common/enums/platform-type.enum';
+
+export type ChannelType = PlatformType;
 
 export interface UserRef {
   providerUserId: string;

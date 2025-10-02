@@ -5,6 +5,7 @@ import { RequireScopes } from '../../common/decorators/scopes.decorator';
 import { SdkContract } from '../../common/decorators/sdk-contract.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { QueryPlatformLogsDto } from '../dto/query-platform-logs.dto';
+import { ApiScope } from '../../common/enums/api-scopes.enum';
 
 @Controller('api/v1/projects/:slug/platforms')
 @UseGuards(AppAuthGuard)
@@ -15,12 +16,12 @@ export class PlatformLogsController {
   ) {}
 
   @Get('logs')
-  @RequireScopes('platforms:read')
+  @RequireScopes(ApiScope.PLATFORMS_READ)
   @SdkContract({
     command: 'platforms logs list',
     description: 'List platform processing logs for a project',
     category: 'Platform Logs',
-    requiredScopes: ['platforms:read'],
+    requiredScopes: [ApiScope.PLATFORMS_READ],
     outputType: 'PlatformLogsResponse',
     options: {
       platform: {
@@ -103,12 +104,12 @@ export class PlatformLogsController {
   }
 
   @Get(':platformId/logs')
-  @RequireScopes('platforms:read')
+  @RequireScopes(ApiScope.PLATFORMS_READ)
   @SdkContract({
     command: 'platforms logs get',
     description: 'List logs for a specific platform configuration',
     category: 'Platform Logs',
-    requiredScopes: ['platforms:read'],
+    requiredScopes: [ApiScope.PLATFORMS_READ],
     outputType: 'PlatformLogsResponse',
     options: {
       level: {
@@ -184,12 +185,12 @@ export class PlatformLogsController {
   }
 
   @Get('logs/stats')
-  @RequireScopes('platforms:read')
+  @RequireScopes(ApiScope.PLATFORMS_READ)
   @SdkContract({
     command: 'platforms logs stats',
     description: 'Get platform logs statistics and recent errors',
     category: 'Platform Logs',
-    requiredScopes: ['platforms:read'],
+    requiredScopes: [ApiScope.PLATFORMS_READ],
     outputType: 'PlatformLogStatsResponse',
     examples: [
       {

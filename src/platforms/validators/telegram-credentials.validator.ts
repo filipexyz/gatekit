@@ -3,12 +3,13 @@ import {
   PlatformCredentialValidator,
   CredentialValidationResult,
 } from '../interfaces/credential-validator.interface';
+import { PlatformType } from '../../common/enums/platform-type.enum';
 
 @Injectable()
 export class TelegramCredentialsValidator
   implements PlatformCredentialValidator
 {
-  readonly platform = 'telegram';
+  readonly platform = PlatformType.TELEGRAM;
 
   validateCredentials(
     credentials: Record<string, any>,

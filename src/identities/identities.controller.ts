@@ -20,12 +20,7 @@ import { AuthContextParam } from '../common/decorators/auth-context.decorator';
 import type { AuthContext } from '../common/utils/security.util';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { RequireScopes } from '../common/decorators/scopes.decorator';
-import {
-  IdentityResponse,
-  IdentityAliasResponse,
-} from './dto/identity-response.dto';
-import { ReceivedMessageResponse } from '../messages/dto/received-message-response.dto';
-import { ReceivedReactionResponse } from '../messages/dto/received-reaction-response.dto';
+import { ApiScope } from '../common/enums/api-scopes.enum';
 
 @Controller('api/v1/projects/:projectSlug/identities')
 @UseGuards(AppAuthGuard, ProjectAccessGuard)
@@ -33,12 +28,12 @@ export class IdentitiesController {
   constructor(private readonly identitiesService: IdentitiesService) {}
 
   @Post()
-  @RequireScopes('identities:write')
+  @RequireScopes(ApiScope.IDENTITIES_WRITE)
   @SdkContract({
     command: 'identities create',
     description: 'Create a new identity with platform aliases',
     category: 'Identities',
-    requiredScopes: ['identities:write'],
+    requiredScopes: [ApiScope.IDENTITIES_WRITE],
     inputType: 'CreateIdentityDto',
     outputType: 'IdentityResponse',
     options: {
@@ -81,12 +76,12 @@ export class IdentitiesController {
   }
 
   @Get()
-  @RequireScopes('identities:read')
+  @RequireScopes(ApiScope.IDENTITIES_READ)
   @SdkContract({
     command: 'identities list',
     description: 'List all identities for a project',
     category: 'Identities',
-    requiredScopes: ['identities:read'],
+    requiredScopes: [ApiScope.IDENTITIES_READ],
     outputType: 'IdentityResponse[]',
     examples: [
       {
@@ -103,12 +98,12 @@ export class IdentitiesController {
   }
 
   @Get('lookup')
-  @RequireScopes('identities:read')
+  @RequireScopes(ApiScope.IDENTITIES_READ)
   @SdkContract({
     command: 'identities lookup',
     description: 'Lookup identity by platform user ID',
     category: 'Identities',
-    requiredScopes: ['identities:read'],
+    requiredScopes: [ApiScope.IDENTITIES_READ],
     outputType: 'IdentityResponse',
     options: {
       platformId: {
@@ -145,12 +140,12 @@ export class IdentitiesController {
   }
 
   @Get(':id')
-  @RequireScopes('identities:read')
+  @RequireScopes(ApiScope.IDENTITIES_READ)
   @SdkContract({
     command: 'identities get',
     description: 'Get a specific identity by ID',
     category: 'Identities',
-    requiredScopes: ['identities:read'],
+    requiredScopes: [ApiScope.IDENTITIES_READ],
     outputType: 'IdentityResponse',
     options: {
       id: {
@@ -175,12 +170,12 @@ export class IdentitiesController {
   }
 
   @Patch(':id')
-  @RequireScopes('identities:write')
+  @RequireScopes(ApiScope.IDENTITIES_WRITE)
   @SdkContract({
     command: 'identities update',
     description: 'Update identity metadata (display name, email, metadata)',
     category: 'Identities',
-    requiredScopes: ['identities:write'],
+    requiredScopes: [ApiScope.IDENTITIES_WRITE],
     inputType: 'UpdateIdentityDto',
     outputType: 'IdentityResponse',
     options: {
@@ -230,12 +225,12 @@ export class IdentitiesController {
   }
 
   @Post(':id/aliases')
-  @RequireScopes('identities:write')
+  @RequireScopes(ApiScope.IDENTITIES_WRITE)
   @SdkContract({
     command: 'identities add-alias',
     description: 'Add a platform alias to an existing identity',
     category: 'Identities',
-    requiredScopes: ['identities:write'],
+    requiredScopes: [ApiScope.IDENTITIES_WRITE],
     inputType: 'AddAliasDto',
     outputType: 'IdentityAliasResponse',
     options: {
@@ -282,12 +277,12 @@ export class IdentitiesController {
   }
 
   @Delete(':id/aliases/:aliasId')
-  @RequireScopes('identities:write')
+  @RequireScopes(ApiScope.IDENTITIES_WRITE)
   @SdkContract({
     command: 'identities remove-alias',
     description: 'Remove a platform alias from an identity',
     category: 'Identities',
-    requiredScopes: ['identities:write'],
+    requiredScopes: [ApiScope.IDENTITIES_WRITE],
     outputType: 'MessageResponse',
     options: {
       id: {
@@ -323,12 +318,12 @@ export class IdentitiesController {
   }
 
   @Delete(':id')
-  @RequireScopes('identities:write')
+  @RequireScopes(ApiScope.IDENTITIES_WRITE)
   @SdkContract({
     command: 'identities delete',
     description: 'Delete an identity and all its aliases',
     category: 'Identities',
-    requiredScopes: ['identities:write'],
+    requiredScopes: [ApiScope.IDENTITIES_WRITE],
     outputType: 'MessageResponse',
     options: {
       id: {
@@ -353,13 +348,13 @@ export class IdentitiesController {
   }
 
   @Get(':id/messages')
-  @RequireScopes('identities:read', 'messages:read')
+  @RequireScopes(ApiScope.IDENTITIES_READ, ApiScope.MESSAGES_READ)
   @SdkContract({
     command: 'identities messages',
     description:
       'Get all messages for an identity (across all linked platform accounts)',
     category: 'Identities',
-    requiredScopes: ['identities:read', 'messages:read'],
+    requiredScopes: [ApiScope.IDENTITIES_READ, ApiScope.MESSAGES_READ],
     outputType: 'ReceivedMessageResponse[]',
     options: {
       id: {
@@ -388,13 +383,13 @@ export class IdentitiesController {
   }
 
   @Get(':id/reactions')
-  @RequireScopes('identities:read', 'messages:read')
+  @RequireScopes(ApiScope.IDENTITIES_READ, ApiScope.MESSAGES_READ)
   @SdkContract({
     command: 'identities reactions',
     description:
       'Get all reactions for an identity (across all linked platform accounts)',
     category: 'Identities',
-    requiredScopes: ['identities:read', 'messages:read'],
+    requiredScopes: [ApiScope.IDENTITIES_READ, ApiScope.MESSAGES_READ],
     outputType: 'ReceivedReactionResponse[]',
     options: {
       id: {

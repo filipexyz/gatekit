@@ -20,6 +20,7 @@ import { AuthContextParam } from '../common/decorators/auth-context.decorator';
 import type { AuthContext } from '../common/utils/security.util';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { WebhookEventType } from './types/webhook-event.types';
+import { ApiScope } from '../common/enums/api-scopes.enum';
 
 @Controller('api/v1/projects/:projectSlug/webhooks')
 @UseGuards(AppAuthGuard, ProjectAccessGuard)
@@ -27,12 +28,12 @@ export class WebhooksController {
   constructor(private readonly webhooksService: WebhooksService) {}
 
   @Post()
-  @RequireScopes('webhooks:write')
+  @RequireScopes(ApiScope.WEBHOOKS_WRITE)
   @SdkContract({
     command: 'webhooks create',
     description: 'Create a new webhook for event notifications',
     category: 'Webhooks',
-    requiredScopes: ['webhooks:write'],
+    requiredScopes: [ApiScope.WEBHOOKS_WRITE],
     inputType: 'CreateWebhookDto',
     outputType: 'WebhookResponse',
     options: {
@@ -88,12 +89,12 @@ export class WebhooksController {
   }
 
   @Get()
-  @RequireScopes('webhooks:read')
+  @RequireScopes(ApiScope.WEBHOOKS_READ)
   @SdkContract({
     command: 'webhooks list',
     description: 'List all webhooks for a project',
     category: 'Webhooks',
-    requiredScopes: ['webhooks:read'],
+    requiredScopes: [ApiScope.WEBHOOKS_READ],
     outputType: 'WebhookResponse[]',
     examples: [
       {
@@ -110,12 +111,12 @@ export class WebhooksController {
   }
 
   @Get(':webhookId')
-  @RequireScopes('webhooks:read')
+  @RequireScopes(ApiScope.WEBHOOKS_READ)
   @SdkContract({
     command: 'webhooks get',
     description: 'Get a specific webhook with delivery statistics',
     category: 'Webhooks',
-    requiredScopes: ['webhooks:read'],
+    requiredScopes: [ApiScope.WEBHOOKS_READ],
     outputType: 'WebhookDetailResponse',
     options: {
       webhookId: {
@@ -140,12 +141,12 @@ export class WebhooksController {
   }
 
   @Patch(':webhookId')
-  @RequireScopes('webhooks:write')
+  @RequireScopes(ApiScope.WEBHOOKS_WRITE)
   @SdkContract({
     command: 'webhooks update',
     description: 'Update a webhook configuration',
     category: 'Webhooks',
-    requiredScopes: ['webhooks:write'],
+    requiredScopes: [ApiScope.WEBHOOKS_WRITE],
     inputType: 'UpdateWebhookDto',
     outputType: 'WebhookResponse',
     options: {
@@ -199,12 +200,12 @@ export class WebhooksController {
   }
 
   @Delete(':webhookId')
-  @RequireScopes('webhooks:write')
+  @RequireScopes(ApiScope.WEBHOOKS_WRITE)
   @SdkContract({
     command: 'webhooks delete',
     description: 'Delete a webhook',
     category: 'Webhooks',
-    requiredScopes: ['webhooks:write'],
+    requiredScopes: [ApiScope.WEBHOOKS_WRITE],
     outputType: 'MessageResponse',
     options: {
       webhookId: {
@@ -233,12 +234,12 @@ export class WebhooksController {
   }
 
   @Get(':webhookId/deliveries')
-  @RequireScopes('webhooks:read')
+  @RequireScopes(ApiScope.WEBHOOKS_READ)
   @SdkContract({
     command: 'webhooks deliveries',
     description: 'List webhook delivery attempts with filtering',
     category: 'Webhooks',
-    requiredScopes: ['webhooks:read'],
+    requiredScopes: [ApiScope.WEBHOOKS_READ],
     outputType: 'WebhookDeliveryListResponse',
     options: {
       webhookId: {

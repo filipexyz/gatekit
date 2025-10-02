@@ -15,6 +15,7 @@ import { RequireScopes } from '../common/decorators/scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { AddMemberDto } from './dto/add-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { ApiScope } from '../common/enums/api-scopes.enum';
 
 @Controller('api/v1/projects/:slug/members')
 @UseGuards(AppAuthGuard)
@@ -22,12 +23,12 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @RequireScopes('members:read')
+  @RequireScopes(ApiScope.MEMBERS_READ)
   @SdkContract({
     command: 'members list',
     description: 'List all members of a project',
     category: 'Members',
-    requiredScopes: ['members:read'],
+    requiredScopes: [ApiScope.MEMBERS_READ],
     outputType: 'ProjectMemberResponse[]',
     examples: [
       {
@@ -41,12 +42,12 @@ export class UsersController {
   }
 
   @Post()
-  @RequireScopes('members:write')
+  @RequireScopes(ApiScope.MEMBERS_WRITE)
   @SdkContract({
     command: 'members add',
     description: 'Add a member to a project',
     category: 'Members',
-    requiredScopes: ['members:write'],
+    requiredScopes: [ApiScope.MEMBERS_WRITE],
     inputType: 'AddMemberDto',
     outputType: 'ProjectMemberResponse',
     options: {
@@ -89,12 +90,12 @@ export class UsersController {
   }
 
   @Patch(':userId')
-  @RequireScopes('members:write')
+  @RequireScopes(ApiScope.MEMBERS_WRITE)
   @SdkContract({
     command: 'members update',
     description: 'Update a member role in a project',
     category: 'Members',
-    requiredScopes: ['members:write'],
+    requiredScopes: [ApiScope.MEMBERS_WRITE],
     inputType: 'UpdateMemberRoleDto',
     outputType: 'ProjectMemberResponse',
     options: {
@@ -136,12 +137,12 @@ export class UsersController {
   }
 
   @Delete(':userId')
-  @RequireScopes('members:write')
+  @RequireScopes(ApiScope.MEMBERS_WRITE)
   @SdkContract({
     command: 'members remove',
     description: 'Remove a member from a project',
     category: 'Members',
-    requiredScopes: ['members:write'],
+    requiredScopes: [ApiScope.MEMBERS_WRITE],
     outputType: 'MessageResponse',
     options: {
       userId: {

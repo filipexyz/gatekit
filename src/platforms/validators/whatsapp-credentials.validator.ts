@@ -3,12 +3,13 @@ import {
   PlatformCredentialValidator,
   CredentialValidationResult,
 } from '../interfaces/credential-validator.interface';
+import { PlatformType } from '../../common/enums/platform-type.enum';
 
 @Injectable()
 export class WhatsAppCredentialsValidator
   implements PlatformCredentialValidator
 {
-  readonly platform = 'whatsapp-evo';
+  readonly platform = PlatformType.WHATSAPP_EVO;
 
   validateCredentials(
     credentials: Record<string, any>,

@@ -1,4 +1,5 @@
 import { MessageEnvelopeV1 } from './message-envelope.interface';
+import { PlatformType } from '../../common/enums/platform-type.enum';
 
 export interface InboundEventSource {
   start(): Promise<void>;
@@ -21,7 +22,7 @@ export interface OutboundTransport {
 }
 
 export interface PlatformAdapter extends InboundEventSource, OutboundTransport {
-  readonly channel: 'discord' | 'telegram' | 'whatsapp-evo';
+  readonly channel: PlatformType;
   initialize(projectId: string, credentials: any): Promise<void>;
   validateSignature?(req: any): boolean;
   toEnvelope(providerPayload: any, projectId?: string): MessageEnvelopeV1;

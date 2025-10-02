@@ -17,12 +17,6 @@ export enum TargetType {
   GROUP = 'group',
 }
 
-export enum Platform {
-  DISCORD = 'discord',
-  TELEGRAM = 'telegram',
-  WHATSAPP_EVO = 'whatsapp-evo',
-}
-
 export enum Priority {
   LOW = 'low',
   NORMAL = 'normal',
