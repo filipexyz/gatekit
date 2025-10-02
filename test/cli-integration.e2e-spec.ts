@@ -1,0 +1,242 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import * as path from 'path';
+import * as fs from 'fs/promises';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
+describe('CLI Integration Tests (e2e)', () => {
+  let app: INestApplication;
+  const testOutputDir = path.join(__dirname, '../test-output/cli-integration');
+  const generatedCliDir = path.join(__dirname, '../generated/cli');
+
+  beforeAll(async () => {
+    // Clean up test output
+    try {
+      await fs.rm(testOutputDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+    await fs.mkdir(testOutputDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    // Clean up test output
+    try {
+      await fs.rm(testOutputDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  describe('Generated CLI compilation and execution', () => {
+    it('should compile the generated CLI without errors', async () => {
+      // Run the CLI generator
+      const { stdout, stderr } = await execAsync('npm run generate:cli', {
+        cwd: path.join(__dirname, '..'),
+        timeout: 30000,
+      });
+
+      expect(stderr).not.toContain('Error');
+      expect(stdout).toContain('CLI generated successfully');
+
+      // Check that files were generated
+      const packageJson = await fs.readFile(
+        path.join(generatedCliDir, 'package.json'),
+        'utf-8',
+      );
+      expect(packageJson).toContain('@gatekit/cli');
+
+      // Install dependencies
+      await execAsync('npm install', {
+        cwd: generatedCliDir,
+        timeout: 60000,
+      });
+
+      // Build the CLI
+      const buildResult = await execAsync('npm run build', {
+        cwd: generatedCliDir,
+        timeout: 30000,
+      });
+
+      expect(buildResult.stderr).not.toContain('error TS');
+      expect(buildResult.stderr).not.toContain('Cannot find name');
+      expect(buildResult.stderr).not.toContain('Cannot add option');
+    }, 120000);
+
+    it('should not have duplicate Commander.js options', async () => {
+      // Try to load the compiled CLI (this will fail if there are duplicate options)
+      const cliIndexPath = path.join(generatedCliDir, 'dist/index.js');
+
+      // Check that the file exists and is executable
+      await fs.access(cliIndexPath);
+
+      // Try to run the CLI with --help (this will trigger Commander.js initialization)
+      // If there are duplicate options, it will throw before even showing help
+      const { stdout, stderr } = await execAsync(
+        `node ${cliIndexPath} --help`,
+        {
+          cwd: generatedCliDir,
+          timeout: 5000,
+        },
+      );
+
+      // Should not have Commander.js duplicate option errors
+      expect(stderr).not.toContain('Cannot add option');
+      expect(stderr).not.toContain('due to conflicting flag');
+      expect(stdout).toContain('gatekit');
+    }, 30000);
+
+    it('should show available commands', async () => {
+      const cliIndexPath = path.join(generatedCliDir, 'dist/index.js');
+
+      const { stdout } = await execAsync(`node ${cliIndexPath} --help`, {
+        cwd: generatedCliDir,
+        timeout: 5000,
+      });
+
+      // Should list major command groups
+      expect(stdout).toContain('projects');
+      expect(stdout).toContain('api-keys');
+      expect(stdout).toContain('platforms');
+      expect(stdout).toContain('messages');
+    }, 30000);
+
+    it('should show help for specific commands', async () => {
+      const cliIndexPath = path.join(generatedCliDir, 'dist/index.js');
+
+      const { stdout } = await execAsync(
+        `node ${cliIndexPath} projects --help`,
+        {
+          cwd: generatedCliDir,
+          timeout: 5000,
+        },
+      );
+
+      // Should show projects subcommands
+      expect(stdout).toContain('list');
+      expect(stdout).toContain('create');
+    }, 30000);
+
+    it('should show help for api-keys commands without duplicate option errors', async () => {
+      const cliIndexPath = path.join(generatedCliDir, 'dist/index.js');
+
+      // This is the command that was failing with duplicate --keyId
+      const { stdout, stderr } = await execAsync(
+        `node ${cliIndexPath} api-keys --help`,
+        {
+          cwd: generatedCliDir,
+          timeout: 5000,
+        },
+      );
+
+      expect(stderr).not.toContain('Cannot add option');
+      expect(stderr).not.toContain('conflicting flag');
+      expect(stdout).toContain('revoke');
+      expect(stdout).toContain('roll');
+    }, 30000);
+
+    it('should fail gracefully when required options are missing', async () => {
+      const cliIndexPath = path.join(generatedCliDir, 'dist/index.js');
+
+      // Try to run a command without required config
+      try {
+        await execAsync(`node ${cliIndexPath} projects list`, {
+          cwd: generatedCliDir,
+          timeout: 5000,
+          env: {
+            ...process.env,
+            // Don't set GATEKIT_API_KEY or GATEKIT_API_URL
+            GATEKIT_API_KEY: undefined,
+            GATEKIT_API_URL: undefined,
+          },
+        });
+        fail('Should have thrown an error');
+      } catch (error: any) {
+        // Should fail with a network/auth error, not a syntax error
+        expect(error.stderr || error.stdout).not.toContain('SyntaxError');
+        expect(error.stderr || error.stdout).not.toContain('TypeError');
+        expect(error.stderr || error.stdout).not.toContain(
+          'Cannot find module',
+        );
+      }
+    }, 30000);
+
+    it('should have all required dependencies installed', async () => {
+      const packageJson = JSON.parse(
+        await fs.readFile(path.join(generatedCliDir, 'package.json'), 'utf-8'),
+      );
+
+      // Check runtime dependencies
+      expect(packageJson.dependencies).toHaveProperty('@gatekit/sdk');
+      expect(packageJson.dependencies).toHaveProperty('commander');
+      expect(packageJson.dependencies).toHaveProperty('axios');
+
+      // Check dev dependencies
+      expect(packageJson.devDependencies).toHaveProperty('@types/node');
+      expect(packageJson.devDependencies).toHaveProperty('typescript');
+
+      // Verify node_modules exist
+      await fs.access(path.join(generatedCliDir, 'node_modules'));
+      await fs.access(path.join(generatedCliDir, 'node_modules/@gatekit/sdk'));
+      await fs.access(path.join(generatedCliDir, 'node_modules/commander'));
+    }, 30000);
+
+    it('should have valid TypeScript configuration', async () => {
+      const tsconfigPath = path.join(generatedCliDir, 'tsconfig.json');
+      await fs.access(tsconfigPath);
+
+      const tsconfig = JSON.parse(await fs.readFile(tsconfigPath, 'utf-8'));
+
+      // Should have proper compiler options
+      expect(tsconfig.compilerOptions).toBeDefined();
+      expect(tsconfig.compilerOptions.outDir).toMatch(/\.?\/dist/);
+      expect(tsconfig.compilerOptions.module).toBeDefined();
+    }, 30000);
+
+    it('should generate README with command examples', async () => {
+      const readmePath = path.join(generatedCliDir, 'README.md');
+      await fs.access(readmePath);
+
+      const readme = await fs.readFile(readmePath, 'utf-8');
+
+      // Should have usage examples
+      expect(readme).toContain('gatekit');
+      expect(readme).toContain('Installation');
+    }, 30000);
+  });
+
+  describe('Real world CLI scenarios', () => {
+    it('should handle --json flag correctly', async () => {
+      const cliIndexPath = path.join(generatedCliDir, 'dist/index.js');
+
+      // Check that --json flag is recognized (won't execute, but should parse)
+      const { stdout } = await execAsync(
+        `node ${cliIndexPath} projects list --help`,
+        {
+          cwd: generatedCliDir,
+          timeout: 5000,
+        },
+      );
+
+      expect(stdout).toContain('--json');
+    }, 30000);
+
+    it('should handle project parameter correctly', async () => {
+      const cliIndexPath = path.join(generatedCliDir, 'dist/index.js');
+
+      const { stdout } = await execAsync(
+        `node ${cliIndexPath} api-keys list --help`,
+        {
+          cwd: generatedCliDir,
+          timeout: 5000,
+        },
+      );
+
+      expect(stdout).toContain('--project');
+      expect(stdout).toContain('GATEKIT_DEFAULT_PROJECT');
+    }, 30000);
+  });
+});

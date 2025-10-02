@@ -115,8 +115,10 @@ ${this.generateCommandHelpers()}
       })
       .join('\n');
 
-    // Add path parameter options
+    // Add path parameter options (skip if already defined in contract options)
+    const existingOptions = Object.keys(contractMetadata.options || {});
     const pathParamOptions = pathParams
+      .filter((param) => !existingOptions.includes(param))
       .map((param) => {
         // Make project param optional with env var default
         if (param === 'project') {
