@@ -161,16 +161,12 @@ jobs:
             echo "❌ Claude Code failed to generate SDK changelog"
             exit 1
           fi
-          {
-            echo 'title<<EOF'
-            cat /tmp/sdk-pr-title.txt
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
-          {
-            echo 'body<<EOF'
-            cat /tmp/sdk-pr-body.md
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+          echo "title<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/sdk-pr-title.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/sdk-pr-body.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Generate CLI Changelog
         if: ${{ inputs.publish_cli }}
@@ -195,16 +191,12 @@ jobs:
             echo "❌ Claude Code failed to generate CLI changelog"
             exit 1
           fi
-          {
-            echo 'title<<EOF'
-            cat /tmp/cli-pr-title.txt
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
-          {
-            echo 'body<<EOF'
-            cat /tmp/cli-pr-body.md
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+          echo "title<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/cli-pr-title.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/cli-pr-body.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Generate n8n Changelog
         if: ${{ inputs.publish_n8n }}
@@ -229,16 +221,12 @@ jobs:
             echo "❌ Claude Code failed to generate n8n changelog"
             exit 1
           fi
-          {
-            echo 'title<<EOF'
-            cat /tmp/n8n-pr-title.txt
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
-          {
-            echo 'body<<EOF'
-            cat /tmp/n8n-pr-body.md
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+          echo "title<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/n8n-pr-title.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/n8n-pr-body.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create SDK Branch and PR
         if: ${{ inputs.publish_sdk }}
