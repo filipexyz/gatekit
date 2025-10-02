@@ -143,8 +143,9 @@ function extractContractsFromFile(
       const metadata = parser.parseObjectLiteral(metadataText);
 
       if (metadata) {
-        // Extract method info
-        const methodInfo = extractMethodInfo(content, match.index);
+        // Extract method info - pass the END of the decorator
+        const decoratorEndIndex = match.index + match[0].length;
+        const methodInfo = extractMethodInfo(content, decoratorEndIndex);
 
         contracts.push({
           controller: controllerName,
@@ -164,18 +165,14 @@ function extractContractsFromFile(
 
 function extractMethodInfo(
   content: string,
-  contractIndex: number,
+  decoratorEndIndex: number,
 ): { name: string; httpMethod: string; path: string } {
-  // Look for method context around the @SdkContract decorator (before and after)
-  const beforeContract = content.substring(
-    Math.max(0, contractIndex - 200),
-    contractIndex,
-  );
-  const afterContract = content.substring(contractIndex);
-  const methodSection = beforeContract + afterContract.substring(0, 300);
+  // Search in the text AFTER the @SdkContract decorator
+  const afterDecorator = content.substring(decoratorEndIndex);
+  const searchWindow = afterDecorator.substring(0, 500);
 
-  // Extract HTTP method decorator - look more carefully
-  const httpMethodMatch = methodSection.match(
+  // Extract HTTP method decorator
+  const httpMethodMatch = searchWindow.match(
     /@(Get|Post|Put|Patch|Delete)\s*\(\s*['"`]?([^'"`)]*)['"`]?\s*\)/i,
   );
   let httpMethod = 'GET';
@@ -186,7 +183,7 @@ function extractMethodInfo(
     methodPath = httpMethodMatch[2] || '';
   } else {
     // Try without parentheses
-    const simpleHttpMatch = methodSection.match(
+    const simpleHttpMatch = searchWindow.match(
       /@(Get|Post|Put|Patch|Delete)(?!\w)/i,
     );
     if (simpleHttpMatch) {
@@ -195,9 +192,8 @@ function extractMethodInfo(
   }
 
   // Extract method name - look for method definition after decorators
-  const methodNameMatch = methodSection.match(
-    /(?:async\s+)?(\w+)\s*\([^)]*\)\s*[{:]/,
-  );
+  // Pattern: async methodName( or methodName(
+  const methodNameMatch = searchWindow.match(/(?:async\s+)?(\w+)\s*\(/);
   const methodName = methodNameMatch ? methodNameMatch[1] : 'unknown';
 
   // Fallback HTTP method detection from method name
