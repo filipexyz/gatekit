@@ -15,7 +15,10 @@ interface GeneratedSDK {
 }
 
 export class SDKGenerator {
-  async generateFromContracts(contractsPath: string, outputDir: string): Promise<void> {
+  async generateFromContracts(
+    contractsPath: string,
+    outputDir: string,
+  ): Promise<void> {
     console.log('🔧 Generating type-safe SDK from contracts...');
 
     // Load contracts (now containing all type definitions)
@@ -44,7 +47,7 @@ export class SDKGenerator {
   private extractTypeNames(contracts: ExtractedContract[]): string[] {
     const typeNames = new Set<string>();
 
-    contracts.forEach(contract => {
+    contracts.forEach((contract) => {
       if (contract.contractMetadata.inputType) {
         typeNames.add(contract.contractMetadata.inputType);
       }
@@ -56,7 +59,10 @@ export class SDKGenerator {
     return Array.from(typeNames);
   }
 
-  private generateSDK(contracts: ExtractedContract[], typeDefinitions: Record<string, string>): GeneratedSDK {
+  private generateSDK(
+    contracts: ExtractedContract[],
+    typeDefinitions: Record<string, string>,
+  ): GeneratedSDK {
     return {
       types: this.generateTypesFromDefinitions(typeDefinitions),
       client: this.generateClient(contracts),
@@ -67,7 +73,9 @@ export class SDKGenerator {
     };
   }
 
-  private generateTypesFromDefinitions(typeDefinitions: Record<string, string>): string {
+  private generateTypesFromDefinitions(
+    typeDefinitions: Record<string, string>,
+  ): string {
     const typeDefinitionsList = Object.values(typeDefinitions).join('\n\n');
 
     return `// Generated TypeScript types for GateKit SDK
@@ -80,6 +88,7 @@ export interface GateKitConfig {
   apiUrl: string;
   apiKey?: string;
   jwtToken?: string;
+  defaultProject?: string;
   timeout?: number;
   retries?: number;
 }
@@ -164,7 +173,7 @@ export interface MessageStatus {
   state: 'waiting' | 'active' | 'completed' | 'failed';
   progress?: number;
   data?: {
-    projectSlug: string;
+    project: string;
     projectId: string;
     message: any;
     error?: string;
@@ -210,7 +219,7 @@ export interface ApiKeyResult {
     // Dynamically collect all used types from contracts
     const usedTypes = new Set<string>(['GateKitConfig']); // Always need config
 
-    contracts.forEach(contract => {
+    contracts.forEach((contract) => {
       if (contract.contractMetadata.inputType) {
         usedTypes.add(contract.contractMetadata.inputType);
       }
@@ -228,16 +237,20 @@ export interface ApiKeyResult {
     // Generate dynamic import list
     const typeImports = Array.from(usedTypes).sort().join(',\n  ');
 
-    const apiGroups = Object.entries(groups).map(([category, contracts]) => {
-      const className = `${CaseConverter.toValidClassName(category)}API`;
-      const methods = contracts.map(contract => this.generateAPIMethod(contract)).join('\n\n  ');
+    const apiGroups = Object.entries(groups)
+      .map(([category, contracts]) => {
+        const className = `${CaseConverter.toValidClassName(category)}API`;
+        const methods = contracts
+          .map((contract) => this.generateAPIMethod(contract))
+          .join('\n\n  ');
 
-      return `class ${className} {
-  constructor(private client: AxiosInstance) {}
+        return `class ${className} {
+  constructor(private client: AxiosInstance, private gatekit: GateKit) {}
 
   ${methods}
 }`;
-    }).join('\n\n');
+      })
+      .join('\n\n');
 
     return `// Generated API client for GateKit SDK
 // DO NOT EDIT - This file is auto-generated from backend contracts
@@ -252,13 +265,18 @@ ${apiGroups}
 
 export class GateKit {
   private client: AxiosInstance;
+  private defaultProject?: string;
 
   // API group instances
-${Object.keys(groups).map(category =>
-  `  readonly ${CaseConverter.toValidPropertyName(category)}: ${CaseConverter.toValidClassName(category)}API;`
-).join('\n')}
+${Object.keys(groups)
+  .map(
+    (category) =>
+      `  readonly ${CaseConverter.toValidPropertyName(category)}: ${CaseConverter.toValidClassName(category)}API;`,
+  )
+  .join('\n')}
 
   constructor(config: GateKitConfig) {
+    this.defaultProject = config.defaultProject;
     this.client = axios.create({
       baseURL: config.apiUrl,
       timeout: config.timeout || 30000,
@@ -269,9 +287,12 @@ ${Object.keys(groups).map(category =>
     this.setupErrorHandling();
 
     // Initialize API groups after client is ready
-${Object.keys(groups).map(category =>
-  `    this.${CaseConverter.toValidPropertyName(category)} = new ${CaseConverter.toValidClassName(category)}API(this.client);`
-).join('\n')}
+${Object.keys(groups)
+  .map(
+    (category) =>
+      `    this.${CaseConverter.toValidPropertyName(category)} = new ${CaseConverter.toValidClassName(category)}API(this.client, this);`,
+  )
+  .join('\n')}
   }
 
   private setupAuthentication(config: GateKitConfig): void {
@@ -306,6 +327,10 @@ ${Object.keys(groups).map(category =>
       }
     );
   }
+
+  getDefaultProject(): string | undefined {
+    return this.defaultProject;
+  }
 }
 `;
   }
@@ -314,7 +339,7 @@ ${Object.keys(groups).map(category =>
     const { contractMetadata, path, httpMethod } = contract;
     const methodName = this.getMethodName(contractMetadata.command);
 
-    // Extract path parameters (e.g., ":projectSlug", ":id", ":keyId")
+    // Extract path parameters (e.g., ":project", ":id", ":keyId")
     const pathParams = this.extractPathParameters(path);
 
     // Get types from contract metadata
@@ -322,10 +347,20 @@ ${Object.keys(groups).map(category =>
     const outputType = contractMetadata.outputType || 'any';
 
     // Determine if method needs input data based on inputType presence
-    const needsInput = inputType && inputType !== 'any';
+    const needsInput = !!(inputType && inputType !== 'any');
 
-    // Build method parameters: path params + optional data param
-    const methodParams = this.buildMethodParameters(pathParams, needsInput ? inputType : null);
+    // Separate project params from other path params
+    const projectParams = pathParams.filter((p) => p === 'project');
+    const otherParams = pathParams.filter((p) => p !== 'project');
+
+    // Build method signature - project goes in options object
+    const hasProject = projectParams.length > 0;
+    const methodParams = this.buildMethodSignature(
+      otherParams,
+      needsInput,
+      inputType,
+      hasProject,
+    );
 
     // Build URL with parameter substitution
     const urlWithParams = this.buildUrlWithParameters(path, pathParams);
@@ -334,14 +369,22 @@ ${Object.keys(groups).map(category =>
     const actualHttpMethod = httpMethod.toLowerCase();
 
     if (needsInput) {
+      // Extract project property from options for cleaner payload
+      const dataExtraction =
+        projectParams.length > 0
+          ? `const { project, ...data } = options;`
+          : `const data = options;`;
+
       // For GET requests with input data, use params config instead of request body
       if (actualHttpMethod === 'get') {
         return `async ${methodName}(${methodParams}): Promise<${outputType}> {
+    ${dataExtraction}
     const response = await this.client.${actualHttpMethod}<${outputType}>(${urlWithParams}, { params: data });
     return response.data;
   }`;
       } else {
         return `async ${methodName}(${methodParams}): Promise<${outputType}> {
+    ${dataExtraction}
     const response = await this.client.${actualHttpMethod}<${outputType}>(${urlWithParams}, data);
     return response.data;
   }`;
@@ -358,21 +401,46 @@ ${Object.keys(groups).map(category =>
 
   private extractPathParameters(path: string): string[] {
     const matches = path.match(/:([a-zA-Z][a-zA-Z0-9]*)/g);
-    return matches ? matches.map(match => match.substring(1)) : [];
+    return matches ? matches.map((match) => match.substring(1)) : [];
   }
 
-  private buildMethodParameters(pathParams: string[], inputType: string | null): string {
-    const params = pathParams.map(param => `${param}: string`);
-    if (inputType) {
-      params.push(`data: ${inputType}`);
+  private buildMethodSignature(
+    otherParams: string[],
+    needsInput: boolean,
+    inputType: string | null | undefined,
+    hasProject: boolean,
+  ): string {
+    const params: string[] = [];
+
+    // Add non-project path parameters as regular params
+    otherParams.forEach((param) => {
+      params.push(`${param}: string`);
+    });
+
+    // Build options type for input data + optional project
+    if (needsInput && hasProject) {
+      params.push(`options: ${inputType} & { project?: string }`);
+    } else if (needsInput) {
+      params.push(`options: ${inputType}`);
+    } else if (hasProject) {
+      params.push(`options?: { project?: string }`);
     }
+
     return params.join(', ');
   }
 
   private buildUrlWithParameters(path: string, pathParams: string[]): string {
     let url = `'${path}'`;
-    pathParams.forEach(param => {
-      url = url.replace(`:${param}`, `\${${param}}`);
+    pathParams.forEach((param) => {
+      // Use options.project for project param, with fallback to default
+      if (param === 'project') {
+        url = url.replace(
+          `:${param}`,
+          `\${options?.project || this.gatekit.getDefaultProject() || ''}`,
+        );
+      } else {
+        url = url.replace(`:${param}`, `\${${param}}`);
+      }
     });
     return '`' + url.slice(1, -1) + '`'; // Convert to template literal
   }
@@ -385,13 +453,18 @@ ${Object.keys(groups).map(category =>
     return methodName.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
   }
 
-  private groupContractsByCategory(contracts: ExtractedContract[]): Record<string, ExtractedContract[]> {
-    return contracts.reduce((groups, contract) => {
-      const category = contract.contractMetadata.category || 'General';
-      if (!groups[category]) groups[category] = [];
-      groups[category].push(contract);
-      return groups;
-    }, {} as Record<string, ExtractedContract[]>);
+  private groupContractsByCategory(
+    contracts: ExtractedContract[],
+  ): Record<string, ExtractedContract[]> {
+    return contracts.reduce(
+      (groups, contract) => {
+        const category = contract.contractMetadata.category || 'General';
+        if (!groups[category]) groups[category] = [];
+        groups[category].push(contract);
+        return groups;
+      },
+      {} as Record<string, ExtractedContract[]>,
+    );
   }
 
   private generateErrors(): string {
@@ -443,38 +516,46 @@ export const CONTRACTS_COUNT = ${contracts.length};
   }
 
   private generatePackageJson(): string {
-    return JSON.stringify({
-      name: '@gatekit/sdk',
-      version: '1.0.0',
-      description: 'Official TypeScript SDK for GateKit universal messaging gateway',
-      main: 'dist/index.js',
-      types: 'dist/index.d.ts',
-      files: ['dist'],
-      scripts: {
-        build: 'tsc',
-        prepublishOnly: 'npm run build'
+    return JSON.stringify(
+      {
+        name: '@gatekit/sdk',
+        version: '1.0.0',
+        description:
+          'Official TypeScript SDK for GateKit universal messaging gateway',
+        main: 'dist/index.js',
+        types: 'dist/index.d.ts',
+        files: ['dist'],
+        scripts: {
+          build: 'tsc',
+          prepublishOnly: 'npm run build',
+        },
+        dependencies: {
+          axios: '^1.6.0',
+        },
+        peerDependencies: {
+          typescript: '>=4.5.0',
+        },
+        keywords: ['gatekit', 'messaging', 'sdk', 'api-client'],
+        author: 'GateKit',
+        license: 'MIT',
+        repository: {
+          type: 'git',
+          url: 'https://github.com/filipexyz/gatekit-sdk.git',
+        },
+        homepage: 'https://github.com/filipexyz/gatekit-sdk',
+        bugs: {
+          url: 'https://github.com/filipexyz/gatekit-sdk/issues',
+        },
       },
-      dependencies: {
-        axios: '^1.6.0'
-      },
-      peerDependencies: {
-        typescript: '>=4.5.0'
-      },
-      keywords: ['gatekit', 'messaging', 'sdk', 'api-client'],
-      author: 'GateKit',
-      license: 'MIT',
-      repository: {
-        type: 'git',
-        url: 'https://github.com/filipexyz/gatekit-sdk.git'
-      },
-      homepage: 'https://github.com/filipexyz/gatekit-sdk',
-      bugs: {
-        url: 'https://github.com/filipexyz/gatekit-sdk/issues'
-      }
-    }, null, 2);
+      null,
+      2,
+    );
   }
 
-  private async writeSDKFiles(outputDir: string, sdk: GeneratedSDK): Promise<void> {
+  private async writeSDKFiles(
+    outputDir: string,
+    sdk: GeneratedSDK,
+  ): Promise<void> {
     const srcDir = path.join(outputDir, 'src');
     await fs.mkdir(srcDir, { recursive: true });
 
@@ -484,47 +565,58 @@ export const CONTRACTS_COUNT = ${contracts.length};
       fs.writeFile(path.join(srcDir, 'errors.ts'), sdk.errors),
       fs.writeFile(path.join(srcDir, 'index.ts'), sdk.index),
       fs.writeFile(path.join(outputDir, 'package.json'), sdk.packageJson),
-      fs.writeFile(path.join(outputDir, 'tsconfig.json'), this.generateTSConfig()),
+      fs.writeFile(
+        path.join(outputDir, 'tsconfig.json'),
+        this.generateTSConfig(),
+      ),
       fs.writeFile(path.join(outputDir, 'README.md'), sdk.readme),
     ]);
   }
 
   private generateTSConfig(): string {
-    return JSON.stringify({
-      compilerOptions: {
-        target: 'ES2020',
-        module: 'commonjs',
-        lib: ['ES2020'],
-        outDir: './dist',
-        rootDir: './src',
-        strict: true,
-        esModuleInterop: true,
-        skipLibCheck: true,
-        forceConsistentCasingInFileNames: true,
-        declaration: true,
-        declarationMap: true,
-        sourceMap: true
+    return JSON.stringify(
+      {
+        compilerOptions: {
+          target: 'ES2020',
+          module: 'commonjs',
+          lib: ['ES2020'],
+          outDir: './dist',
+          rootDir: './src',
+          strict: true,
+          esModuleInterop: true,
+          skipLibCheck: true,
+          forceConsistentCasingInFileNames: true,
+          declaration: true,
+          declarationMap: true,
+          sourceMap: true,
+        },
+        include: ['src/**/*'],
+        exclude: ['node_modules', 'dist'],
       },
-      include: ['src/**/*'],
-      exclude: ['node_modules', 'dist']
-    }, null, 2);
+      null,
+      2,
+    );
   }
 
   private generateReadme(contracts: ExtractedContract[]): string {
     const categories = this.groupContractsByCategory(contracts);
     const categoryExamples = Object.entries(categories)
       .map(([category, contracts]) => {
-        const examples = contracts.slice(0, 2).map(contract => {
-          const example = contract.contractMetadata.examples?.[0];
-          return `### ${contract.contractMetadata.description}
+        const examples = contracts
+          .slice(0, 2)
+          .map((contract) => {
+            const example = contract.contractMetadata.examples?.[0];
+            return `### ${contract.contractMetadata.description}
 \`\`\`typescript
 // ${example?.description || 'Usage example'}
 ${this.generateSDKExample(contract)}
 \`\`\``;
-        }).join('\n\n');
+          })
+          .join('\n\n');
 
         return `## ${category}\n\n${examples}`;
-      }).join('\n\n');
+      })
+      .join('\n\n');
 
     return `# @gatekit/sdk
 
@@ -547,7 +639,8 @@ const gk = new GateKit({
 });
 
 // Send a message
-const result = await gk.messages.send('project-slug', {
+const result = await gk.messages.send({
+  project: 'my-project',  // optional if defaultProject is set
   targets: [{ platformId: 'platform-id', type: 'user', id: '123' }],
   content: { text: 'Hello from GateKit!' }
 });
@@ -563,8 +656,22 @@ const gk = new GateKit({
   apiKey: 'gk_live_your_key',           // API key authentication
   // OR
   jwtToken: 'your_jwt_token',           // JWT authentication
+  defaultProject: 'my-project',         // Default project (optional)
   timeout: 30000,                       // Request timeout (ms)
   retries: 3,                           // Retry attempts
+});
+
+// With default project set, you can omit the project field:
+await gk.messages.send({
+  targets: [...],
+  content: {...}
+});
+
+// Or specify project in the options:
+await gk.messages.send({
+  targets: [...],
+  content: {...},
+  project: 'other-project'
 });
 \`\`\`
 
@@ -576,7 +683,7 @@ ${categoryExamples}
 
 \`\`\`typescript
 try {
-  const result = await gk.messages.send('project', messageData);
+  const result = await gk.messages.send({ project: 'my-project', ...messageData });
 } catch (error) {
   if (error.code === 'INSUFFICIENT_PERMISSIONS') {
     console.error('Permission denied:', error.message);
@@ -604,33 +711,56 @@ try {
 
   private generateSDKExample(contract: ExtractedContract): string {
     const { contractMetadata, path } = contract;
-    const category = CaseConverter.toValidPropertyName(contractMetadata.category || 'api');
+    const category = CaseConverter.toValidPropertyName(
+      contractMetadata.category || 'api',
+    );
     const methodName = this.getMethodName(contractMetadata.command);
 
     // Extract path params
     const pathParams = this.extractPathParameters(path);
-    const hasInput = contractMetadata.inputType && contractMetadata.inputType !== 'any';
+    const hasProject = pathParams.includes('project');
+    const otherParams = pathParams.filter((p) => p !== 'project');
+    const hasInput =
+      contractMetadata.inputType && contractMetadata.inputType !== 'any';
 
+    // No params, no input
     if (pathParams.length === 0 && !hasInput) {
       return `await gk.${category}.${methodName}();`;
     }
 
-    if (pathParams.length === 1 && !hasInput) {
-      return `await gk.${category}.${methodName}('project-slug');`;
+    // Only project param, no other params, no input
+    if (hasProject && otherParams.length === 0 && !hasInput) {
+      return `await gk.${category}.${methodName}();`;
     }
 
-    if (pathParams.length === 1 && hasInput) {
-      return `await gk.${category}.${methodName}('project-slug', data);`;
+    // Only project param, no other params, with input
+    if (hasProject && otherParams.length === 0 && hasInput) {
+      return `await gk.${category}.${methodName}(data);`;
     }
 
-    return `await gk.${category}.${methodName}(${pathParams.map(p => `'${p}'`).join(', ')}${hasInput ? ', data' : ''});`;
+    // Other params (not project), no input
+    if (otherParams.length > 0 && !hasInput) {
+      const paramList = otherParams.map((p) => `'${p}'`).join(', ');
+      return `await gk.${category}.${methodName}(${paramList});`;
+    }
+
+    // Other params (not project), with input
+    if (otherParams.length > 0 && hasInput) {
+      const paramList = otherParams.map((p) => `'${p}'`).join(', ');
+      return `await gk.${category}.${methodName}(${paramList}, data);`;
+    }
+
+    return `await gk.${category}.${methodName}(data);`;
   }
 }
 
 // CLI execution
 async function main() {
   const generator = new SDKGenerator();
-  const contractsPath = path.join(__dirname, '../../generated/contracts/contracts.json');
+  const contractsPath = path.join(
+    __dirname,
+    '../../generated/contracts/contracts.json',
+  );
   const outputDir = path.join(__dirname, '../../generated/sdk');
 
   await generator.generateFromContracts(contractsPath, outputDir);

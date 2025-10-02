@@ -19,7 +19,11 @@ describe('Feature/Module Name', () => {
 // test/fixtures/api-keys.fixture.ts
 import { CryptoUtil } from '../../src/common/utils/crypto.util';
 
-export const createTestApiKey = async (prisma, projectId: string, overrides = {}) => {
+export const createTestApiKey = async (
+  prisma,
+  projectId: string,
+  overrides = {},
+) => {
   const environment = overrides.environment || 'test';
   const apiKey = CryptoUtil.generateApiKey(environment);
   const keyHash = CryptoUtil.hashApiKey(apiKey);
@@ -32,8 +36,8 @@ export const createTestApiKey = async (prisma, projectId: string, overrides = {}
       keyPrefix,
       name: 'Test API Key',
       environment,
-      ...overrides
-    }
+      ...overrides,
+    },
   });
 
   return { apiKey: createdKey, rawKey: apiKey };
@@ -67,8 +71,8 @@ beforeEach(async () => {
       name: 'Test Project',
       slug: 'test',
       environment: 'development',
-      isDefault: true
-    }
+      isDefault: true,
+    },
   });
 });
 
@@ -80,6 +84,7 @@ afterAll(async () => {
 ## Testing Patterns
 
 ### Testing Protected Endpoints
+
 ```typescript
 it('should return 401 when no API key provided', async () => {
   const response = await request(app.getHttpServer())
@@ -92,12 +97,13 @@ it('should return 401 when no API key provided', async () => {
 ```
 
 ### Testing Scopes
+
 ```typescript
 it('should return 403 when API key lacks required scope', async () => {
   const { rawKey } = await createTestApiKey(prisma, 'test-project-id', {
     scopes: {
-      create: [{ scope: 'messages:read' }] // Missing required scope
-    }
+      create: [{ scope: 'messages:read' }], // Missing required scope
+    },
   });
 
   const response = await request(app.getHttpServer())
@@ -111,6 +117,7 @@ it('should return 403 when API key lacks required scope', async () => {
 ```
 
 ### Testing Validation
+
 ```typescript
 it('should return 400 for invalid data', async () => {
   const response = await request(app.getHttpServer())
@@ -118,7 +125,7 @@ it('should return 400 for invalid data', async () => {
     .set('X-API-Key', validApiKey)
     .send({
       name: '', // Empty name
-      environment: 'invalid' // Invalid enum
+      environment: 'invalid', // Invalid enum
     });
 
   expect(response.status).toBe(400);
@@ -132,16 +139,16 @@ it('should return 400 for invalid data', async () => {
 // test/factories/project.factory.ts
 export const buildProject = (overrides = {}) => ({
   name: 'Test Project',
-  slug: 'test-project',
+  id: 'test-project',
   environment: 'development',
   isDefault: false,
   settings: {
     rateLimits: {
       test: 100,
-      production: 1000
-    }
+      production: 1000,
+    },
   },
-  ...overrides
+  ...overrides,
 });
 
 // test/factories/api-key.factory.ts
@@ -149,7 +156,7 @@ export const buildApiKey = (overrides = {}) => ({
   name: 'Test API Key',
   environment: 'test',
   scopes: ['messages:send', 'messages:read'],
-  ...overrides
+  ...overrides,
 });
 ```
 
@@ -163,14 +170,14 @@ export const mockPrismaService = {
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
-    delete: jest.fn()
+    delete: jest.fn(),
   },
   apiKey: {
     create: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
-    update: jest.fn()
-  }
+    update: jest.fn(),
+  },
 };
 ```
 

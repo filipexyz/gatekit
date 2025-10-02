@@ -263,7 +263,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
         );
         const update = body as TelegramBot.Update;
         platformLogger.logWebhook(
-          `Processed Telegram webhook for project: ${platformConfig.project.slug}`,
+          `Processed Telegram webhook for project: ${platformConfig.project.id}`,
           {
             updateType: update.message
               ? 'message'
@@ -279,7 +279,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
         );
 
         this.logger.log(
-          `Processed Telegram webhook for project: ${platformConfig.project.slug}`,
+          `Processed Telegram webhook for project: ${platformConfig.project.id}`,
         );
 
         return { ok: true };

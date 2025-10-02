@@ -107,9 +107,11 @@ ${this.generateCommandHelpers()}
     // Add path parameter options
     const pathParamOptions = pathParams
       .map((param) => {
-        const defaultValue =
-          param === 'projectSlug' ? "'default'" : 'undefined';
-        return `    .option('--${param} <value>', '${param} parameter', ${defaultValue})`;
+        // Make project param optional with env var default
+        if (param === 'project') {
+          return `    .option('--project <value>', 'Project (uses GATEKIT_DEFAULT_PROJECT if not provided)')`;
+        }
+        return `    .option('--${param} <value>', '${param} parameter', undefined)`;
       })
       .join('\n');
 
@@ -168,27 +170,37 @@ ${allOptions}
     // Convert category to valid SDK namespace (dynamically, no hardcoded keys)
     const sdkNamespace = CaseConverter.toValidPropertyName(category);
 
-    // Build path parameter arguments
-    const pathArgs = pathParams
-      .map((param) => `options.${param} || 'default'`)
-      .join(', ');
+    // Separate project params from other path params
+    const projectParams = pathParams.filter((p) => p === 'project');
+    const otherParams = pathParams.filter((p) => p !== 'project');
 
-    // If no input type specified, method takes only path parameters
+    // Build path parameter arguments for non-project params
+    const pathArgs = otherParams.map((param) => `options.${param}`).join(', ');
+
+    // If no input type specified
     if (!contractMetadata.inputType) {
-      const args = pathParams.length > 0 ? pathArgs : '';
+      // Method only takes options with optional project
+      if (projectParams.length > 0) {
+        const optionsObj = `{ project: options.project || config.defaultProject }`;
+        return otherParams.length > 0
+          ? `const result = await gk.${sdkNamespace}.${methodCall}(${pathArgs}, ${optionsObj});`
+          : `const result = await gk.${sdkNamespace}.${methodCall}(${optionsObj});`;
+      }
+      // No project, only other params
+      const args = otherParams.length > 0 ? pathArgs : '';
       return `const result = await gk.${sdkNamespace}.${methodCall}(${args});`;
     }
 
-    // Build data object by mapping CLI options to DTO properties using contract metadata
-    // Exclude path parameters from DTO object
+    // Build data object by mapping CLI options to DTO properties
     const dtoObject = this.buildDtoObjectFromContract(
       contractMetadata.options || {},
       pathParams,
+      projectParams.length > 0,
     );
 
-    // Combine path parameters and data object
+    // Combine other params and data object
     const allArgs =
-      pathParams.length > 0 ? `${pathArgs}, ${dtoObject}` : dtoObject;
+      otherParams.length > 0 ? `${pathArgs}, ${dtoObject}` : dtoObject;
     return `const result = await gk.${sdkNamespace}.${methodCall}(${allArgs});`;
   }
 
@@ -200,6 +212,7 @@ ${allOptions}
   private buildDtoObjectFromContract(
     options: Record<string, any>,
     pathParams: string[] = [],
+    hasProject: boolean = false,
   ): string {
     if (!options || Object.keys(options).length === 0) {
       return '{}';
@@ -238,6 +251,16 @@ ${allOptions}
         }
       })
       .join(',\n');
+
+    // Add project field if needed
+    if (hasProject) {
+      const projectEntry = optionEntries
+        ? `,\n      project: options.project || config.defaultProject`
+        : `      project: options.project || config.defaultProject`;
+      return `{
+${optionEntries}${projectEntry}
+        }`;
+    }
 
     return `{
 ${optionEntries}
@@ -359,7 +382,7 @@ ${commandRegistrations}
 program
   .command('send')
   .description('Quick message send (AI-optimized)')
-  .requiredOption('--project <slug>', 'Project slug')
+  .requiredOption('--project <id>', 'Project ID')
   .requiredOption('--platform <id>', 'Platform ID')
   .requiredOption('--target <id>', 'Target ID')
   .requiredOption('--text <message>', 'Message text')
@@ -590,24 +613,31 @@ export GATEKIT_API_URL="https://api.gatekit.dev"
 \`\`\`bash
 # Production
 export GATEKIT_API_URL="https://api.gatekit.dev"
+export GATEKIT_DEFAULT_PROJECT="my-project"
 
 # Local development
 export GATEKIT_API_URL="http://localhost:3000"
+export GATEKIT_DEFAULT_PROJECT="default"
 \`\`\`
 
 ## Quick Start
 
 \`\`\`bash
-# Send a message with simplified pattern
-gatekit messages send --projectSlug my-project \\
+# Send a message (uses GATEKIT_DEFAULT_PROJECT if set)
+gatekit messages send \\
   --target "platformId:user:123" \\
   --text "Hello from GateKit!"
 
-# List received messages
-gatekit messages list --projectSlug my-project --limit 10
+# Or specify project explicitly
+gatekit messages send --project my-project-id \\
+  --target "platformId:user:123" \\
+  --text "Hello from GateKit!"
 
-# Get message statistics
-gatekit messages stats --projectSlug my-project
+# List received messages (uses default project)
+gatekit messages list --limit 10
+
+# Get message statistics for specific project
+gatekit messages stats --project production-project-id
 \`\`\`
 
 ## Revolutionary Pattern System
@@ -645,7 +675,7 @@ gatekit auth whoami
 
 ### Complex Content
 \`\`\`bash
-gatekit messages send --projectSlug my-project \\
+gatekit messages send --project my-project \\
   --target "platformId:user:123" \\
   --content '{"text":"Hello","buttons":[{"text":"Click me"}]}'
 \`\`\`

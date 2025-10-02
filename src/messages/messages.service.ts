@@ -145,14 +145,14 @@ export class MessagesService {
   }
 
   async getMessages(
-    projectSlug: string,
+    projectId: string,
     query: QueryMessagesDto,
     authContext: AuthContext,
   ) {
     // Get project and validate access in one step
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'message retrieval',
     );
@@ -322,9 +322,9 @@ export class MessagesService {
     };
   }
 
-  async getMessage(projectSlug: string, messageId: string) {
+  async getMessage(projectId: string, messageId: string) {
     const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
+      where: { id: projectId },
     });
 
     if (!project) {
@@ -427,9 +427,9 @@ export class MessagesService {
     };
   }
 
-  async getMessageStats(projectSlug: string) {
+  async getMessageStats(projectId: string) {
     const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
+      where: { id: projectId },
     });
 
     if (!project) {
@@ -506,9 +506,9 @@ export class MessagesService {
     };
   }
 
-  async deleteOldMessages(projectSlug: string, daysBefore: number) {
+  async deleteOldMessages(projectId: string, daysBefore: number) {
     const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
+      where: { id: projectId },
     });
 
     if (!project) {
@@ -534,14 +534,14 @@ export class MessagesService {
   }
 
   async getSentMessages(
-    projectSlug: string,
+    projectId: string,
     query: any,
     authContext: AuthContext,
   ) {
     // SECURITY: Get project and validate access
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'sent message retrieval',
     );

@@ -66,14 +66,14 @@ export class PlatformsService {
   }
 
   async create(
-    projectSlug: string,
+    projectId: string,
     createPlatformDto: CreatePlatformDto,
     authContext: AuthContext,
   ) {
     // Get project and validate access in one step
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'platform creation',
     );
@@ -128,18 +128,16 @@ export class PlatformsService {
     };
   }
 
-  async findAll(projectSlug: string) {
+  async findAll(projectId: string) {
     const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
+      where: { id: projectId },
       include: {
         projectPlatforms: true,
       },
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project '${projectId}' not found`);
     }
 
     return project.projectPlatforms.map((platform) => ({
@@ -155,15 +153,13 @@ export class PlatformsService {
     }));
   }
 
-  async findOne(projectSlug: string, platformId: string) {
+  async findOne(projectId: string, platformId: string) {
     const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
+      where: { id: projectId },
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project '${projectId}' not found`);
     }
 
     const platform = await this.prisma.projectPlatform.findFirst({
@@ -199,18 +195,16 @@ export class PlatformsService {
   }
 
   async update(
-    projectSlug: string,
+    projectId: string,
     platformId: string,
     updatePlatformDto: UpdatePlatformDto,
   ) {
     const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
+      where: { id: projectId },
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project '${projectId}' not found`);
     }
 
     const existingPlatform = await this.prisma.projectPlatform.findFirst({
@@ -308,15 +302,13 @@ export class PlatformsService {
     };
   }
 
-  async remove(projectSlug: string, platformId: string) {
+  async remove(projectId: string, platformId: string) {
     const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
+      where: { id: projectId },
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project '${projectId}' not found`);
     }
 
     const platform = await this.prisma.projectPlatform.findFirst({
@@ -480,15 +472,13 @@ export class PlatformsService {
     }
   }
 
-  async registerWebhook(projectSlug: string, platformId: string) {
+  async registerWebhook(projectId: string, platformId: string) {
     const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
+      where: { id: projectId },
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project '${projectId}' not found`);
     }
 
     const platform = await this.prisma.projectPlatform.findFirst({
@@ -575,15 +565,13 @@ export class PlatformsService {
     }
   }
 
-  async getQRCode(projectSlug: string, platformId: string) {
+  async getQRCode(projectId: string, platformId: string) {
     const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
+      where: { id: projectId },
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project '${projectId}' not found`);
     }
 
     const platform = await this.prisma.projectPlatform.findFirst({

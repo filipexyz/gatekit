@@ -19,7 +19,7 @@ import { AuthContextParam } from '../common/decorators/auth-context.decorator';
 import type { AuthContext } from '../common/utils/security.util';
 import { ApiScope } from '../common/enums/api-scopes.enum';
 
-@Controller('api/v1/projects/:projectSlug/platforms')
+@Controller('api/v1/projects/:project/platforms')
 @UseGuards(AppAuthGuard, ProjectAccessGuard)
 export class PlatformsController {
   constructor(private readonly platformsService: PlatformsService) {}
@@ -85,12 +85,12 @@ export class PlatformsController {
     ],
   })
   create(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Body() createPlatformDto: CreatePlatformDto,
     @AuthContextParam() authContext: AuthContext,
   ) {
     return this.platformsService.create(
-      projectSlug,
+      project,
       createPlatformDto,
       authContext,
     );
@@ -111,8 +111,8 @@ export class PlatformsController {
       },
     ],
   })
-  findAll(@Param('projectSlug') projectSlug: string) {
-    return this.platformsService.findAll(projectSlug);
+  findAll(@Param('project') project: string) {
+    return this.platformsService.findAll(project);
   }
 
   @Get(':id')
@@ -133,8 +133,8 @@ export class PlatformsController {
       },
     ],
   })
-  findOne(@Param('projectSlug') projectSlug: string, @Param('id') id: string) {
-    return this.platformsService.findOne(projectSlug, id);
+  findOne(@Param('project') project: string, @Param('id') id: string) {
+    return this.platformsService.findOne(project, id);
   }
 
   @Patch(':id')
@@ -186,11 +186,11 @@ export class PlatformsController {
     ],
   })
   update(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('id') id: string,
     @Body() updatePlatformDto: UpdatePlatformDto,
   ) {
-    return this.platformsService.update(projectSlug, id, updatePlatformDto);
+    return this.platformsService.update(project, id, updatePlatformDto);
   }
 
   @Delete(':id')
@@ -211,8 +211,8 @@ export class PlatformsController {
       },
     ],
   })
-  remove(@Param('projectSlug') projectSlug: string, @Param('id') id: string) {
-    return this.platformsService.remove(projectSlug, id);
+  remove(@Param('project') project: string, @Param('id') id: string) {
+    return this.platformsService.remove(project, id);
   }
 
   @Post(':id/register-webhook')
@@ -234,10 +234,10 @@ export class PlatformsController {
     ],
   })
   async registerWebhook(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('id') id: string,
   ) {
-    return this.platformsService.registerWebhook(projectSlug, id);
+    return this.platformsService.registerWebhook(project, id);
   }
 
   @Get(':id/qr-code')
@@ -262,10 +262,7 @@ export class PlatformsController {
       },
     ],
   })
-  async getQRCode(
-    @Param('projectSlug') projectSlug: string,
-    @Param('id') id: string,
-  ) {
-    return this.platformsService.getQRCode(projectSlug, id);
+  async getQRCode(@Param('project') project: string, @Param('id') id: string) {
+    return this.platformsService.getQRCode(project, id);
   }
 }

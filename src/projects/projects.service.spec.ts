@@ -112,7 +112,7 @@ describe('ProjectsService', () => {
       expect(mockPrismaService.project.create).toHaveBeenCalledWith({
         data: {
           name: createDto.name,
-          slug: expect.any(String),
+          id: expect.any(String),
           environment: createDto.environment,
           isDefault: createDto.isDefault,
           settings: undefined,
@@ -241,7 +241,7 @@ describe('ProjectsService', () => {
       const result = await service.findOne('test-project');
 
       expect(mockPrismaService.project.findUnique).toHaveBeenCalledWith({
-        where: { slug: 'test-project' },
+        where: { id: 'test-project' },
         include: {
           apiKeys: {
             where: { revokedAt: null },
@@ -289,12 +289,12 @@ describe('ProjectsService', () => {
       );
     });
 
-    it('should throw ConflictException when updating to existing slug', async () => {
-      const updateDto = { slug: 'existing-slug' };
+    it('should throw ConflictException when updating to existing id', async () => {
+      const updateDto = { id: 'existing-id' };
 
       mockPrismaService.project.findUnique
-        .mockResolvedValueOnce({ id: 'project-id', slug: 'test-project' })
-        .mockResolvedValueOnce({ id: 'another-id', slug: 'existing-slug' });
+        .mockResolvedValueOnce({ id: 'test-project' })
+        .mockResolvedValueOnce({ id: 'existing-id' });
 
       await expect(service.update('test-project', updateDto)).rejects.toThrow(
         ConflictException,
@@ -315,7 +315,7 @@ describe('ProjectsService', () => {
       const result = await service.remove('test-project', 'user-1', false);
 
       expect(mockPrismaService.project.delete).toHaveBeenCalledWith({
-        where: { slug: 'test-project' },
+        where: { id: 'test-project' },
       });
       expect(result).toEqual(projectToDelete);
     });

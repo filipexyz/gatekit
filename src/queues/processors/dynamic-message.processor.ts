@@ -14,7 +14,6 @@ import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery
 import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
 
 interface MessageJob {
-  projectSlug: string;
   projectId: string;
   message: {
     targets: Array<{
@@ -65,7 +64,7 @@ export class DynamicMessageProcessor
 
   // BullMQ WorkerHost requires this method name
   async process(job: Job<MessageJob>) {
-    const { projectSlug, projectId, message } = job.data;
+    const { projectId, message } = job.data;
 
     // SECURITY: Deduplicate targets to prevent spam attacks
     const targetMap = new Map<string, (typeof message.targets)[0]>();

@@ -5,7 +5,7 @@ export const createTestProject = async (
   prisma: PrismaClient,
   overrides: Partial<{
     name: string;
-    slug: string;
+    id: string;
     environment: ProjectEnvironment;
     isDefault: boolean;
     settings: any;
@@ -13,7 +13,7 @@ export const createTestProject = async (
   }> = {},
 ) => {
   const name = overrides.name || 'Test Project';
-  const slug = overrides.slug || CryptoUtil.generateSlug(name);
+  const id = overrides.id || CryptoUtil.generateSlug(name);
 
   // Create or get test owner user
   let ownerId = overrides.ownerId;
@@ -33,8 +33,8 @@ export const createTestProject = async (
 
   return await prisma.project.create({
     data: {
+      id,
       name,
-      slug,
       environment: overrides.environment || 'development',
       isDefault: overrides.isDefault || false,
       settings: overrides.settings || {

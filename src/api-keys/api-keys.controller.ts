@@ -19,7 +19,7 @@ import type { AuthContext } from '../common/utils/security.util';
 import { Throttle } from '@nestjs/throttler';
 import { ApiScope } from '../common/enums/api-scopes.enum';
 
-@Controller('api/v1/projects/:projectSlug/keys')
+@Controller('api/v1/projects/:project/keys')
 @UseGuards(AppAuthGuard, ProjectAccessGuard)
 export class ApiKeysController {
   constructor(private readonly apiKeysService: ApiKeysService) {}
@@ -52,15 +52,11 @@ export class ApiKeysController {
     ],
   })
   create(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Body() createApiKeyDto: CreateApiKeyDto,
     @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.apiKeysService.create(
-      projectSlug,
-      createApiKeyDto,
-      authContext,
-    );
+    return this.apiKeysService.create(project, createApiKeyDto, authContext);
   }
 
   @Get()
@@ -79,10 +75,10 @@ export class ApiKeysController {
     ],
   })
   findAll(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.apiKeysService.findAll(projectSlug, authContext);
+    return this.apiKeysService.findAll(project, authContext);
   }
 
   @Delete(':keyId')
@@ -108,11 +104,11 @@ export class ApiKeysController {
     ],
   })
   revoke(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('keyId') keyId: string,
     @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.apiKeysService.revoke(projectSlug, keyId, authContext);
+    return this.apiKeysService.revoke(project, keyId, authContext);
   }
 
   @Post(':keyId/roll')
@@ -140,10 +136,10 @@ export class ApiKeysController {
     ],
   })
   roll(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('keyId') keyId: string,
     @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.apiKeysService.roll(projectSlug, keyId, authContext);
+    return this.apiKeysService.roll(project, keyId, authContext);
   }
 }

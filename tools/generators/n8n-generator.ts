@@ -206,18 +206,18 @@ export class GateKit implements INodeType {
         );
       }
 
-      // Add path parameters (including projectSlug as parameter, not credential)
+      // Add path parameters (including project as parameter, not credential)
       const pathParams = this.extractPathParameters(contract.path);
       pathParams.forEach((param) => {
         const displayName =
-          param === 'projectSlug'
-            ? 'Project Slug'
+          param === 'project'
+            ? 'Project'
             : param.charAt(0).toUpperCase() + param.slice(1);
         const description =
-          param === 'projectSlug'
+          param === 'project'
             ? 'Project identifier to operate on'
             : `${param} parameter`;
-        const defaultValue = param === 'projectSlug' ? 'default' : '';
+        const defaultValue = param === 'project' ? 'default' : '';
 
         parameters.push(`{
           displayName: '${displayName}',
@@ -368,7 +368,7 @@ npm install n8n-nodes-gatekit
 2. **Add GateKit credentials** in n8n:
    - API URL: \`https://api.gatekit.dev\`
    - API Key: Your project API key
-   - Project Slug: Your project identifier
+   - Project: Your project identifier
 
 ## Supported Operations
 
@@ -429,11 +429,11 @@ ${operations}
 
   private convertPathForN8N(path: string): string {
     // Convert GateKit API paths to n8n format using proper n8n expression syntax
-    // /api/v1/projects/:projectSlug/messages/send -> =/api/v1/projects/{{ $parameter["projectSlug"] }}/messages/send
+    // /api/v1/projects/:project/messages/send -> =/api/v1/projects/{{ $parameter["project"] }}/messages/send
     return (
       '=' +
       path
-        .replace(':projectSlug', '{{ $parameter["projectSlug"] }}')
+        .replace(':project', '{{ $parameter["project"] }}')
         .replace(':id', '{{ $parameter["id"] }}')
         .replace(':keyId', '{{ $parameter["keyId"] }}')
         .replace(':jobId', '{{ $parameter["jobId"] }}')

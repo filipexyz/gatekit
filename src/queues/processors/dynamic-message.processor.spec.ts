@@ -90,7 +90,7 @@ describe('DynamicMessageProcessor', () => {
       const mockJob = {
         id: 'test-job-1',
         data: {
-          projectSlug: 'test-project',
+          projectId: 'project-id',
           projectId: 'project-id',
           message: {
             targets: [
@@ -144,7 +144,7 @@ describe('DynamicMessageProcessor', () => {
       const mockJob = {
         id: 'test-job-2',
         data: {
-          projectSlug: 'test-project',
+          projectId: 'project-id',
           projectId: 'project-id',
           message: {
             targets: [
@@ -200,7 +200,7 @@ describe('DynamicMessageProcessor', () => {
       const mockJob = {
         id: 'test-job-multi',
         data: {
-          projectSlug: 'test-project',
+          projectId: 'project-id',
           projectId: 'project-id',
           message: {
             targets: [
@@ -275,7 +275,7 @@ describe('DynamicMessageProcessor', () => {
       const mockJob = {
         id: 'test-job-success',
         data: {
-          projectSlug: 'test-project',
+          projectId: 'project-id',
           projectId: 'project-id',
           message: {
             targets: [
@@ -344,7 +344,7 @@ describe('DynamicMessageProcessor', () => {
       const mockJob = {
         id: 'test-job-permanent-fail',
         data: {
-          projectSlug: 'test-project',
+          projectId: 'project-id',
           projectId: 'project-id',
           message: {
             targets: [
@@ -409,7 +409,7 @@ describe('DynamicMessageProcessor', () => {
       const mockJob = {
         id: 'test-job-missing-config',
         data: {
-          projectSlug: 'test-project',
+          projectId: 'project-id',
           projectId: 'project-id',
           message: {
             targets: [
@@ -446,7 +446,7 @@ describe('DynamicMessageProcessor', () => {
       const mockJob = {
         id: 'test-job-db-error',
         data: {
-          projectSlug: 'test-project',
+          projectId: 'project-id',
           projectId: 'project-id',
           message: {
             targets: [
@@ -484,7 +484,7 @@ describe('DynamicMessageProcessor', () => {
       const mockJob = {
         id: 'test-job-duplicates',
         data: {
-          projectSlug: 'test-project',
+          projectId: 'project-id',
           projectId: 'project-id',
           message: {
             targets: [

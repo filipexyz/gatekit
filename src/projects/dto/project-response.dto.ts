@@ -2,7 +2,6 @@ export class ProjectResponse {
   id: string;
   name: string;
   description?: string;
-  slug: string;
   environment: 'development' | 'staging' | 'production';
   isDefault: boolean;
   settings?: Record<string, unknown>;

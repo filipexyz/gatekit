@@ -25,14 +25,14 @@ export class WebhooksService {
    * Create a new webhook
    */
   async createWebhook(
-    projectSlug: string,
+    projectId: string,
     dto: CreateWebhookDto,
     authContext: AuthContext,
   ) {
     // Validate project access
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'webhook creation',
     );
@@ -77,10 +77,10 @@ export class WebhooksService {
   /**
    * List all webhooks for a project
    */
-  async listWebhooks(projectSlug: string, authContext: AuthContext) {
+  async listWebhooks(projectId: string, authContext: AuthContext) {
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'webhook listing',
     );
@@ -111,13 +111,13 @@ export class WebhooksService {
    * Get a specific webhook
    */
   async getWebhook(
-    projectSlug: string,
+    projectId: string,
     webhookId: string,
     authContext: AuthContext,
   ) {
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'webhook retrieval',
     );
@@ -149,14 +149,14 @@ export class WebhooksService {
    * Update a webhook
    */
   async updateWebhook(
-    projectSlug: string,
+    projectId: string,
     webhookId: string,
     dto: UpdateWebhookDto,
     authContext: AuthContext,
   ) {
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'webhook update',
     );
@@ -193,13 +193,13 @@ export class WebhooksService {
    * Delete a webhook
    */
   async deleteWebhook(
-    projectSlug: string,
+    projectId: string,
     webhookId: string,
     authContext: AuthContext,
   ) {
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'webhook deletion',
     );
@@ -230,14 +230,14 @@ export class WebhooksService {
    * Get webhook deliveries with filtering
    */
   async getDeliveries(
-    projectSlug: string,
+    projectId: string,
     webhookId: string,
     query: QueryDeliveriesDto,
     authContext: AuthContext,
   ) {
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'webhook delivery retrieval',
     );

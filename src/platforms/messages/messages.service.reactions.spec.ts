@@ -68,19 +68,18 @@ describe('MessagesService - Reactions', () => {
   });
 
   describe('reactToMessage', () => {
-    const projectSlug = 'test-project';
+    const projectId = 'test-project';
     const platformId = 'platform-123';
     const messageId = '42';
     const emoji = '👍';
 
     const mockProject = {
       id: 'project-id-123',
-      slug: projectSlug,
     };
 
     const mockAuthContext = {
       authType: 'api-key' as const,
-      project: { id: 'project-id-123', slug: projectSlug },
+      project: { id: 'project-id-123' },
     };
 
     const mockPlatformConfig = {
@@ -120,7 +119,7 @@ describe('MessagesService - Reactions', () => {
       mockPlatformRegistry.getProvider.mockReturnValue(mockProvider);
 
       const result = await service.reactToMessage(
-        projectSlug,
+        projectId,
         {
           platformId,
           messageId,
@@ -158,7 +157,7 @@ describe('MessagesService - Reactions', () => {
       mockPlatformRegistry.getProvider.mockReturnValue(mockProvider);
 
       const result = await service.reactToMessage(
-        projectSlug,
+        projectId,
         {
           platformId,
           messageId,
@@ -190,7 +189,7 @@ describe('MessagesService - Reactions', () => {
 
       await expect(
         service.reactToMessage(
-          projectSlug,
+          projectId,
           {
             platformId,
             messageId,
@@ -202,7 +201,7 @@ describe('MessagesService - Reactions', () => {
 
       await expect(
         service.reactToMessage(
-          projectSlug,
+          projectId,
           {
             platformId,
             messageId,
@@ -233,7 +232,7 @@ describe('MessagesService - Reactions', () => {
 
       await expect(
         service.reactToMessage(
-          projectSlug,
+          projectId,
           {
             platformId,
             messageId,
@@ -245,7 +244,7 @@ describe('MessagesService - Reactions', () => {
 
       await expect(
         service.reactToMessage(
-          projectSlug,
+          projectId,
           {
             platformId,
             messageId,
@@ -260,19 +259,18 @@ describe('MessagesService - Reactions', () => {
   });
 
   describe('unreactToMessage', () => {
-    const projectSlug = 'test-project';
+    const projectId = 'test-project';
     const platformId = 'platform-123';
     const messageId = '42';
     const emoji = '👍';
 
     const mockProject = {
       id: 'project-id-123',
-      slug: projectSlug,
     };
 
     const mockAuthContext = {
       authType: 'api-key' as const,
-      project: { id: 'project-id-123', slug: projectSlug },
+      project: { id: 'project-id-123' },
     };
 
     const mockPlatformConfig = {
@@ -305,7 +303,7 @@ describe('MessagesService - Reactions', () => {
       mockPlatformRegistry.getProvider.mockReturnValue(mockProvider);
 
       const result = await service.unreactToMessage(
-        projectSlug,
+        projectId,
         {
           platformId,
           messageId,
@@ -347,7 +345,7 @@ describe('MessagesService - Reactions', () => {
 
       await expect(
         service.unreactToMessage(
-          projectSlug,
+          projectId,
           {
             platformId,
             messageId,

@@ -7,7 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { QueryPlatformLogsDto } from '../dto/query-platform-logs.dto';
 import { ApiScope } from '../../common/enums/api-scopes.enum';
 
-@Controller('api/v1/projects/:slug/platforms')
+@Controller('api/v1/projects/:project/platforms')
 @UseGuards(AppAuthGuard)
 export class PlatformLogsController {
   constructor(
@@ -77,20 +77,20 @@ export class PlatformLogsController {
     ],
   })
   async listLogs(
-    @Param('slug') slug: string,
+    @Param('project') project: string,
     @Query() query: QueryPlatformLogsDto,
   ) {
     // Get project to ensure access control
-    const project = await this.prisma.project.findUnique({
-      where: { slug },
+    const projectRecord = await this.prisma.project.findUnique({
+      where: { id: project },
     });
 
-    if (!project) {
-      throw new Error(`Project with slug '${slug}' not found`);
+    if (!projectRecord) {
+      throw new Error(`Project '${project}' not found`);
     }
 
     const options = {
-      projectId: project.id,
+      projectId: projectRecord.id,
       platform: query.platform,
       level: query.level,
       category: query.category,
@@ -157,21 +157,21 @@ export class PlatformLogsController {
     ],
   })
   async getPlatformLogs(
-    @Param('slug') slug: string,
+    @Param('project') project: string,
     @Param('platformId') platformId: string,
     @Query() query: QueryPlatformLogsDto,
   ) {
     // Get project to ensure access control
-    const project = await this.prisma.project.findUnique({
-      where: { slug },
+    const projectRecord = await this.prisma.project.findUnique({
+      where: { id: project },
     });
 
-    if (!project) {
-      throw new Error(`Project with slug '${slug}' not found`);
+    if (!projectRecord) {
+      throw new Error(`Project '${project}' not found`);
     }
 
     const options = {
-      projectId: project.id,
+      projectId: projectRecord.id,
       platformId,
       level: query.level,
       category: query.category,
@@ -199,16 +199,16 @@ export class PlatformLogsController {
       },
     ],
   })
-  async getLogStats(@Param('slug') slug: string) {
+  async getLogStats(@Param('project') project: string) {
     // Get project to ensure access control
-    const project = await this.prisma.project.findUnique({
-      where: { slug },
+    const projectRecord = await this.prisma.project.findUnique({
+      where: { id: project },
     });
 
-    if (!project) {
-      throw new Error(`Project with slug '${slug}' not found`);
+    if (!projectRecord) {
+      throw new Error(`Project '${project}' not found`);
     }
 
-    return this.platformLogsService.getLogStats(project.id);
+    return this.platformLogsService.getLogStats(projectRecord.id);
   }
 }

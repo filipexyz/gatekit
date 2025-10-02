@@ -15,15 +15,15 @@ export class ProjectsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createProjectDto: CreateProjectDto, ownerId: string) {
-    const slug =
-      createProjectDto.slug || CryptoUtil.generateSlug(createProjectDto.name);
+    const id =
+      createProjectDto.id || CryptoUtil.generateSlug(createProjectDto.name);
 
     const existingProject = await this.prisma.project.findUnique({
-      where: { slug },
+      where: { id: id },
     });
 
     if (existingProject) {
-      throw new ConflictException(`Project with slug '${slug}' already exists`);
+      throw new ConflictException(`Project '${id}' already exists`);
     }
 
     // Get the user to ensure they exist
@@ -48,7 +48,7 @@ export class ProjectsService {
     return this.prisma.project.create({
       data: {
         name: createProjectDto.name,
-        slug,
+        id,
         environment: createProjectDto.environment,
         isDefault: createProjectDto.isDefault || false,
         settings: createProjectDto.settings,
@@ -146,9 +146,9 @@ export class ProjectsService {
     return this.findAllForUser('', true); // Legacy method for backward compatibility
   }
 
-  async findOne(slug: string) {
+  async findOne(id: string) {
     const project = await this.prisma.project.findUnique({
-      where: { slug },
+      where: { id: id },
       include: {
         apiKeys: {
           where: { revokedAt: null },
@@ -172,29 +172,29 @@ export class ProjectsService {
     });
 
     if (!project) {
-      throw new NotFoundException(`Project with slug '${slug}' not found`);
+      throw new NotFoundException(`Project '${id}' not found`);
     }
 
     return project;
   }
 
-  async update(slug: string, updateProjectDto: UpdateProjectDto) {
+  async update(id: string, updateProjectDto: UpdateProjectDto) {
     const existingProject = await this.prisma.project.findUnique({
-      where: { slug },
+      where: { id: id },
     });
 
     if (!existingProject) {
-      throw new NotFoundException(`Project with slug '${slug}' not found`);
+      throw new NotFoundException(`Project '${id}' not found`);
     }
 
-    if (updateProjectDto.slug && updateProjectDto.slug !== slug) {
+    if (updateProjectDto.id && updateProjectDto.id !== id) {
       const conflictingProject = await this.prisma.project.findUnique({
-        where: { slug: updateProjectDto.slug },
+        where: { id: updateProjectDto.id },
       });
 
       if (conflictingProject) {
         throw new ConflictException(
-          `Project with slug '${updateProjectDto.slug}' already exists`,
+          `Project '${updateProjectDto.id}' already exists`,
         );
       }
     }
@@ -207,14 +207,14 @@ export class ProjectsService {
     }
 
     return this.prisma.project.update({
-      where: { slug },
+      where: { id: id },
       data: updateProjectDto,
     });
   }
 
-  async remove(slug: string, userId: string, isAdmin: boolean = false) {
+  async remove(id: string, userId: string, isAdmin: boolean = false) {
     const project = await this.prisma.project.findUnique({
-      where: { slug },
+      where: { id: id },
       include: {
         _count: {
           select: { apiKeys: true },
@@ -223,7 +223,7 @@ export class ProjectsService {
     });
 
     if (!project) {
-      throw new NotFoundException(`Project with slug '${slug}' not found`);
+      throw new NotFoundException(`Project '${id}' not found`);
     }
 
     // Check if user has permission to delete (owner or admin)
@@ -249,13 +249,13 @@ export class ProjectsService {
     }
 
     return this.prisma.project.delete({
-      where: { slug },
+      where: { id: id },
     });
   }
 
   async checkProjectAccess(
     userId: string,
-    projectSlug: string,
+    projectId: string,
     requiredRole?: ProjectRole,
     isAdmin: boolean = false,
   ): Promise<boolean> {
@@ -264,7 +264,7 @@ export class ProjectsService {
     }
 
     const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
+      where: { id: projectId },
       include: {
         members: {
           where: { userId },

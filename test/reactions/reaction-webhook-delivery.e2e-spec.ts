@@ -21,8 +21,7 @@ describe('Reaction Webhook Delivery (e2e)', () => {
 
   // Test fixtures
   const testProject = {
-    id: 'test-project-webhook-id',
-    slug: 'test-project-webhook',
+    id: 'test-project-webhook',
     name: 'Test Project Webhook',
     ownerId: 'test-owner-webhook',
   };

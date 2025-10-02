@@ -368,7 +368,7 @@ describe('DiscordProvider', () => {
           project: {
             select: {
               id: true,
-              slug: true,
+              name: true,
             },
           },
         },

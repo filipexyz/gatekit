@@ -29,7 +29,6 @@ describe('AuthController', () => {
           },
           project: {
             id: 'project-456',
-            slug: 'test-project',
             name: 'Test Project',
           },
         };
@@ -42,7 +41,6 @@ describe('AuthController', () => {
           permissions: ['projects:read', 'projects:write', 'messages:send'],
           project: {
             id: 'project-456',
-            slug: 'test-project',
             name: 'Test Project',
           },
           apiKey: {
@@ -62,7 +60,6 @@ describe('AuthController', () => {
           },
           project: {
             id: 'project-456',
-            slug: 'test-project',
             name: 'Test Project',
           },
         };
@@ -84,7 +81,6 @@ describe('AuthController', () => {
           },
           project: {
             id: 'project-456',
-            slug: 'test-project',
             name: 'Test Project',
           },
         };
@@ -101,7 +97,6 @@ describe('AuthController', () => {
           authType: 'api-key',
           project: {
             id: 'project-456',
-            slug: 'test-project',
             name: 'Test Project',
           },
         };

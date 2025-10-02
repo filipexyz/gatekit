@@ -49,10 +49,9 @@ model User {
 }
 
 model Project {
-  id          String              @id @default(uuid())
+  id          String              @id  // Slug is now the primary key
   name        String
   description String?
-  slug        String              @unique
   environment ProjectEnvironment  @default(development)
   isDefault   Boolean             @default(false) @map("is_default")
   settings    Json?

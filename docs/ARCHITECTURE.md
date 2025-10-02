@@ -7,6 +7,7 @@ GateKit is a universal messaging gateway built with NestJS that provides a unifi
 ## Core Components
 
 ### 1. API Layer
+
 - **NestJS Controllers**: Handle HTTP requests
 - **Guards**: Authentication (JWT/API Key) and authorization (scope-based)
 - **DTOs**: Input validation and transformation
@@ -15,6 +16,7 @@ GateKit is a universal messaging gateway built with NestJS that provides a unifi
 ### 2. Message Queue System
 
 #### Overview
+
 All message sending is handled asynchronously through a Redis-backed Bull queue system.
 
 ```
@@ -24,18 +26,21 @@ Client Request → API → Queue → Processor → Platform Adapter → Platform
 #### Components
 
 **MessageQueue Service** (`src/queues/message.queue.ts`)
+
 - Manages job lifecycle
 - Provides job status tracking
 - Handles retries and failures
 - Exposes queue metrics
 
 **MessageProcessor** (`src/queues/processors/message.processor.ts`)
+
 - Processes queued messages asynchronously
 - Manages platform adapter instances
 - Handles adapter lifecycle (initialization, cleanup)
 - Reports job progress
 
 #### Flow
+
 1. Client sends message request to API
 2. API validates request and platform configuration
 3. Message is queued in Bull/Redis with job ID
@@ -51,12 +56,14 @@ Client Request → API → Queue → Processor → Platform Adapter → Platform
 Each platform (Discord, Telegram, etc.) has its own adapter that implements the `PlatformAdapter` interface.
 
 **Key Features:**
+
 - **Isolation**: Each project gets its own adapter instance
 - **Credential Management**: Encrypted storage in database
 - **Event Handling**: Bidirectional communication via EventBus
 - **Lifecycle Management**: Proper initialization and cleanup
 
 **Factory Pattern:**
+
 ```typescript
 AdapterFactory.createAdapter(platform) → new DiscordAdapter()
 ```
@@ -64,16 +71,19 @@ AdapterFactory.createAdapter(platform) → new DiscordAdapter()
 ### 4. Security Layer
 
 #### Encryption
+
 - **Algorithm**: AES-256-GCM
 - **Key Management**: Environment variable (32+ characters)
 - **Usage**: Platform credentials encryption
 
 #### Authentication
+
 - **Dual Support**: JWT (Auth0) and API Keys
 - **API Key Storage**: SHA-256 hashed in database
 - **Scope System**: Granular permissions per key
 
 #### Webhooks
+
 - **UUID Tokens**: Each platform config gets unique webhook token
 - **No ID Exposure**: Project IDs never exposed in URLs
 - **Validation**: Platform-specific signature verification
@@ -81,6 +91,7 @@ AdapterFactory.createAdapter(platform) → new DiscordAdapter()
 ### 5. Database Schema
 
 Key models:
+
 - **Project**: Core organizational unit
 - **ProjectPlatform**: Platform configurations with encrypted credentials
 - **ApiKey**: Hashed keys with scopes
@@ -90,8 +101,9 @@ Key models:
 ## Data Flow Examples
 
 ### Sending a Message
+
 ```
-1. POST /api/v1/projects/:slug/messages/send
+1. POST /api/v1/projects/:id/messages/send
 2. Validate API key and scopes
 3. Validate project and platform config
 4. Queue message in Bull
@@ -103,6 +115,7 @@ Key models:
 ```
 
 ### Webhook Processing
+
 ```
 1. POST /webhooks/discord/:webhookToken
 2. Look up platform config by UUID token
@@ -116,16 +129,19 @@ Key models:
 ## Scalability Considerations
 
 ### Horizontal Scaling
+
 - **Stateless API**: Can run multiple instances
 - **Queue Workers**: Can scale processor instances
 - **Redis Cluster**: Supports queue distribution
 
 ### Performance Optimizations
+
 - **Adapter Reuse**: Adapters cached per project/platform
 - **Connection Pooling**: Database and Redis connections
 - **Queue Configuration**: Configurable concurrency and rate limits
 
 ### Reliability Features
+
 - **Automatic Retries**: Exponential backoff for failures
 - **Job Persistence**: Redis persistence for queue durability
 - **Graceful Shutdown**: Proper cleanup on termination
@@ -134,12 +150,14 @@ Key models:
 ## Monitoring & Observability
 
 ### Metrics Available
+
 - Queue depth (waiting/active/completed/failed)
 - Message delivery success rate
 - Platform-specific metrics
 - API usage per project/key
 
 ### Logging
+
 - Structured logging with NestJS Logger
 - Job processing logs with job IDs
 - Error tracking with stack traces
@@ -147,6 +165,7 @@ Key models:
 ## Future Enhancements
 
 ### Planned Features
+
 - WebSocket support for real-time messaging
 - Message batching for bulk sends
 - Platform-specific rate limiting
@@ -154,6 +173,7 @@ Key models:
 - Dead letter queue handling
 
 ### Platform Expansion
+
 - Slack integration
 - WhatsApp Business API
 - Email gateway
@@ -163,6 +183,7 @@ Key models:
 ## Development Guidelines
 
 ### Adding New Platforms
+
 1. Create adapter in `src/platforms/adapters/[platform]/`
 2. Implement `PlatformAdapter` interface
 3. Add to `AdapterFactory`
@@ -171,6 +192,7 @@ Key models:
 6. Update documentation
 
 ### Testing Strategy
+
 - Unit tests for business logic
 - Integration tests for API endpoints
 - Mock adapters for testing
@@ -190,24 +212,29 @@ Key models:
 ## Dependencies
 
 ### Core
+
 - NestJS 10.x
 - TypeScript 5.x
 - Node.js 18+
 
 ### Data
+
 - PostgreSQL 16
 - Redis 7
 - Prisma ORM
 
 ### Queue
+
 - Bull (Redis-based queue)
 - bull-board (monitoring UI - optional)
 
 ### Security
+
 - bcrypt (API key hashing)
 - crypto (built-in encryption)
 
 ### Platform SDKs
+
 - discord.js
 - node-telegram-bot-api
 - (others as needed)

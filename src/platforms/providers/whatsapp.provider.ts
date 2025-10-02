@@ -342,7 +342,7 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
           platformConfig.id,
         );
         platformLogger.logWebhook(
-          `Processed WhatsApp webhook for project: ${platformConfig.project.slug}`,
+          `Processed WhatsApp webhook for project: ${platformConfig.project.id}`,
           {
             event: body.event || 'unknown',
             instanceName: body.instance || 'unknown',
@@ -350,7 +350,7 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
         );
 
         this.logger.log(
-          `Processed WhatsApp webhook for project: ${platformConfig.project.slug}`,
+          `Processed WhatsApp webhook for project: ${platformConfig.project.id}`,
         );
         return { ok: true };
       },

@@ -57,7 +57,7 @@ describe('User-Project System (e2e)', () => {
     testProject = await prisma.project.create({
       data: {
         name: 'Test Project',
-        slug: 'test-project-e2e',
+        id: 'test-project-e2e',
         environment: ProjectEnvironment.development,
         ownerId: testUser1.id,
       },
@@ -147,7 +147,7 @@ describe('User-Project System (e2e)', () => {
 
       const hasAccess = await projectsService.checkProjectAccess(
         testUser1.id,
-        testProject.slug,
+        testProject.id,
         ProjectRole.admin,
         false,
       );
@@ -160,7 +160,7 @@ describe('User-Project System (e2e)', () => {
 
       const hasAccess = await projectsService.checkProjectAccess(
         testUser2.id,
-        testProject.slug,
+        testProject.id,
         ProjectRole.viewer,
         false,
       );
@@ -173,7 +173,7 @@ describe('User-Project System (e2e)', () => {
 
       const hasAccess = await projectsService.checkProjectAccess(
         adminUser.id,
-        testProject.slug,
+        testProject.id,
         ProjectRole.admin,
         true,
       );
@@ -185,7 +185,7 @@ describe('User-Project System (e2e)', () => {
       const projectsService = app.get(ProjectsService);
 
       await expect(
-        projectsService.remove(testProject.slug, testUser2.id, false),
+        projectsService.remove(testProject.id, testUser2.id, false),
       ).rejects.toThrow(
         'Only project owners or global admins can delete projects',
       );
@@ -196,7 +196,7 @@ describe('User-Project System (e2e)', () => {
       const tempProject = await prisma.project.create({
         data: {
           name: 'Temp Project',
-          slug: 'temp-project-delete',
+          id: 'temp-project-delete',
           environment: ProjectEnvironment.development,
           ownerId: testUser2.id,
         },
@@ -206,7 +206,7 @@ describe('User-Project System (e2e)', () => {
 
       // Admin should be able to delete it
       const result = await projectsService.remove(
-        tempProject.slug,
+        tempProject.id,
         adminUser.id,
         true,
       );
@@ -214,7 +214,7 @@ describe('User-Project System (e2e)', () => {
 
       // Verify it's deleted
       const deletedProject = await prisma.project.findUnique({
-        where: { slug: tempProject.slug },
+        where: { id: tempProject.id },
       });
       expect(deletedProject).toBeNull();
     });
@@ -227,7 +227,7 @@ describe('User-Project System (e2e)', () => {
       membershipTestProject = await prisma.project.create({
         data: {
           name: 'Membership Test Project',
-          slug: 'membership-test',
+          id: 'membership-test',
           environment: ProjectEnvironment.development,
           ownerId: testUser1.id,
         },
@@ -247,7 +247,7 @@ describe('User-Project System (e2e)', () => {
       const usersService = app.get(UsersService);
 
       const member = await usersService.addProjectMember(
-        membershipTestProject.slug,
+        membershipTestProject.id,
         testUser2.email,
         ProjectRole.member,
         testUser1.id,
@@ -262,7 +262,7 @@ describe('User-Project System (e2e)', () => {
       const usersService = app.get(UsersService);
 
       const updatedMember = await usersService.updateProjectMemberRole(
-        membershipTestProject.slug,
+        membershipTestProject.id,
         testUser2.id,
         ProjectRole.admin,
         testUser1.id,
@@ -276,7 +276,7 @@ describe('User-Project System (e2e)', () => {
 
       const hasAccess = await projectsService.checkProjectAccess(
         testUser2.id,
-        membershipTestProject.slug,
+        membershipTestProject.id,
         ProjectRole.member,
         false,
       );
@@ -300,7 +300,7 @@ describe('User-Project System (e2e)', () => {
       const usersService = app.get(UsersService);
 
       await usersService.removeProjectMember(
-        membershipTestProject.slug,
+        membershipTestProject.id,
         testUser2.id,
         testUser1.id,
       );
@@ -309,7 +309,7 @@ describe('User-Project System (e2e)', () => {
       const projectsService = app.get(ProjectsService);
       const hasAccess = await projectsService.checkProjectAccess(
         testUser2.id,
-        membershipTestProject.slug,
+        membershipTestProject.id,
         ProjectRole.viewer,
         false,
       );
@@ -322,7 +322,7 @@ describe('User-Project System (e2e)', () => {
 
       await expect(
         usersService.removeProjectMember(
-          membershipTestProject.slug,
+          membershipTestProject.id,
           testUser1.id, // Project owner
           testUser1.id,
         ),
@@ -334,7 +334,7 @@ describe('User-Project System (e2e)', () => {
 
       await expect(
         usersService.updateProjectMemberRole(
-          membershipTestProject.slug,
+          membershipTestProject.id,
           testUser1.id, // Project owner
           ProjectRole.member,
           testUser1.id,
@@ -378,7 +378,7 @@ describe('User-Project System (e2e)', () => {
       hierarchyTestProject = await prisma.project.create({
         data: {
           name: 'Hierarchy Test Project',
-          slug: 'hierarchy-test',
+          id: 'hierarchy-test',
           environment: ProjectEnvironment.development,
           ownerId: testUser1.id,
         },
@@ -460,7 +460,7 @@ describe('User-Project System (e2e)', () => {
 
         const hasAccess = await projectsService.checkProjectAccess(
           userId,
-          hierarchyTestProject.slug,
+          hierarchyTestProject.id,
           requiredRole as ProjectRole,
           false,
         );

@@ -17,7 +17,7 @@ export class CreateProjectDto {
 
   @IsOptional()
   @IsString()
-  slug?: string;
+  id?: string;
 
   @IsOptional()
   @IsEnum(ProjectEnvironment)

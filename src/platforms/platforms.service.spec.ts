@@ -19,7 +19,7 @@ describe('PlatformsService', () => {
 
   const mockAuthContext = {
     authType: 'api-key' as const,
-    project: { id: 'project-id', slug: 'test-project' },
+    project: { id: 'project-id' },
   };
 
   const mockPrismaService = {
@@ -71,7 +71,7 @@ describe('PlatformsService', () => {
 
   describe('create', () => {
     it('should create a platform configuration', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'project-id';
       const createDto = {
         platform: 'discord' as any,
         name: 'Test Discord Bot',
@@ -81,7 +81,7 @@ describe('PlatformsService', () => {
         testMode: false,
       };
 
-      const mockProject = { id: 'project-id', slug: projectSlug };
+      const mockProject = { id: 'project-id' };
       mockPrismaService.project.findUnique.mockResolvedValue(mockProject);
       mockPrismaService.projectPlatform.findUnique.mockResolvedValue(null);
       mockPrismaService.projectPlatform.create.mockResolvedValue({
@@ -97,7 +97,7 @@ describe('PlatformsService', () => {
       });
 
       const result = await service.create(
-        projectSlug,
+        projectId,
         createDto,
         mockAuthContext,
       );
@@ -242,10 +242,10 @@ describe('PlatformsService', () => {
 
   describe('findAll', () => {
     it('should return all platforms for a project', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const mockProject = {
         id: 'project-id',
-        slug: projectSlug,
+
         projectPlatforms: [
           {
             id: 'platform-1',
@@ -272,7 +272,7 @@ describe('PlatformsService', () => {
 
       mockPrismaService.project.findUnique.mockResolvedValue(mockProject);
 
-      const result = await service.findAll(projectSlug);
+      const result = await service.findAll(projectId);
 
       expect(result).toHaveLength(2);
       expect(result[0]).toHaveProperty('platform', 'discord');
@@ -297,7 +297,7 @@ describe('PlatformsService', () => {
 
   describe('findOne', () => {
     it('should return platform with decrypted credentials', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const platformId = 'platform-id';
       const mockCredentials = { token: 'discord-token' };
 
@@ -314,7 +314,7 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      const result = await service.findOne(projectSlug, platformId);
+      const result = await service.findOne(projectId, platformId);
 
       expect(result).toHaveProperty('credentials');
       // Credentials should be masked in response
@@ -325,7 +325,7 @@ describe('PlatformsService', () => {
 
   describe('update', () => {
     it('should update platform configuration', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const platformId = 'platform-id';
       const updateDto = {
         credentials: { token: 'new-token' },
@@ -347,7 +347,7 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      const result = await service.update(projectSlug, platformId, updateDto);
+      const result = await service.update(projectId, platformId, updateDto);
 
       expect(result).toHaveProperty('isActive', false);
       expect(mockPrismaService.projectPlatform.update).toHaveBeenCalledWith({
@@ -360,7 +360,7 @@ describe('PlatformsService', () => {
     });
 
     it('should update platform name and description', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const platformId = 'platform-id';
       const updateDto = {
         name: 'Updated Bot Name',
@@ -387,7 +387,7 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      const result = await service.update(projectSlug, platformId, updateDto);
+      const result = await service.update(projectId, platformId, updateDto);
 
       expect(result).toHaveProperty('name', 'Updated Bot Name');
       expect(result).toHaveProperty(
@@ -404,7 +404,7 @@ describe('PlatformsService', () => {
     });
 
     it('should update only name (clear description)', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const platformId = 'platform-id';
       const updateDto = {
         name: 'Simple Bot',
@@ -428,7 +428,7 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      const result = await service.update(projectSlug, platformId, updateDto);
+      const result = await service.update(projectId, platformId, updateDto);
 
       expect(result).toHaveProperty('name', 'Simple Bot');
       expect(result).toHaveProperty('description', null);
@@ -442,7 +442,7 @@ describe('PlatformsService', () => {
     });
 
     it('should update only name without changing isActive or testMode', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const platformId = 'platform-id';
       const updateDto = {
         name: 'New Name Only',
@@ -470,7 +470,7 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      await service.update(projectSlug, platformId, updateDto);
+      await service.update(projectId, platformId, updateDto);
 
       // Verify that ONLY name is in the update data
       const updateCall =
@@ -483,7 +483,7 @@ describe('PlatformsService', () => {
     });
 
     it('should update only credentials without changing isActive', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const platformId = 'platform-id';
       const updateDto = {
         credentials: { token: 'new-token' },
@@ -510,7 +510,7 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      await service.update(projectSlug, platformId, updateDto);
+      await service.update(projectId, platformId, updateDto);
 
       // Verify that ONLY credentialsEncrypted is in the update data
       const updateCall =
@@ -523,7 +523,7 @@ describe('PlatformsService', () => {
     });
 
     it('should update only description without changing other fields', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const platformId = 'platform-id';
       const updateDto = {
         description: 'New description',
@@ -552,7 +552,7 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      await service.update(projectSlug, platformId, updateDto);
+      await service.update(projectId, platformId, updateDto);
 
       // Verify that ONLY description is in the update data
       const updateCall =
@@ -567,7 +567,7 @@ describe('PlatformsService', () => {
 
   describe('remove', () => {
     it('should remove platform configuration', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const platformId = 'platform-id';
 
       mockPrismaService.project.findUnique.mockResolvedValue({
@@ -580,7 +580,7 @@ describe('PlatformsService', () => {
         webhookToken: 'webhook-token',
       });
 
-      const result = await service.remove(projectSlug, platformId);
+      const result = await service.remove(projectId, platformId);
 
       expect(result).toHaveProperty('message', 'Platform removed successfully');
       expect(mockPrismaService.projectPlatform.delete).toHaveBeenCalledWith({
@@ -601,7 +601,7 @@ describe('PlatformsService', () => {
     });
 
     it('should fire created event when platform is created and active', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const createDto = {
         platform: 'whatsapp-evo',
         credentials: {
@@ -623,7 +623,7 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      await service.create(projectSlug, createDto, mockAuthContext);
+      await service.create(projectId, createDto, mockAuthContext);
 
       expect(mockProvider.onPlatformEvent).toHaveBeenCalledWith({
         type: 'created',
@@ -636,7 +636,7 @@ describe('PlatformsService', () => {
     });
 
     it('should not fire created event when platform is created but inactive', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const createDto = {
         platform: 'whatsapp-evo',
         credentials: {
@@ -658,13 +658,13 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      await service.create(projectSlug, createDto, mockAuthContext);
+      await service.create(projectId, createDto, mockAuthContext);
 
       expect(mockProvider.onPlatformEvent).not.toHaveBeenCalled();
     });
 
     it('should fire activated event when platform is activated', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const platformId = 'platform-id';
       const updateDto = { isActive: true };
 
@@ -687,7 +687,7 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      await service.update(projectSlug, platformId, updateDto);
+      await service.update(projectId, platformId, updateDto);
 
       expect(mockProvider.onPlatformEvent).toHaveBeenCalledWith({
         type: 'activated',
@@ -703,7 +703,7 @@ describe('PlatformsService', () => {
     });
 
     it('should fire deactivated event when platform is deactivated', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const platformId = 'platform-id';
       const updateDto = { isActive: false };
 
@@ -726,7 +726,7 @@ describe('PlatformsService', () => {
         updatedAt: new Date(),
       });
 
-      await service.update(projectSlug, platformId, updateDto);
+      await service.update(projectId, platformId, updateDto);
 
       expect(mockProvider.onPlatformEvent).toHaveBeenCalledWith({
         type: 'deactivated',
@@ -742,7 +742,7 @@ describe('PlatformsService', () => {
     });
 
     it('should fire deleted event when platform is removed', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const platformId = 'platform-id';
 
       mockPrismaService.project.findUnique.mockResolvedValue({
@@ -756,7 +756,7 @@ describe('PlatformsService', () => {
         webhookToken: 'webhook-token',
       });
 
-      await service.remove(projectSlug, platformId);
+      await service.remove(projectId, platformId);
 
       expect(mockProvider.onPlatformEvent).toHaveBeenCalledWith({
         type: 'deleted',
@@ -774,7 +774,7 @@ describe('PlatformsService', () => {
     it('should handle missing provider gracefully', async () => {
       mockPlatformRegistry.getProvider.mockReturnValue(null);
 
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const createDto = {
         platform: 'unknown-platform',
         credentials: {},
@@ -795,7 +795,7 @@ describe('PlatformsService', () => {
 
       // Should not throw even if provider doesn't exist
       await expect(
-        service.create(projectSlug, createDto, mockAuthContext),
+        service.create(projectId, createDto, mockAuthContext),
       ).resolves.toBeDefined();
     });
 
@@ -803,7 +803,7 @@ describe('PlatformsService', () => {
       const providerWithoutEvents = { name: 'simple-provider' };
       mockPlatformRegistry.getProvider.mockReturnValue(providerWithoutEvents);
 
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const createDto = {
         platform: 'simple-platform',
         credentials: {},
@@ -824,7 +824,7 @@ describe('PlatformsService', () => {
 
       // Should not throw even if provider doesn't support events
       await expect(
-        service.create(projectSlug, createDto, mockAuthContext),
+        service.create(projectId, createDto, mockAuthContext),
       ).resolves.toBeDefined();
     });
   });

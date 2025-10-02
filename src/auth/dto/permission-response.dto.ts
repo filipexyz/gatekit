@@ -3,7 +3,6 @@ export class PermissionResponse {
   permissions: string[];
   project?: {
     id: string;
-    slug: string;
     name: string;
   };
   user?: {

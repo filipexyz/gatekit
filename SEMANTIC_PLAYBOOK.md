@@ -438,11 +438,11 @@ All controller methods accessing project-scoped resources **MUST** use `@AuthCon
 @Post()
 @RequireScopes('platforms:write')
 async create(
-  @Param('projectSlug') projectSlug: string,
+  @Param('projectId') projectId: string,
   @Body() createPlatformDto: CreatePlatformDto,
   @AuthContextParam() authContext: AuthContext,  // REQUIRED
 ) {
-  return this.platformsService.create(projectSlug, createPlatformDto, authContext);
+  return this.platformsService.create(projectId, createPlatformDto, authContext);
 }
 ```
 
@@ -452,14 +452,14 @@ All service methods performing project access **MUST** require `AuthContext`:
 
 ```typescript
 async create(
-  projectSlug: string,
+  projectId: string,
   dto: CreatePlatformDto,
   authContext: AuthContext,  // REQUIRED: Not optional
 ): Promise<PlatformResponse> {
   // First line: Validate project access
   const project = await SecurityUtil.getProjectWithAccess(
     this.prisma,
-    projectSlug,
+    projectId,
     authContext,
     'platform creation',
   );

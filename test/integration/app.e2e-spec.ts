@@ -142,7 +142,7 @@ describe('GateKit API (e2e)', () => {
           .expect(201)
           .expect((res) => {
             expect(res.body).toHaveProperty('name', 'New Project');
-            expect(res.body).toHaveProperty('slug', 'new-project');
+            expect(res.body).toHaveProperty('id', 'new-project');
             expect(res.body).toHaveProperty('environment', 'development');
           });
       });
@@ -173,11 +173,11 @@ describe('GateKit API (e2e)', () => {
       });
 
       it('should return 409 when slug already exists', async () => {
-        await createTestProject(prisma, { name: 'Existing', slug: 'existing' });
+        await createTestProject(prisma, { name: 'Existing', id: 'existing' });
 
         const projectData = {
           name: 'Existing',
-          slug: 'existing',
+          id: 'existing',
         };
 
         return request(app.getHttpServer())
@@ -188,7 +188,7 @@ describe('GateKit API (e2e)', () => {
       });
     });
 
-    describe('GET /api/v1/projects/:slug', () => {
+    describe('GET /api/v1/projects/:project', () => {
       it('should return project details with valid API key', () => {
         return request(app.getHttpServer())
           .get('/api/v1/projects/e2e-test-project')
@@ -216,8 +216,8 @@ describe('GateKit API (e2e)', () => {
     });
   });
 
-  describe('/api/v1/projects/:slug/keys', () => {
-    describe('POST /api/v1/projects/:slug/keys', () => {
+  describe('/api/v1/projects/:project/keys', () => {
+    describe('POST /api/v1/projects/:project/keys', () => {
       it('should create a new API key with valid API key', () => {
         const keyData = {
           name: 'New API Key',
@@ -275,7 +275,7 @@ describe('GateKit API (e2e)', () => {
       });
     });
 
-    describe('GET /api/v1/projects/:slug/keys', () => {
+    describe('GET /api/v1/projects/:project/keys', () => {
       it('should list project API keys with valid API key', () => {
         return request(app.getHttpServer())
           .get('/api/v1/projects/e2e-test-project/keys')
@@ -297,7 +297,7 @@ describe('GateKit API (e2e)', () => {
       });
     });
 
-    describe('DELETE /api/v1/projects/:slug/keys/:keyId', () => {
+    describe('DELETE /api/v1/projects/:project/keys/:keyId', () => {
       it('should revoke an API key with valid API key', async () => {
         const { apiKey } = await createTestApiKey(prisma, testProjectId, {
           name: 'Key to Revoke',
@@ -329,7 +329,7 @@ describe('GateKit API (e2e)', () => {
       });
     });
 
-    describe('POST /api/v1/projects/:slug/keys/:keyId/roll', () => {
+    describe('POST /api/v1/projects/:project/keys/:keyId/roll', () => {
       it('should roll an API key with valid API key', async () => {
         const { apiKey } = await createTestApiKey(prisma, testProjectId, {
           name: 'Key to Roll',
