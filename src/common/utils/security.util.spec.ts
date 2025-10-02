@@ -36,7 +36,7 @@ describe('SecurityUtil', () => {
 
       expect(result).toEqual(mockProject);
       expect(mockPrisma.project.findUnique).toHaveBeenCalledWith({
-        where: { slug: 'test-project' },
+        where: { id: 'test-project' },
       });
     });
 
@@ -56,9 +56,7 @@ describe('SecurityUtil', () => {
           'test operation',
         ),
       ).rejects.toThrow(
-        new NotFoundException(
-          "Project with slug 'nonexistent-project' not found",
-        ),
+        new NotFoundException("Project 'nonexistent-project' not found"),
       );
     });
 

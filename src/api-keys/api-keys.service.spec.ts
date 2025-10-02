@@ -19,7 +19,7 @@ describe('ApiKeysService', () => {
 
   const mockAuthContext = {
     authType: 'api-key' as const,
-    project: { id: 'project-id', slug: 'test-project' },
+    project: { id: 'project-id' },
   };
 
   const mockPrismaService = {
@@ -55,7 +55,7 @@ describe('ApiKeysService', () => {
 
   describe('create', () => {
     it('should create API key with specified scopes', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const createDto = {
         name: 'Test Key',
         scopes: ['messages:send', 'messages:read'],
@@ -63,7 +63,7 @@ describe('ApiKeysService', () => {
 
       const mockProject = {
         id: 'project-id',
-        slug: projectSlug,
+
         environment: 'development',
       };
       const mockApiKey = 'gk_test_abc123';
@@ -88,7 +88,7 @@ describe('ApiKeysService', () => {
       });
 
       const result = await service.create(
-        projectSlug,
+        projectId,
         createDto,
         mockAuthContext,
       );
@@ -163,10 +163,10 @@ describe('ApiKeysService', () => {
 
   describe('findAll', () => {
     it('should return masked API keys for a project', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const mockProject = {
         id: 'project-id',
-        slug: projectSlug,
+
         environment: 'development',
       };
 
@@ -185,7 +185,7 @@ describe('ApiKeysService', () => {
         },
       ]);
 
-      const result = await service.findAll(projectSlug, mockAuthContext);
+      const result = await service.findAll(projectId, mockAuthContext);
 
       expect(result).toHaveLength(1);
       expect(result[0]).toHaveProperty('maskedKey');
@@ -203,7 +203,7 @@ describe('ApiKeysService', () => {
 
   describe('revoke', () => {
     it('should revoke an active API key', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const keyId = 'key-id';
 
       mockPrismaService.project.findUnique.mockResolvedValue({
@@ -216,7 +216,7 @@ describe('ApiKeysService', () => {
       });
       mockPrismaService.apiKey.update.mockResolvedValue({});
 
-      const result = await service.revoke(projectSlug, keyId, mockAuthContext);
+      const result = await service.revoke(projectId, keyId, mockAuthContext);
 
       expect(mockPrismaService.apiKey.update).toHaveBeenCalledWith({
         where: { id: keyId },

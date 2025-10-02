@@ -22,7 +22,7 @@ import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { WebhookEventType } from './types/webhook-event.types';
 import { ApiScope } from '../common/enums/api-scopes.enum';
 
-@Controller('api/v1/projects/:projectSlug/webhooks')
+@Controller('api/v1/projects/:project/webhooks')
 @UseGuards(AppAuthGuard, ProjectAccessGuard)
 export class WebhooksController {
   constructor(private readonly webhooksService: WebhooksService) {}
@@ -77,12 +77,12 @@ export class WebhooksController {
     ],
   })
   async createWebhook(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Body() createWebhookDto: CreateWebhookDto,
     @AuthContextParam() authContext: AuthContext,
   ) {
     return this.webhooksService.createWebhook(
-      projectSlug,
+      project,
       createWebhookDto,
       authContext,
     );
@@ -104,10 +104,10 @@ export class WebhooksController {
     ],
   })
   async listWebhooks(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.webhooksService.listWebhooks(projectSlug, authContext);
+    return this.webhooksService.listWebhooks(project, authContext);
   }
 
   @Get(':webhookId')
@@ -133,11 +133,11 @@ export class WebhooksController {
     ],
   })
   async getWebhook(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('webhookId') webhookId: string,
     @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.webhooksService.getWebhook(projectSlug, webhookId, authContext);
+    return this.webhooksService.getWebhook(project, webhookId, authContext);
   }
 
   @Patch(':webhookId')
@@ -186,13 +186,13 @@ export class WebhooksController {
     ],
   })
   async updateWebhook(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('webhookId') webhookId: string,
     @Body() updateWebhookDto: UpdateWebhookDto,
     @AuthContextParam() authContext: AuthContext,
   ) {
     return this.webhooksService.updateWebhook(
-      projectSlug,
+      project,
       webhookId,
       updateWebhookDto,
       authContext,
@@ -222,15 +222,11 @@ export class WebhooksController {
     ],
   })
   async deleteWebhook(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('webhookId') webhookId: string,
     @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.webhooksService.deleteWebhook(
-      projectSlug,
-      webhookId,
-      authContext,
-    );
+    return this.webhooksService.deleteWebhook(project, webhookId, authContext);
   }
 
   @Get(':webhookId/deliveries')
@@ -281,13 +277,13 @@ export class WebhooksController {
     ],
   })
   async getDeliveries(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('webhookId') webhookId: string,
     @Query() query: QueryDeliveriesDto,
     @AuthContextParam() authContext: AuthContext,
   ) {
     return this.webhooksService.getDeliveries(
-      projectSlug,
+      project,
       webhookId,
       query,
       authContext,

@@ -112,7 +112,7 @@ export class DiscordProvider
           project: {
             select: {
               id: true,
-              slug: true,
+              name: true,
             },
           },
         },
@@ -135,7 +135,7 @@ export class DiscordProvider
 
           await this.createAdapter(connectionKey, credentials);
           this.logger.log(
-            `Discord bot auto-connected for project ${platform.project.slug} (${connectionKey})`,
+            `Discord bot auto-connected for project ${platform.project.id} (${connectionKey})`,
           );
         } catch (error) {
           this.logger.error(

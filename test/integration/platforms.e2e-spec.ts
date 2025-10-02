@@ -47,7 +47,7 @@ describe('Platforms (e2e)', () => {
     // Create test project and API key
     const project = await createTestProject(prisma, {
       name: 'Platform Test Project',
-      slug: 'platform-test',
+      id: 'platform-test',
     });
     testProjectId = project.id;
 
@@ -61,7 +61,7 @@ describe('Platforms (e2e)', () => {
     await app.close();
   });
 
-  describe('/api/v1/projects/:slug/platforms', () => {
+  describe('/api/v1/projects/:project/platforms', () => {
     describe('POST', () => {
       it('should create a Discord platform configuration', () => {
         return request(app.getHttpServer())
@@ -368,7 +368,7 @@ describe('Platforms (e2e)', () => {
     });
   });
 
-  describe('/api/v1/projects/:slug/messages/send', () => {
+  describe('/api/v1/projects/:project/messages/send', () => {
     beforeEach(async () => {
       // Clean and create a platform configuration
       await prisma.projectPlatform.deleteMany({

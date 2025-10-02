@@ -15,7 +15,7 @@ export class SeedService implements OnModuleInit {
   private async seedDatabase() {
     try {
       const existingProject = await this.prisma.project.findUnique({
-        where: { slug: 'default' },
+        where: { id: 'default' },
       });
 
       if (!existingProject) {
@@ -42,7 +42,7 @@ export class SeedService implements OnModuleInit {
             name: 'Default Project',
             description:
               'Default development project for testing and initial setup',
-            slug: 'default',
+            id: 'default',
             environment: 'development',
             isDefault: true,
             ownerId: systemUser.id,

@@ -55,7 +55,7 @@ describe('ProjectAccessGuard', () => {
   describe('API Key Authentication', () => {
     it('should allow access when API key belongs to target project', async () => {
       const request = {
-        params: { projectSlug: 'test-project' },
+        params: { project: 'test-project' },
         authType: 'api-key',
         project: mockApiKeyProject,
       };
@@ -67,13 +67,13 @@ describe('ProjectAccessGuard', () => {
       expect(result).toBe(true);
       expect(request.project).toEqual(mockProject);
       expect(prismaService.project.findUnique).toHaveBeenCalledWith({
-        where: { slug: 'test-project' },
+        where: { id: 'test-project' },
       });
     });
 
     it('should deny access when API key belongs to different project', async () => {
       const request = {
-        params: { projectSlug: 'test-project' },
+        params: { project: 'test-project' },
         authType: 'api-key',
         project: { id: 'different-project-id', slug: 'different-project' },
       };
@@ -89,7 +89,7 @@ describe('ProjectAccessGuard', () => {
 
     it('should deny access when API key has no project attached', async () => {
       const request = {
-        params: { projectSlug: 'test-project' },
+        params: { project: 'test-project' },
         authType: 'api-key',
         project: null,
       };
@@ -107,7 +107,7 @@ describe('ProjectAccessGuard', () => {
   describe('JWT Authentication', () => {
     it('should allow access when user is member of target project', async () => {
       const request = {
-        params: { projectSlug: 'test-project' },
+        params: { project: 'test-project' },
         authType: 'jwt',
         user: { userId: 'user-123', email: 'test@example.com' },
       };
@@ -134,7 +134,7 @@ describe('ProjectAccessGuard', () => {
 
     it('should deny access when user is not member of target project', async () => {
       const request = {
-        params: { projectSlug: 'test-project' },
+        params: { project: 'test-project' },
         authType: 'jwt',
         user: { userId: 'user-123', email: 'test@example.com' },
       };
@@ -151,7 +151,7 @@ describe('ProjectAccessGuard', () => {
 
     it('should deny access when JWT has no userId', async () => {
       const request = {
-        params: { projectSlug: 'test-project' },
+        params: { project: 'test-project' },
         authType: 'jwt',
         user: { email: 'test@example.com' }, // Missing userId
       };
@@ -167,7 +167,7 @@ describe('ProjectAccessGuard', () => {
 
     it('should deny access when user object is missing', async () => {
       const request = {
-        params: { projectSlug: 'test-project' },
+        params: { project: 'test-project' },
         authType: 'jwt',
         user: null,
       };
@@ -185,7 +185,7 @@ describe('ProjectAccessGuard', () => {
   describe('Project Validation', () => {
     it('should throw NotFoundException when project does not exist', async () => {
       const request = {
-        params: { projectSlug: 'non-existent-project' },
+        params: { project: 'non-existent-project' },
         authType: 'api-key',
         project: mockApiKeyProject,
       };
@@ -195,29 +195,27 @@ describe('ProjectAccessGuard', () => {
       await expect(
         guard.canActivate(createMockContext(request)),
       ).rejects.toThrow(
-        new NotFoundException(
-          "Project with slug 'non-existent-project' not found",
-        ),
+        new NotFoundException("Project 'non-existent-project' not found"),
       );
     });
 
-    it('should throw ForbiddenException when projectSlug is missing', async () => {
+    it('should throw ForbiddenException when project is missing', async () => {
       const request = {
-        params: {}, // Missing projectSlug
+        params: {}, // Missing project
         authType: 'api-key',
         project: mockApiKeyProject,
       };
 
       await expect(
         guard.canActivate(createMockContext(request)),
-      ).rejects.toThrow(new ForbiddenException('Project slug is required'));
+      ).rejects.toThrow(new ForbiddenException('Project is required'));
     });
   });
 
   describe('Authentication Type Validation', () => {
     it('should deny access for invalid authentication type', async () => {
       const request = {
-        params: { projectSlug: 'test-project' },
+        params: { project: 'test-project' },
         authType: 'invalid-auth-type',
       };
 
@@ -230,7 +228,7 @@ describe('ProjectAccessGuard', () => {
 
     it('should deny access when authType is missing', async () => {
       const request = {
-        params: { projectSlug: 'test-project' },
+        params: { project: 'test-project' },
         // Missing authType
       };
 
@@ -245,7 +243,7 @@ describe('ProjectAccessGuard', () => {
   describe('Database Error Handling', () => {
     it('should propagate database errors when finding project', async () => {
       const request = {
-        params: { projectSlug: 'test-project' },
+        params: { project: 'test-project' },
         authType: 'api-key',
         project: mockApiKeyProject,
       };
@@ -260,7 +258,7 @@ describe('ProjectAccessGuard', () => {
 
     it('should propagate database errors when checking project membership', async () => {
       const request = {
-        params: { projectSlug: 'test-project' },
+        params: { project: 'test-project' },
         authType: 'jwt',
         user: { userId: 'user-123', email: 'test@example.com' },
       };
@@ -276,33 +274,33 @@ describe('ProjectAccessGuard', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle undefined projectSlug parameter', async () => {
+    it('should handle undefined project parameter', async () => {
       const request = {
-        params: { projectSlug: undefined },
+        params: { project: undefined },
         authType: 'api-key',
         project: mockApiKeyProject,
       };
 
       await expect(
         guard.canActivate(createMockContext(request)),
-      ).rejects.toThrow(new ForbiddenException('Project slug is required'));
+      ).rejects.toThrow(new ForbiddenException('Project is required'));
     });
 
-    it('should handle empty string projectSlug parameter', async () => {
+    it('should handle empty string project parameter', async () => {
       const request = {
-        params: { projectSlug: '' },
+        params: { project: '' },
         authType: 'api-key',
         project: mockApiKeyProject,
       };
 
       await expect(
         guard.canActivate(createMockContext(request)),
-      ).rejects.toThrow(new ForbiddenException('Project slug is required'));
+      ).rejects.toThrow(new ForbiddenException('Project is required'));
     });
 
     it('should handle case-sensitive project slug matching', async () => {
       const request = {
-        params: { projectSlug: 'Test-Project' }, // Different casing
+        params: { project: 'Test-Project' }, // Different casing
         authType: 'api-key',
         project: mockApiKeyProject,
       };
@@ -312,7 +310,7 @@ describe('ProjectAccessGuard', () => {
       await expect(
         guard.canActivate(createMockContext(request)),
       ).rejects.toThrow(
-        new NotFoundException("Project with slug 'Test-Project' not found"),
+        new NotFoundException("Project 'Test-Project' not found"),
       );
     });
   });

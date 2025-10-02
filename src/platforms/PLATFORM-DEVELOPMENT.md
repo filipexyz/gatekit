@@ -12,7 +12,10 @@ Create a new file: `src/platforms/providers/{platform}.provider.ts`
 
 ```typescript
 import { Injectable, Logger, Inject } from '@nestjs/common';
-import { PlatformProvider, WebhookConfig } from '../interfaces/platform-provider.interface';
+import {
+  PlatformProvider,
+  WebhookConfig,
+} from '../interfaces/platform-provider.interface';
 import { PlatformAdapter } from '../interfaces/platform-adapter.interface';
 import { MessageEnvelopeV1 } from '../interfaces/message-envelope.interface';
 import { EVENT_BUS, type IEventBus } from '../interfaces/event-bus.interface';
@@ -31,9 +34,7 @@ export class YourPlatformProvider implements PlatformProvider, PlatformAdapter {
   readonly connectionType = 'webhook' as const; // or 'websocket' | 'polling' | 'http'
   readonly channel = 'your-platform' as const;
 
-  constructor(
-    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
-  ) {}
+  constructor(@Inject(EVENT_BUS) private readonly eventBus: IEventBus) {}
 
   // Platform Provider methods
   async initialize(): Promise<void> {
@@ -49,7 +50,10 @@ export class YourPlatformProvider implements PlatformProvider, PlatformAdapter {
     await Promise.all(promises);
   }
 
-  async createAdapter(projectId: string, credentials: any): Promise<PlatformAdapter> {
+  async createAdapter(
+    projectId: string,
+    credentials: any,
+  ): Promise<PlatformAdapter> {
     // Create platform-specific connection/client
     // Store connection info
     // Return this as the adapter
@@ -148,15 +152,17 @@ export class PlatformsModule {}
 ### 3. That's It!
 
 Your platform is now:
+
 - ✅ Auto-discovered and registered
 - ✅ Available in `/api/v1/platforms/supported`
-- ✅ Usable for message sending via `/api/v1/projects/:slug/messages/send`
+- ✅ Usable for message sending via `/api/v1/projects/:id/messages/send`
 - ✅ Health monitored via `/api/v1/platforms/health`
 - ✅ Webhook-enabled (if configured) via `/api/v1/webhooks/your-platform/:token`
 
 ## Connection Strategies
 
 ### WebSocket Platforms (like Discord)
+
 ```typescript
 readonly connectionType = 'websocket' as const;
 
@@ -180,6 +186,7 @@ async createAdapter(projectId: string, credentials: any) {
 ```
 
 ### Webhook Platforms (like Telegram)
+
 ```typescript
 readonly connectionType = 'webhook' as const;
 
@@ -198,6 +205,7 @@ getWebhookConfig(): WebhookConfig {
 ```
 
 ### Polling Platforms
+
 ```typescript
 readonly connectionType = 'polling' as const;
 
@@ -218,21 +226,25 @@ async createAdapter(projectId: string, credentials: any) {
 ## Best Practices
 
 ### Thread Safety
+
 - **Never use shared state** across projects
 - **Always pass projectId** to methods that need it
 - **Use connection-specific state** stored in `connections` Map
 
 ### Error Handling
+
 - **Always wrap in try/catch** blocks
 - **Return fallback message IDs** on errors (e.g., 'platform-not-ready')
 - **Log errors with context** (projectId, error details)
 
 ### Resource Management
+
 - **Implement proper cleanup** in `removeAdapter()`
 - **Handle connection limits** if applicable
 - **Clean up on shutdown** in `shutdown()`
 
 ### Testing
+
 - **Test thread safety** - concurrent operations across projects
 - **Test project isolation** - verify no cross-contamination
 - **Test connection management** - reuse, limits, cleanup
@@ -240,12 +252,12 @@ async createAdapter(projectId: string, credentials: any) {
 
 ## Connection Types
 
-| Type | Use Case | Examples | Webhook Support |
-|------|----------|----------|-----------------|
-| `websocket` | Real-time, persistent connections | Discord, Slack RTM | No (uses events) |
-| `webhook` | Event-driven, stateless | Telegram, WhatsApp | Yes (required) |
-| `polling` | Simple, stateless polling | Email, SMS services | No |
-| `http` | Request/response only | REST APIs | No |
+| Type        | Use Case                          | Examples            | Webhook Support  |
+| ----------- | --------------------------------- | ------------------- | ---------------- |
+| `websocket` | Real-time, persistent connections | Discord, Slack RTM  | No (uses events) |
+| `webhook`   | Event-driven, stateless           | Telegram, WhatsApp  | Yes (required)   |
+| `polling`   | Simple, stateless polling         | Email, SMS services | No               |
+| `http`      | Request/response only             | REST APIs           | No               |
 
 ## Platform Capabilities
 
@@ -260,10 +272,12 @@ Each platform provider automatically exposes:
 ## Example: Real Platform Implementation
 
 See existing implementations:
+
 - **Discord**: `src/platforms/providers/discord.provider.ts` (WebSocket)
 - **Telegram**: `src/platforms/providers/telegram.provider.ts` (Webhook)
 
 These serve as complete examples showing:
+
 - Connection management patterns
 - Message envelope creation
 - Error handling strategies
@@ -273,6 +287,7 @@ These serve as complete examples showing:
 ## Migration from Legacy
 
 If migrating from old adapter patterns:
+
 1. Move connection logic from separate connection managers into provider
 2. Move message logic from separate adapters into provider
 3. Implement both `PlatformProvider` and `PlatformAdapter` interfaces
@@ -280,6 +295,7 @@ If migrating from old adapter patterns:
 5. Remove old adapter/factory references from modules
 
 The new architecture eliminates:
+
 - ❌ Separate adapter classes
 - ❌ Connection manager services
 - ❌ Manual factory registration
@@ -287,6 +303,7 @@ The new architecture eliminates:
 - ❌ Shared state between projects
 
 And provides:
+
 - ✅ Single-file platform implementation
 - ✅ Auto-discovery and registration
 - ✅ Complete isolation between platforms

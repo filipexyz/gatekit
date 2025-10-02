@@ -50,7 +50,7 @@ GateKit implements **defense-in-depth security** with multiple overlapping layer
 **Layer 2: Service-Level Validation (Defense-in-Depth)**
 
 ```typescript
-SecurityUtil.getProjectWithAccess(prisma, projectSlug, authContext, operation);
+SecurityUtil.getProjectWithAccess(prisma, projectId, authContext, operation);
 ```
 
 - Mandatory validation at service level prevents bypass scenarios
@@ -110,36 +110,36 @@ authContext: AuthContext; // Required, not optional
 - `GET /api/v1/health` - Public health check
 - `POST /api/v1/projects` - Create project
 - `GET /api/v1/projects` - List all projects
-- `GET /api/v1/projects/:slug` - Get project details
-- `PATCH /api/v1/projects/:slug` - Update project
-- `DELETE /api/v1/projects/:slug` - Delete project
-- `POST /api/v1/projects/:slug/keys` - Generate API key
-- `GET /api/v1/projects/:slug/keys` - List API keys
-- `DELETE /api/v1/projects/:slug/keys/:keyId` - Revoke key
-- `POST /api/v1/projects/:slug/keys/:keyId/roll` - Roll key
+- `GET /api/v1/projects/:id` - Get project details
+- `PATCH /api/v1/projects/:id` - Update project
+- `DELETE /api/v1/projects/:id` - Delete project
+- `POST /api/v1/projects/:id/keys` - Generate API key
+- `GET /api/v1/projects/:id/keys` - List API keys
+- `DELETE /api/v1/projects/:id/keys/:keyId` - Revoke key
+- `POST /api/v1/projects/:id/keys/:keyId/roll` - Roll key
 
 ### Platform Configuration
 
-- `GET /api/v1/projects/:slug/platforms` - List configured platforms
-- `POST /api/v1/projects/:slug/platforms` - Configure platform (Discord, Telegram, WhatsApp-Evo)
-- `PATCH /api/v1/projects/:slug/platforms/:id` - Update platform
-- `DELETE /api/v1/projects/:slug/platforms/:id` - Delete platform
-- `POST /api/v1/projects/:slug/platforms/:id/register-webhook` - Register webhook with provider
-- `GET /api/v1/projects/:slug/platforms/:id/qr-code` - Get QR code for WhatsApp authentication
+- `GET /api/v1/projects/:id/platforms` - List configured platforms
+- `POST /api/v1/projects/:id/platforms` - Configure platform (Discord, Telegram, WhatsApp-Evo)
+- `PATCH /api/v1/projects/:id/platforms/:id` - Update platform
+- `DELETE /api/v1/projects/:id/platforms/:id` - Delete platform
+- `POST /api/v1/projects/:id/platforms/:id/register-webhook` - Register webhook with provider
+- `GET /api/v1/projects/:id/platforms/:id/qr-code` - Get QR code for WhatsApp authentication
 
 ### Messaging (Queue-based)
 
-- `POST /api/v1/projects/:slug/messages/send` - Queue message for delivery
-- `GET /api/v1/projects/:slug/messages/status/:jobId` - Check message status
-- `GET /api/v1/projects/:slug/messages/queue/metrics` - Queue metrics
-- `POST /api/v1/projects/:slug/messages/retry/:jobId` - Retry failed message
+- `POST /api/v1/projects/:id/messages/send` - Queue message for delivery
+- `GET /api/v1/projects/:id/messages/status/:jobId` - Check message status
+- `GET /api/v1/projects/:id/messages/queue/metrics` - Queue metrics
+- `POST /api/v1/projects/:id/messages/retry/:jobId` - Retry failed message
 
 ### Message Reception & Storage
 
-- `GET /api/v1/projects/:slug/messages` - List received messages with filtering
-- `GET /api/v1/projects/:slug/messages/stats` - Get message statistics
-- `GET /api/v1/projects/:slug/messages/:messageId` - Get specific message
-- `DELETE /api/v1/projects/:slug/messages/cleanup` - Delete old messages
+- `GET /api/v1/projects/:id/messages` - List received messages with filtering
+- `GET /api/v1/projects/:id/messages/stats` - Get message statistics
+- `GET /api/v1/projects/:id/messages/:messageId` - Get specific message
+- `DELETE /api/v1/projects/:id/messages/cleanup` - Delete old messages
 
 ### Platform Webhooks (Incoming - Dynamic & UUID-secured)
 
@@ -150,12 +150,12 @@ authContext: AuthContext; // Required, not optional
 
 ### Webhook Notifications (Outgoing - Event Subscriptions)
 
-- `POST /api/v1/projects/:slug/webhooks` - Create webhook subscription
-- `GET /api/v1/projects/:slug/webhooks` - List webhook subscriptions
-- `GET /api/v1/projects/:slug/webhooks/:webhookId` - Get webhook details with stats
-- `PATCH /api/v1/projects/:slug/webhooks/:webhookId` - Update webhook
-- `DELETE /api/v1/projects/:slug/webhooks/:webhookId` - Delete webhook
-- `GET /api/v1/projects/:slug/webhooks/:webhookId/deliveries` - List delivery attempts
+- `POST /api/v1/projects/:id/webhooks` - Create webhook subscription
+- `GET /api/v1/projects/:id/webhooks` - List webhook subscriptions
+- `GET /api/v1/projects/:id/webhooks/:webhookId` - Get webhook details with stats
+- `PATCH /api/v1/projects/:id/webhooks/:webhookId` - Update webhook
+- `DELETE /api/v1/projects/:id/webhooks/:webhookId` - Delete webhook
+- `GET /api/v1/projects/:id/webhooks/:webhookId/deliveries` - List delivery attempts
 
 ## Platform Integrations
 
@@ -293,7 +293,7 @@ Central utility for all security operations with zero-duplication patterns:
 // Get project and validate access in one step
 const project = await SecurityUtil.getProjectWithAccess(
   prisma,
-  projectSlug,
+  projectId,
   authContext,
   'operation',
 );
@@ -312,7 +312,7 @@ Type-safe authentication context passed between layers:
 ```typescript
 interface AuthContext {
   authType: 'api-key' | 'jwt';
-  project?: { id: string; slug: string };
+  project?: { id: string };
   user?: { userId: string; email?: string };
 }
 ```
@@ -324,7 +324,7 @@ interface AuthContext {
 @AuthContextParam() authContext: AuthContext
 
 // Service method signature
-async method(projectSlug: string, data: any, authContext: AuthContext)
+async method(projectId: string, data: any, authContext: AuthContext)
 ```
 
 #### **Error Handling**
@@ -415,11 +415,11 @@ When writing tests for services with project access:
 // REQUIRED: All service tests must provide auth context
 const mockAuthContext = {
   authType: 'api-key' as const,
-  project: { id: 'project-id', slug: 'test-project' },
+  project: { id: 'project-id' },
 };
 
 // Service call with auth context
-await service.method(projectSlug, data, mockAuthContext);
+await service.method(projectId, data, mockAuthContext);
 ```
 
 For detailed testing guidelines, see: **[test/CLAUDE.md](test/CLAUDE.md)**

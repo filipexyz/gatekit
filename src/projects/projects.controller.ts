@@ -99,11 +99,11 @@ export class ProjectsController {
     return [req.project];
   }
 
-  @Get(':slug')
+  @Get(':project')
   @RequireScopes(ApiScope.PROJECTS_READ)
   @SdkContract({
     command: 'projects get',
-    description: 'Get project details by slug',
+    description: 'Get project details',
     category: 'Projects',
     requiredScopes: [ApiScope.PROJECTS_READ],
     outputType: 'ProjectResponse',
@@ -114,11 +114,11 @@ export class ProjectsController {
       },
     ],
   })
-  findOne(@Param('slug') slug: string) {
-    return this.projectsService.findOne(slug);
+  findOne(@Param('project') project: string) {
+    return this.projectsService.findOne(project);
   }
 
-  @Patch(':slug')
+  @Patch(':project')
   @RequireScopes(ApiScope.PROJECTS_WRITE)
   @SdkContract({
     command: 'projects update',
@@ -155,13 +155,13 @@ export class ProjectsController {
     ],
   })
   update(
-    @Param('slug') slug: string,
+    @Param('project') project: string,
     @Body() updateProjectDto: UpdateProjectDto,
   ) {
-    return this.projectsService.update(slug, updateProjectDto);
+    return this.projectsService.update(project, updateProjectDto);
   }
 
-  @Delete(':slug')
+  @Delete(':project')
   @RequireScopes(ApiScope.PROJECTS_WRITE)
   @SdkContract({
     command: 'projects delete',
@@ -176,10 +176,10 @@ export class ProjectsController {
       },
     ],
   })
-  remove(@Param('slug') slug: string, @Request() req: any) {
+  remove(@Param('project') project: string, @Request() req: any) {
     if (req.authType === 'jwt') {
       return this.projectsService.remove(
-        slug,
+        project,
         req.user.user.id,
         req.user.user.isAdmin,
       );

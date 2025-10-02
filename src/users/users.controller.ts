@@ -17,7 +17,7 @@ import { AddMemberDto } from './dto/add-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { ApiScope } from '../common/enums/api-scopes.enum';
 
-@Controller('api/v1/projects/:slug/members')
+@Controller('api/v1/projects/:project/members')
 @UseGuards(AppAuthGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -37,8 +37,8 @@ export class UsersController {
       },
     ],
   })
-  async listMembers(@Param('slug') slug: string, @Request() req: any) {
-    return this.usersService.getProjectMembers(slug, req.user.userId);
+  async listMembers(@Param('project') project: string, @Request() req: any) {
+    return this.usersService.getProjectMembers(project, req.user.userId);
   }
 
   @Post()
@@ -77,12 +77,12 @@ export class UsersController {
     ],
   })
   async addMember(
-    @Param('slug') slug: string,
+    @Param('project') project: string,
     @Body() dto: AddMemberDto,
     @Request() req: any,
   ) {
     return this.usersService.addProjectMember(
-      slug,
+      project,
       dto.email,
       dto.role,
       req.user.userId,
@@ -123,13 +123,13 @@ export class UsersController {
     ],
   })
   async updateMemberRole(
-    @Param('slug') slug: string,
+    @Param('project') project: string,
     @Param('userId') userId: string,
     @Body() dto: UpdateMemberRoleDto,
     @Request() req: any,
   ) {
     return this.usersService.updateProjectMemberRole(
-      slug,
+      project,
       userId,
       dto.role,
       req.user.userId,
@@ -159,10 +159,14 @@ export class UsersController {
     ],
   })
   async removeMember(
-    @Param('slug') slug: string,
+    @Param('project') project: string,
     @Param('userId') userId: string,
     @Request() req: any,
   ) {
-    return this.usersService.removeProjectMember(slug, userId, req.user.userId);
+    return this.usersService.removeProjectMember(
+      project,
+      userId,
+      req.user.userId,
+    );
   }
 }

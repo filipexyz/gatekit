@@ -80,7 +80,7 @@ describe('MessagesService', () => {
 
   describe('sendMessage', () => {
     it('should queue message for Discord platform', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const sendMessageDto = {
         targets: [
           {
@@ -94,7 +94,6 @@ describe('MessagesService', () => {
 
       mockPrismaService.project.findUnique.mockResolvedValue({
         id: 'project-id',
-        slug: projectSlug,
       });
 
       mockPrismaService.projectPlatform.findUnique.mockResolvedValue({
@@ -109,7 +108,7 @@ describe('MessagesService', () => {
         status: 'waiting',
       });
 
-      const result = await service.sendMessage(projectSlug, sendMessageDto);
+      const result = await service.sendMessage(projectId, sendMessageDto);
 
       expect(result).toHaveProperty('success', true);
       expect(result).toHaveProperty('jobId', 'job-123');
@@ -117,14 +116,13 @@ describe('MessagesService', () => {
       expect(result).toHaveProperty('platformIds');
       expect(result.platformIds).toContain('platform-uuid-123');
       expect(mockMessageQueue.addMessage).toHaveBeenCalledWith({
-        projectSlug,
         projectId: 'project-id',
         message: sendMessageDto,
       });
     });
 
     it('should queue message for Telegram platform', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const sendMessageDto = {
         targets: [
           {
@@ -138,7 +136,6 @@ describe('MessagesService', () => {
 
       mockPrismaService.project.findUnique.mockResolvedValue({
         id: 'project-id',
-        slug: projectSlug,
       });
 
       mockPrismaService.projectPlatform.findUnique.mockResolvedValue({
@@ -153,7 +150,7 @@ describe('MessagesService', () => {
         status: 'waiting',
       });
 
-      const result = await service.sendMessage(projectSlug, sendMessageDto);
+      const result = await service.sendMessage(projectId, sendMessageDto);
 
       expect(result).toHaveProperty('success', true);
       expect(result).toHaveProperty('jobId', 'job-456');
@@ -161,7 +158,6 @@ describe('MessagesService', () => {
       expect(result.platformIds).toContain('platform-uuid-456');
       expect(result).toHaveProperty('status', 'waiting');
       expect(mockMessageQueue.addMessage).toHaveBeenCalledWith({
-        projectSlug,
         projectId: 'project-id',
         message: sendMessageDto,
       });
@@ -181,7 +177,7 @@ describe('MessagesService', () => {
     });
 
     it('should throw NotFoundException when platform is not configured', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const sendMessageDto = {
         targets: [
           {
@@ -195,7 +191,6 @@ describe('MessagesService', () => {
 
       mockPrismaService.project.findUnique.mockResolvedValue({
         id: 'project-id',
-        slug: projectSlug,
       });
 
       mockPlatformsService.validatePlatformConfigById.mockRejectedValue(
@@ -205,12 +200,12 @@ describe('MessagesService', () => {
       );
 
       await expect(
-        service.sendMessage(projectSlug, sendMessageDto),
+        service.sendMessage(projectId, sendMessageDto),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException when platform is disabled', async () => {
-      const projectSlug = 'test-project';
+      const projectId = 'test-project';
       const sendMessageDto = {
         targets: [
           {
@@ -224,7 +219,6 @@ describe('MessagesService', () => {
 
       mockPrismaService.project.findUnique.mockResolvedValue({
         id: 'project-id',
-        slug: projectSlug,
       });
 
       mockPlatformsService.validatePlatformConfigById.mockRejectedValue(
@@ -234,7 +228,7 @@ describe('MessagesService', () => {
       );
 
       await expect(
-        service.sendMessage(projectSlug, sendMessageDto),
+        service.sendMessage(projectId, sendMessageDto),
       ).rejects.toThrow(BadRequestException);
     });
   });

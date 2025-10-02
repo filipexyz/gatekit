@@ -3,13 +3,12 @@ import { ProjectEnvironment } from '@prisma/client';
 
 export interface AuthContext {
   authType: 'api-key' | 'jwt';
-  project?: { id: string; slug: string };
+  project?: { id: string };
   user?: { userId: string; email?: string };
 }
 
 export interface ProjectWithAccess {
   id: string;
-  slug: string;
   name: string;
   environment: ProjectEnvironment;
   ownerId: string;
@@ -24,18 +23,16 @@ export class SecurityUtil {
    */
   static async getProjectWithAccess(
     prisma: any,
-    projectSlug: string,
+    projectId: string,
     authContext: AuthContext,
     operation: string,
   ): Promise<ProjectWithAccess> {
     const project = await prisma.project.findUnique({
-      where: { slug: projectSlug },
+      where: { id: projectId },
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project '${projectId}' not found`);
     }
 
     SecurityUtil.validateProjectAccess(authContext, project.id, operation);

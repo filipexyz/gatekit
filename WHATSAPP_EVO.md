@@ -7,6 +7,7 @@ The WhatsApp-Evo provider integrates GateKit with WhatsApp through the Evolution
 ## Features
 
 ### ✅ **Core Capabilities**
+
 - **QR Code Authentication** - Secure WhatsApp connection setup
 - **Real-time Messaging** - Bi-directional message processing
 - **Webhook Integration** - Evolution API webhook handling
@@ -15,6 +16,7 @@ The WhatsApp-Evo provider integrates GateKit with WhatsApp through the Evolution
 - **Message Persistence** - Complete message storage with raw data
 
 ### ✅ **Enterprise Features**
+
 - **Project Isolation** - Each project gets dedicated Evolution API webhook
 - **UUID Security** - Webhook endpoints secured with UUID tokens
 - **Error Recovery** - Graceful handling of Evolution API failures
@@ -24,6 +26,7 @@ The WhatsApp-Evo provider integrates GateKit with WhatsApp through the Evolution
 ## Architecture
 
 ### **Provider Structure**
+
 ```typescript
 @PlatformProviderDecorator('whatsapp-evo')
 export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
@@ -34,12 +37,14 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
 ```
 
 ### **Connection Management**
+
 - **Connection Key**: `${projectId}:${platformId}` for isolation
 - **Instance Strategy**: Uses existing "gatekit" Evolution API instance
 - **Webhook Setup**: Automatic registration with Evolution API
 - **State Tracking**: Connection state and QR code management
 
 ### **Message Flow**
+
 ```
 WhatsApp → Evolution API → Webhook → GateKit → Database → Event Bus
 ```
@@ -51,10 +56,12 @@ WhatsApp → Evolution API → Webhook → GateKit → Database → Event Bus
 Since our QR code API flow is still being refined, you can manually set up WhatsApp connections using Evolution Manager:
 
 #### **Step 1: Access Evolution Manager**
+
 1. Open Evolution Manager in your browser: `http://your-evolution-api-domain/manager`
 2. Login with your Evolution API credentials
 
 #### **Step 2: Create/Manage Instance**
+
 1. **Find existing instance** named "gatekit" (if available)
 2. **OR create new instance**:
    - Instance Name: `gatekit` (or custom name)
@@ -62,6 +69,7 @@ Since our QR code API flow is still being refined, you can manually set up Whats
    - Enable webhook with your GateKit URL
 
 #### **Step 3: QR Code Authentication**
+
 1. In Evolution Manager, navigate to your instance
 2. Click "Connect" or "Generate QR Code"
 3. **Scan QR code with your WhatsApp mobile app**:
@@ -71,20 +79,25 @@ Since our QR code API flow is still being refined, you can manually set up Whats
 4. Wait for connection status to show "Connected" or "Open"
 
 #### **Step 4: Configure Webhook**
+
 In Evolution Manager, set webhook URL to:
+
 ```
 https://your-ngrok-url.ngrok-free.app/api/v1/webhooks/whatsapp-evo/YOUR-WEBHOOK-TOKEN
 ```
 
 **Get your webhook token from GateKit platform configuration:**
+
 ```bash
 curl -X GET "/api/v1/projects/your-project/platforms" \
   -H "X-API-Key: your-api-key" | jq '.[] | select(.platform == "whatsapp-evo") | .webhookUrl'
 ```
 
 #### **Step 5: Test Connection**
+
 1. Send a test message to your WhatsApp number
 2. Check GateKit received messages:
+
 ```bash
 curl -X GET "/api/v1/projects/your-project/messages?platform=whatsapp-evo" \
   -H "X-API-Key: your-api-key"
@@ -117,6 +130,7 @@ curl -X GET "/api/v1/projects/project/platforms/{platform-id}/qr-code" \
 ## Configuration
 
 ### **Required Credentials**
+
 ```json
 {
   "evolutionApiUrl": "https://evo.example.com",
@@ -125,11 +139,13 @@ curl -X GET "/api/v1/projects/project/platforms/{platform-id}/qr-code" \
 ```
 
 ### **Optional Fields**
+
 - `instanceName` - Custom Evolution API instance name
 - `webhookEvents` - Specific events to subscribe to
 - `qrCodeTimeout` - QR code expiration timeout (30-300 seconds)
 
 ### **Example Setup**
+
 ```bash
 # Create WhatsApp-Evo platform
 curl -X POST "/api/v1/projects/my-project/platforms" \
@@ -167,12 +183,14 @@ curl -X POST "/api/v1/projects/my-project/messages/send" \
 ## Implementation Details
 
 ### **Evolution API Integration**
+
 - **Webhook Endpoint**: `/webhook/set/{instanceName}` for configuration
 - **Message Endpoint**: `/message/sendText/{instanceName}` for sending
 - **Payload Format**: Handles both nested and flat message structures
 - **Authentication**: Uses `apikey` header for Evolution API requests
 
 ### **Message Processing**
+
 ```typescript
 // Supports multiple Evolution API payload formats:
 1. body.data.messages[]     // Standard format
@@ -183,6 +201,7 @@ curl -X POST "/api/v1/projects/my-project/messages/send" \
 ```
 
 ### **Error Handling**
+
 - **Network Failures**: Graceful degradation with retry mechanisms
 - **Invalid Payloads**: Safe parsing with fallback values
 - **Connection Issues**: Auto-reconnection and state management
@@ -191,10 +210,12 @@ curl -X POST "/api/v1/projects/my-project/messages/send" \
 ## Testing
 
 ### **Test Suites**
+
 - **Provider Tests** (28 tests): Connection management, webhook processing, message flow
 - **Validator Tests** (29 tests): Credential validation, edge cases, security
 
 ### **Edge Cases Covered**
+
 - Evolution API connectivity issues
 - Malformed webhook payloads
 - Database constraint violations
@@ -203,6 +224,7 @@ curl -X POST "/api/v1/projects/my-project/messages/send" \
 - QR code flow variations
 
 ### **Running Tests**
+
 ```bash
 # Run all WhatsApp-Evo tests
 npm test -- --testPathPatterns="whatsapp.*spec.ts"
@@ -217,6 +239,7 @@ npm test -- --testNamePattern="WhatsAppCredentialsValidator"
 ### **QR Code Flow Issues**
 
 1. **"QR code not available yet" Error**
+
    ```bash
    # Check if Evolution API instance exists
    curl -X GET "https://your-evolution-api-domain/instance/fetchInstances" \
@@ -260,7 +283,7 @@ npm test -- --testNamePattern="WhatsAppCredentialsValidator"
 
 2. **Messages Not Stored in GateKit**
    - Check if webhook calls are reaching GateKit (check server logs)
-   - Verify platform is active: `GET /api/v1/projects/:slug/platforms`
+   - Verify platform is active: `GET /api/v1/projects/:id/platforms`
    - Ensure messages aren't being filtered (fromMe: true)
 
 3. **Evolution Manager Connection States**
@@ -303,7 +326,7 @@ npm test -- --testNamePattern="WhatsAppCredentialsValidator"
 1. **Webhook Not Receiving Messages**
    - Verify Evolution API can reach your webhook URL
    - Check webhook registration: `GET /api/v1/platforms/webhook-routes`
-   - Ensure platform is active: `GET /api/v1/projects/:slug/platforms`
+   - Ensure platform is active: `GET /api/v1/projects/:id/platforms`
 
 2. **QR Code Not Available**
    - Use Evolution Manager for manual QR code generation
@@ -316,6 +339,7 @@ npm test -- --testNamePattern="WhatsAppCredentialsValidator"
    - Validate phone number format (include @s.whatsapp.net for JID)
 
 ### **Debug Commands**
+
 ```bash
 # Check platform health
 curl -X GET "/api/v1/platforms/health" -H "X-API-Key: key"
@@ -330,11 +354,13 @@ curl -X GET "/api/v1/projects/project/messages/stats" -H "X-API-Key: key"
 ## Evolution API Compatibility
 
 ### **Supported Versions**
+
 - Evolution API v2.x
 - Baileys-based WhatsApp Web integration
 - Compatible with standard Evolution API deployments
 
 ### **Webhook Events**
+
 - `QRCODE_UPDATED` - QR code for authentication
 - `CONNECTION_UPDATE` - Connection state changes
 - `MESSAGES_UPSERT` - Incoming messages
@@ -343,13 +369,16 @@ curl -X GET "/api/v1/projects/project/messages/stats" -H "X-API-Key: key"
 ## Future Roadmap
 
 ### **Planned Enhancements**
+
 - **Media Message Support** - Images, documents, audio files
 - **Group Message Handling** - Group chat integration
 - **Message Reactions** - Emoji reactions and interactions
 - **Typing Indicators** - Real-time typing status
 
 ### **Integration Strategy**
+
 The `whatsapp-evo` provider is designed to coexist with future WhatsApp integrations:
+
 - `whatsapp` - Reserved for official WhatsApp Business API
 - `whatsapp-evo` - Evolution API integration (current)
 - `whatsapp-web` - Direct WhatsApp Web integration (future)
@@ -359,6 +388,7 @@ This allows developers to choose the most appropriate WhatsApp integration metho
 ## Support
 
 For questions and support:
+
 - **Discord Community**: https://discord.gg/bQPsvycW
 - **Documentation**: Check `/docs` endpoints for API reference
 - **Test Examples**: See `whatsapp.provider.spec.ts` for usage patterns

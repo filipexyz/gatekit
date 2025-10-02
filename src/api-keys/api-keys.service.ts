@@ -9,7 +9,7 @@ export class ApiKeysService {
   constructor(private prisma: PrismaService) {}
 
   async create(
-    projectSlug: string,
+    projectId: string,
     createApiKeyDto: CreateApiKeyDto,
     authContext: AuthContext,
     createdBy?: string,
@@ -17,7 +17,7 @@ export class ApiKeysService {
     // Get project and validate access in one step
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'API key creation',
     );
@@ -64,11 +64,11 @@ export class ApiKeysService {
     };
   }
 
-  async findAll(projectSlug: string, authContext: AuthContext) {
+  async findAll(projectId: string, authContext: AuthContext) {
     // Get project and validate access in one step
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'API key listing',
     );
@@ -94,11 +94,11 @@ export class ApiKeysService {
     }));
   }
 
-  async revoke(projectSlug: string, keyId: string, authContext: AuthContext) {
+  async revoke(projectId: string, keyId: string, authContext: AuthContext) {
     // Get project and validate access in one step
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'API key revocation',
     );
@@ -127,7 +127,7 @@ export class ApiKeysService {
   }
 
   async roll(
-    projectSlug: string,
+    projectId: string,
     keyId: string,
     authContext: AuthContext,
     createdBy?: string,
@@ -135,7 +135,7 @@ export class ApiKeysService {
     // Get project and validate access in one step
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'API key rolling',
     );

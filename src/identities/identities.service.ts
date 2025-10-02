@@ -22,14 +22,14 @@ export class IdentitiesService {
    * Create a new identity with aliases
    */
   async create(
-    projectSlug: string,
+    projectId: string,
     createDto: CreateIdentityDto,
     authContext: AuthContext,
   ) {
     // SECURITY: Get project and validate access
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'create identities',
     );
@@ -114,7 +114,7 @@ export class IdentitiesService {
     });
 
     this.logger.log(
-      `Created identity ${identity.id} with ${identity.aliases.length} aliases for project ${project.slug}`,
+      `Created identity ${identity.id} with ${identity.aliases.length} aliases for project ${project.id}`,
     );
 
     return identity;
@@ -123,11 +123,11 @@ export class IdentitiesService {
   /**
    * Get all identities for a project
    */
-  async findAll(projectSlug: string, authContext: AuthContext) {
+  async findAll(projectId: string, authContext: AuthContext) {
     // SECURITY: Get project and validate access
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'list identities',
     );
@@ -162,14 +162,14 @@ export class IdentitiesService {
    * Get a single identity by ID
    */
   async findOne(
-    projectSlug: string,
+    projectId: string,
     identityId: string,
     authContext: AuthContext,
   ) {
     // SECURITY: Get project and validate access
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'view identity',
     );
@@ -201,7 +201,7 @@ export class IdentitiesService {
 
     if (!identity) {
       throw new NotFoundException(
-        `Identity ${identityId} not found in project ${projectSlug}`,
+        `Identity ${identityId} not found in project ${projectId}`,
       );
     }
 
@@ -212,7 +212,7 @@ export class IdentitiesService {
    * Look up identity by platform user ID
    */
   async lookupByPlatformUser(
-    projectSlug: string,
+    projectId: string,
     platformId: string,
     providerUserId: string,
     authContext: AuthContext,
@@ -220,7 +220,7 @@ export class IdentitiesService {
     // SECURITY: Get project and validate access
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'lookup identity',
     );
@@ -264,7 +264,7 @@ export class IdentitiesService {
    * Update identity metadata
    */
   async update(
-    projectSlug: string,
+    projectId: string,
     identityId: string,
     updateDto: UpdateIdentityDto,
     authContext: AuthContext,
@@ -272,7 +272,7 @@ export class IdentitiesService {
     // SECURITY: Get project and validate access
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'update identity',
     );
@@ -287,7 +287,7 @@ export class IdentitiesService {
 
     if (!existing) {
       throw new NotFoundException(
-        `Identity ${identityId} not found in project ${projectSlug}`,
+        `Identity ${identityId} not found in project ${projectId}`,
       );
     }
 
@@ -313,9 +313,7 @@ export class IdentitiesService {
       },
     });
 
-    this.logger.log(
-      `Updated identity ${identityId} in project ${project.slug}`,
-    );
+    this.logger.log(`Updated identity ${identityId} in project ${project.id}`);
 
     return updated;
   }
@@ -324,7 +322,7 @@ export class IdentitiesService {
    * Add a new alias to an existing identity
    */
   async addAlias(
-    projectSlug: string,
+    projectId: string,
     identityId: string,
     addAliasDto: AddAliasDto,
     authContext: AuthContext,
@@ -332,7 +330,7 @@ export class IdentitiesService {
     // SECURITY: Get project and validate access
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'add identity alias',
     );
@@ -347,7 +345,7 @@ export class IdentitiesService {
 
     if (!identity) {
       throw new NotFoundException(
-        `Identity ${identityId} not found in project ${projectSlug}`,
+        `Identity ${identityId} not found in project ${projectId}`,
       );
     }
 
@@ -361,7 +359,7 @@ export class IdentitiesService {
 
     if (!platform) {
       throw new BadRequestException(
-        `Platform ${addAliasDto.platformId} does not belong to project ${projectSlug}`,
+        `Platform ${addAliasDto.platformId} does not belong to project ${projectId}`,
       );
     }
 
@@ -404,7 +402,7 @@ export class IdentitiesService {
     });
 
     this.logger.log(
-      `Added alias ${alias.id} to identity ${identityId} in project ${project.slug}`,
+      `Added alias ${alias.id} to identity ${identityId} in project ${project.id}`,
     );
 
     return alias;
@@ -414,7 +412,7 @@ export class IdentitiesService {
    * Remove an alias from an identity
    */
   async removeAlias(
-    projectSlug: string,
+    projectId: string,
     identityId: string,
     aliasId: string,
     authContext: AuthContext,
@@ -422,7 +420,7 @@ export class IdentitiesService {
     // SECURITY: Get project and validate access
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'remove identity alias',
     );
@@ -438,7 +436,7 @@ export class IdentitiesService {
 
     if (!alias) {
       throw new NotFoundException(
-        `Alias ${aliasId} not found for identity ${identityId} in project ${projectSlug}`,
+        `Alias ${aliasId} not found for identity ${identityId} in project ${projectId}`,
       );
     }
 
@@ -458,7 +456,7 @@ export class IdentitiesService {
     });
 
     this.logger.log(
-      `Removed alias ${aliasId} from identity ${identityId} in project ${project.slug}`,
+      `Removed alias ${aliasId} from identity ${identityId} in project ${project.id}`,
     );
 
     return { success: true, message: 'Alias removed successfully' };
@@ -468,14 +466,14 @@ export class IdentitiesService {
    * Delete an identity (cascades to aliases)
    */
   async remove(
-    projectSlug: string,
+    projectId: string,
     identityId: string,
     authContext: AuthContext,
   ) {
     // SECURITY: Get project and validate access
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'delete identity',
     );
@@ -490,7 +488,7 @@ export class IdentitiesService {
 
     if (!identity) {
       throw new NotFoundException(
-        `Identity ${identityId} not found in project ${projectSlug}`,
+        `Identity ${identityId} not found in project ${projectId}`,
       );
     }
 
@@ -499,7 +497,7 @@ export class IdentitiesService {
     });
 
     this.logger.log(
-      `Deleted identity ${identityId} from project ${project.slug}`,
+      `Deleted identity ${identityId} from project ${project.id}`,
     );
 
     return { success: true, message: 'Identity deleted successfully' };
@@ -509,14 +507,14 @@ export class IdentitiesService {
    * Get messages for a specific identity (dynamic resolution via JOIN)
    */
   async getMessagesForIdentity(
-    projectSlug: string,
+    projectId: string,
     identityId: string,
     authContext: AuthContext,
   ) {
     // SECURITY: Get project and validate access
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'view identity messages',
     );
@@ -534,7 +532,7 @@ export class IdentitiesService {
 
     if (!identity) {
       throw new NotFoundException(
-        `Identity ${identityId} not found in project ${projectSlug}`,
+        `Identity ${identityId} not found in project ${projectId}`,
       );
     }
 
@@ -557,14 +555,14 @@ export class IdentitiesService {
    * Get reactions for a specific identity (dynamic resolution via JOIN)
    */
   async getReactionsForIdentity(
-    projectSlug: string,
+    projectId: string,
     identityId: string,
     authContext: AuthContext,
   ) {
     // SECURITY: Get project and validate access
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'view identity reactions',
     );
@@ -582,7 +580,7 @@ export class IdentitiesService {
 
     if (!identity) {
       throw new NotFoundException(
-        `Identity ${identityId} not found in project ${projectSlug}`,
+        `Identity ${identityId} not found in project ${projectId}`,
       );
     }
 

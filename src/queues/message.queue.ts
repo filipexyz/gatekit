@@ -9,7 +9,6 @@ import type { Queue } from 'bullmq';
 import { SendMessageDto } from '../platforms/dto/send-message.dto';
 
 export interface MessageJobData {
-  projectSlug: string;
   projectId: string;
   message: SendMessageDto;
   attemptNumber?: number;

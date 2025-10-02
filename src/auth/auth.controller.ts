@@ -12,7 +12,6 @@ interface ApiKeyRequest {
   };
   project: {
     id: string;
-    slug: string;
     name: string;
   };
 }
@@ -65,7 +64,6 @@ export class AuthController {
       response.permissions = apiKey.scopes || [];
       response.project = {
         id: project.id,
-        slug: project.slug,
         name: project.name,
       };
       response.apiKey = {

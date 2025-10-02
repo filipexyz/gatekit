@@ -27,21 +27,20 @@ export class MessagesService {
     private readonly webhookDeliveryService: WebhookDeliveryService,
   ) {}
 
-  async sendMessage(projectSlug: string, sendMessageDto: SendMessageDto) {
+  async sendMessage(projectId: string, sendMessageDto: SendMessageDto) {
     const targetCount = sendMessageDto.targets.length;
     const platformIds = sendMessageDto.targets.map((t) => t.platformId);
 
     this.logger.log(`Sending message to ${targetCount} targets`);
 
     // Get project and validate platforms
-    const project = await this.getProject(projectSlug);
+    const project = await this.getProject(projectId);
     for (const target of sendMessageDto.targets) {
       await this.platformsService.validatePlatformConfigById(target.platformId);
     }
 
     // Queue message for processing
     const queueResult = await this.messageQueue.addMessage({
-      projectSlug,
       projectId: project.id,
       message: sendMessageDto,
     });
@@ -140,7 +139,7 @@ export class MessagesService {
   }
 
   async reactToMessage(
-    projectSlug: string,
+    projectId: string,
     reactionDto: SendReactionDto,
     authContext: AuthContext,
   ) {
@@ -150,7 +149,7 @@ export class MessagesService {
 
     // Prepare context (validates platform, ownership, gets provider)
     const { provider, connectionKey, platformConfig } =
-      await this.prepareReactionContext(projectSlug, reactionDto, authContext);
+      await this.prepareReactionContext(projectId, reactionDto, authContext);
 
     // Find message and determine origin
     const { chatId, fromMe } = await this.findMessageAndDetermineOrigin(
@@ -186,7 +185,7 @@ export class MessagesService {
   }
 
   async unreactToMessage(
-    projectSlug: string,
+    projectId: string,
     reactionDto: SendReactionDto,
     authContext: AuthContext,
   ) {
@@ -196,7 +195,7 @@ export class MessagesService {
 
     // Prepare context (validates platform, ownership, gets provider)
     const { provider, connectionKey, platformConfig } =
-      await this.prepareReactionContext(projectSlug, reactionDto, authContext);
+      await this.prepareReactionContext(projectId, reactionDto, authContext);
 
     // Find message and determine origin
     const { chatId, fromMe } = await this.findMessageAndDetermineOrigin(
@@ -447,7 +446,7 @@ export class MessagesService {
    * Helper: Prepare reaction context (validates platform, ownership, gets provider)
    */
   private async prepareReactionContext(
-    projectSlug: string,
+    projectId: string,
     reactionDto: SendReactionDto,
     authContext: AuthContext,
   ) {
@@ -460,7 +459,7 @@ export class MessagesService {
     // SECURITY: Get project and validate access (defense-in-depth)
     const project = await SecurityUtil.getProjectWithAccess(
       this.prisma,
-      projectSlug,
+      projectId,
       authContext,
       'send reactions',
     );
@@ -468,7 +467,7 @@ export class MessagesService {
     // SECURITY: Validate platform belongs to project
     if (platformConfig.projectId !== project.id) {
       throw new BadRequestException(
-        `Platform ${reactionDto.platformId} does not belong to project ${projectSlug}`,
+        `Platform ${reactionDto.platformId} does not belong to project ${projectId}`,
       );
     }
 
@@ -527,15 +526,13 @@ export class MessagesService {
     );
   }
 
-  private async getProject(projectSlug: string) {
+  private async getProject(projectId: string) {
     const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
+      where: { id: projectId },
     });
 
     if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+      throw new NotFoundException(`Project '${projectId}' not found`);
     }
 
     return project;

@@ -22,7 +22,7 @@ import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { RequireScopes } from '../common/decorators/scopes.decorator';
 import { ApiScope } from '../common/enums/api-scopes.enum';
 
-@Controller('api/v1/projects/:projectSlug/identities')
+@Controller('api/v1/projects/:project/identities')
 @UseGuards(AppAuthGuard, ProjectAccessGuard)
 export class IdentitiesController {
   constructor(private readonly identitiesService: IdentitiesService) {}
@@ -64,12 +64,12 @@ export class IdentitiesController {
     ],
   })
   create(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Body() createIdentityDto: CreateIdentityDto,
     @AuthContextParam() authContext: AuthContext,
   ) {
     return this.identitiesService.create(
-      projectSlug,
+      project,
       createIdentityDto,
       authContext,
     );
@@ -91,10 +91,10 @@ export class IdentitiesController {
     ],
   })
   findAll(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.identitiesService.findAll(projectSlug, authContext);
+    return this.identitiesService.findAll(project, authContext);
   }
 
   @Get('lookup')
@@ -126,13 +126,13 @@ export class IdentitiesController {
     ],
   })
   lookup(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Query('platformId') platformId: string,
     @Query('providerUserId') providerUserId: string,
     @AuthContextParam() authContext: AuthContext,
   ) {
     return this.identitiesService.lookupByPlatformUser(
-      projectSlug,
+      project,
       platformId,
       providerUserId,
       authContext,
@@ -162,11 +162,11 @@ export class IdentitiesController {
     ],
   })
   findOne(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('id') id: string,
     @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.identitiesService.findOne(projectSlug, id, authContext);
+    return this.identitiesService.findOne(project, id, authContext);
   }
 
   @Patch(':id')
@@ -211,13 +211,13 @@ export class IdentitiesController {
     ],
   })
   update(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('id') id: string,
     @Body() updateIdentityDto: UpdateIdentityDto,
     @AuthContextParam() authContext: AuthContext,
   ) {
     return this.identitiesService.update(
-      projectSlug,
+      project,
       id,
       updateIdentityDto,
       authContext,
@@ -263,13 +263,13 @@ export class IdentitiesController {
     ],
   })
   addAlias(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('id') id: string,
     @Body() addAliasDto: AddAliasDto,
     @AuthContextParam() authContext: AuthContext,
   ) {
     return this.identitiesService.addAlias(
-      projectSlug,
+      project,
       id,
       addAliasDto,
       authContext,
@@ -304,13 +304,13 @@ export class IdentitiesController {
     ],
   })
   removeAlias(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('id') id: string,
     @Param('aliasId') aliasId: string,
     @AuthContextParam() authContext: AuthContext,
   ) {
     return this.identitiesService.removeAlias(
-      projectSlug,
+      project,
       id,
       aliasId,
       authContext,
@@ -340,11 +340,11 @@ export class IdentitiesController {
     ],
   })
   remove(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('id') id: string,
     @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.identitiesService.remove(projectSlug, id, authContext);
+    return this.identitiesService.remove(project, id, authContext);
   }
 
   @Get(':id/messages')
@@ -371,12 +371,12 @@ export class IdentitiesController {
     ],
   })
   getMessages(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('id') id: string,
     @AuthContextParam() authContext: AuthContext,
   ) {
     return this.identitiesService.getMessagesForIdentity(
-      projectSlug,
+      project,
       id,
       authContext,
     );
@@ -406,12 +406,12 @@ export class IdentitiesController {
     ],
   })
   getReactions(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('id') id: string,
     @AuthContextParam() authContext: AuthContext,
   ) {
     return this.identitiesService.getReactionsForIdentity(
-      projectSlug,
+      project,
       id,
       authContext,
     );

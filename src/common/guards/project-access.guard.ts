@@ -13,27 +13,25 @@ export class ProjectAccessGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const projectSlug = request.params.projectSlug;
+    const project = request.params.project;
 
-    if (!projectSlug) {
-      throw new ForbiddenException('Project slug is required');
+    if (!project) {
+      throw new ForbiddenException('Project is required');
     }
 
     // Get project
-    const project = await this.prisma.project.findUnique({
-      where: { slug: projectSlug },
+    const projectRecord = await this.prisma.project.findUnique({
+      where: { id: project },
     });
 
-    if (!project) {
-      throw new NotFoundException(
-        `Project with slug '${projectSlug}' not found`,
-      );
+    if (!projectRecord) {
+      throw new NotFoundException(`Project '${project}' not found`);
     }
 
     // Check access based on authentication type
     if (request.authType === 'api-key') {
       // API Key: Must belong to the target project
-      if (request.project?.id !== project.id) {
+      if (request.project?.id !== projectRecord.id) {
         throw new ForbiddenException(
           'API key does not have access to this project',
         );
@@ -47,7 +45,7 @@ export class ProjectAccessGuard implements CanActivate {
 
       const membership = await this.prisma.projectMember.findFirst({
         where: {
-          projectId: project.id,
+          projectId: projectRecord.id,
           userId: userId,
         },
       });
@@ -60,7 +58,7 @@ export class ProjectAccessGuard implements CanActivate {
     }
 
     // Attach project to request for downstream use
-    request.project = project;
+    request.project = projectRecord;
     return true;
   }
 }

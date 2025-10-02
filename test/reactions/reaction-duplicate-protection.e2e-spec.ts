@@ -24,8 +24,7 @@ describe('Reaction Duplicate Protection (e2e)', () => {
 
   // Test fixtures
   const testProject = {
-    id: 'test-project-id',
-    slug: 'test-project',
+    id: 'test-project',
     name: 'Test Project',
     ownerId: 'test-owner',
   };

@@ -18,7 +18,7 @@ export class UpdateProjectDto {
 
   @IsOptional()
   @IsString()
-  slug?: string;
+  id?: string;
 
   @IsOptional()
   @IsEnum(ProjectEnvironment)

@@ -100,39 +100,39 @@ class YourAIAgent {
 # Project Management
 GET    /api/v1/projects                    # List projects
 POST   /api/v1/projects                    # Create project
-PATCH  /api/v1/projects/:slug              # Update project
+PATCH  /api/v1/projects/:id              # Update project
 
 # Team Management
-GET    /api/v1/projects/:slug/members      # List team members
-POST   /api/v1/projects/:slug/members      # Add member
-PATCH  /api/v1/projects/:slug/members/:id  # Update role
+GET    /api/v1/projects/:id/members      # List team members
+POST   /api/v1/projects/:id/members      # Add member
+PATCH  /api/v1/projects/:id/members/:id  # Update role
 
 # Platform Configuration
-GET    /api/v1/projects/:slug/platforms         # List configured bots
-POST   /api/v1/projects/:slug/platforms         # Add bot integration
-PATCH  /api/v1/projects/:slug/platforms/:id     # Update bot tokens
+GET    /api/v1/projects/:id/platforms         # List configured bots
+POST   /api/v1/projects/:id/platforms         # Add bot integration
+PATCH  /api/v1/projects/:id/platforms/:id     # Update bot tokens
 
 # Identity Management (Cross-Platform Users)
-GET    /api/v1/projects/:slug/identities              # List identities
-POST   /api/v1/projects/:slug/identities              # Create identity
-GET    /api/v1/projects/:slug/identities/:id          # Get identity details
-PATCH  /api/v1/projects/:slug/identities/:id          # Update identity
-POST   /api/v1/projects/:slug/identities/:id/aliases  # Link platform account
-GET    /api/v1/projects/:slug/identities/lookup       # Lookup by platform user
-GET    /api/v1/projects/:slug/identities/:id/messages # Get all messages for identity
+GET    /api/v1/projects/:id/identities              # List identities
+POST   /api/v1/projects/:id/identities              # Create identity
+GET    /api/v1/projects/:id/identities/:id          # Get identity details
+PATCH  /api/v1/projects/:id/identities/:id          # Update identity
+POST   /api/v1/projects/:id/identities/:id/aliases  # Link platform account
+GET    /api/v1/projects/:id/identities/lookup       # Lookup by platform user
+GET    /api/v1/projects/:id/identities/:id/messages # Get all messages for identity
 
 # Conversation History (Ready for Agents)
-GET    /api/v1/projects/:slug/messages          # Query received messages (with identity)
-GET    /api/v1/projects/:slug/messages/sent     # Query sent messages (with identity)
+GET    /api/v1/projects/:id/messages          # Query received messages (with identity)
+GET    /api/v1/projects/:id/messages/sent     # Query sent messages (with identity)
 
 # Webhook Notifications (Event Subscriptions)
-POST   /api/v1/projects/:slug/webhooks          # Subscribe to events
-GET    /api/v1/projects/:slug/webhooks          # List webhooks
-GET    /api/v1/projects/:slug/webhooks/:id/deliveries  # Delivery history
+POST   /api/v1/projects/:id/webhooks          # Subscribe to events
+GET    /api/v1/projects/:id/webhooks          # List webhooks
+GET    /api/v1/projects/:id/webhooks/:id/deliveries  # Delivery history
 
 # Platform Activity Monitoring
-GET    /api/v1/projects/:slug/platforms/logs         # All platform activity
-GET    /api/v1/projects/:slug/platforms/logs/stats   # Activity dashboard
+GET    /api/v1/projects/:id/platforms/logs         # All platform activity
+GET    /api/v1/projects/:id/platforms/logs/stats   # Activity dashboard
 ```
 
 ### **🎮 Platform Capabilities Matrix**

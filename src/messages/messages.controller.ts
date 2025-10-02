@@ -21,7 +21,7 @@ import { AuthContextParam } from '../common/decorators/auth-context.decorator';
 import type { AuthContext } from '../common/utils/security.util';
 import { ApiScope } from '../common/enums/api-scopes.enum';
 
-@Controller('api/v1/projects/:projectSlug/messages')
+@Controller('api/v1/projects/:project/messages')
 @UseGuards(AppAuthGuard, ProjectAccessGuard)
 export class MessagesController {
   constructor(
@@ -122,11 +122,11 @@ export class MessagesController {
     ],
   })
   async getMessages(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Query() query: QueryMessagesDto,
     @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.messagesService.getMessages(projectSlug, query, authContext);
+    return this.messagesService.getMessages(project, query, authContext);
   }
 
   @Get('stats')
@@ -144,8 +144,8 @@ export class MessagesController {
       },
     ],
   })
-  async getMessageStats(@Param('projectSlug') projectSlug: string) {
-    return this.messagesService.getMessageStats(projectSlug);
+  async getMessageStats(@Param('project') project: string) {
+    return this.messagesService.getMessageStats(project);
   }
 
   @Get(':messageId')
@@ -171,10 +171,10 @@ export class MessagesController {
     ],
   })
   async getMessage(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('messageId') messageId: string,
   ) {
-    return this.messagesService.getMessage(projectSlug, messageId);
+    return this.messagesService.getMessage(project, messageId);
   }
 
   @Delete('cleanup')
@@ -200,10 +200,10 @@ export class MessagesController {
     ],
   })
   async deleteOldMessages(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Body('daysBefore') daysBefore: number,
   ) {
-    return this.messagesService.deleteOldMessages(projectSlug, daysBefore);
+    return this.messagesService.deleteOldMessages(project, daysBefore);
   }
 
   @Post('send')
@@ -255,13 +255,10 @@ export class MessagesController {
     ],
   })
   async sendMessage(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Body() sendMessageDto: SendMessageDto,
   ) {
-    return this.platformMessagesService.sendMessage(
-      projectSlug,
-      sendMessageDto,
-    );
+    return this.platformMessagesService.sendMessage(project, sendMessageDto);
   }
 
   @Get('status/:jobId')
@@ -283,7 +280,7 @@ export class MessagesController {
     ],
   })
   async getMessageStatus(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('jobId') jobId: string,
   ) {
     return this.platformMessagesService.getMessageStatus(jobId);
@@ -312,7 +309,7 @@ export class MessagesController {
     ],
   })
   async retryMessage(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Param('jobId') jobId: string,
   ) {
     return this.platformMessagesService.retryMessage(jobId);
@@ -356,15 +353,11 @@ export class MessagesController {
     ],
   })
   async getSentMessages(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Query() query: any,
     @AuthContextParam() authContext: AuthContext,
   ) {
-    return this.messagesService.getSentMessages(
-      projectSlug,
-      query,
-      authContext,
-    );
+    return this.messagesService.getSentMessages(project, query, authContext);
   }
 
   @Post('react')
@@ -407,12 +400,12 @@ export class MessagesController {
     ],
   })
   async reactToMessage(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Body() sendReactionDto: SendReactionDto,
     @AuthContextParam() authContext: AuthContext,
   ) {
     return this.platformMessagesService.reactToMessage(
-      projectSlug,
+      project,
       sendReactionDto,
       authContext,
     );
@@ -453,12 +446,12 @@ export class MessagesController {
     ],
   })
   async unreactToMessage(
-    @Param('projectSlug') projectSlug: string,
+    @Param('project') project: string,
     @Body() sendReactionDto: SendReactionDto,
     @AuthContextParam() authContext: AuthContext,
   ) {
     return this.platformMessagesService.unreactToMessage(
-      projectSlug,
+      project,
       sendReactionDto,
       authContext,
     );
