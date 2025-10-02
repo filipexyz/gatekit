@@ -42,10 +42,12 @@ export class CLIGenerator {
     const groups = this.groupContractsByCategory(contracts);
 
     const commands: Record<string, string> = {};
-    Object.entries(groups).forEach(([category, contracts]) => {
-      commands[CaseConverter.toValidFilename(category)] =
-        this.generateCommandFile(category, contracts);
-    });
+    Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([category, contracts]) => {
+        commands[CaseConverter.toValidFilename(category)] =
+          this.generateCommandFile(category, contracts);
+      });
 
     return {
       commands,
@@ -348,6 +350,7 @@ async function checkPermissions(config: any, requiredScopes: string[]): Promise<
     groups: Record<string, ExtractedContract[]>,
   ): string {
     const commandImports = Object.keys(groups)
+      .sort()
       .map(
         (category) =>
           `import { create${CaseConverter.toValidClassName(category)}Command } from './commands/${CaseConverter.toValidFilename(category)}';`,
@@ -355,6 +358,7 @@ async function checkPermissions(config: any, requiredScopes: string[]): Promise<
       .join('\n');
 
     const commandRegistrations = Object.keys(groups)
+      .sort()
       .map(
         (category) =>
           `  program.addCommand(create${CaseConverter.toValidClassName(category)}Command());`,
@@ -575,6 +579,7 @@ export function handleError(error: any): void {
     groups: Record<string, ExtractedContract[]>,
   ): string {
     const commandExamples = Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b))
       .map(([category, contracts]) => {
         const examples = contracts
           .slice(0, 3)

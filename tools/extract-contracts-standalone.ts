@@ -286,9 +286,12 @@ async function extractTypeDefinitions(
   const extractedTypes = await extractor.extractTypes(Array.from(typeNames));
 
   const typeDefinitions: Record<string, string> = {};
-  extractedTypes.forEach((type) => {
-    typeDefinitions[type.name] = type.definition;
-  });
+  // Sort by type name for deterministic output
+  extractedTypes
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach((type) => {
+      typeDefinitions[type.name] = type.definition;
+    });
 
   console.log(
     `📝 Extracted ${Object.keys(typeDefinitions).length} TypeScript types`,
