@@ -105,7 +105,11 @@
       "eslint --fix",
       "prettier --write"
     ],
-    "*.{ts,js}": [
+    "src/**/*.{ts,js}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "test/**/*.{ts,js}": [
       "eslint --fix",
       "prettier --write"
     ],
