@@ -505,8 +505,9 @@ export function handleError(error: any): void {
           commander: '^14.0.1',
           axios: '^1.12.2',
         },
-        peerDependencies: {
-          typescript: '>=5.0.0',
+        devDependencies: {
+          '@types/node': '^22.18.8',
+          typescript: '^5.9.3',
         },
         keywords: ['gatekit', 'cli', 'messaging', 'universal'],
         author: 'GateKit',
