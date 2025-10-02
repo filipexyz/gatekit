@@ -7,12 +7,7 @@ import {
   Matches,
   Length,
 } from 'class-validator';
-
-export enum PlatformType {
-  DISCORD = 'discord',
-  TELEGRAM = 'telegram',
-  WHATSAPP_EVO = 'whatsapp-evo',
-}
+import { PlatformType } from '../../common/enums/platform-type.enum';
 
 export class CreatePlatformDto {
   @IsEnum(PlatformType)

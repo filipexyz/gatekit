@@ -1,5 +1,6 @@
 import { validate } from 'class-validator';
-import { CreatePlatformDto, PlatformType } from './create-platform.dto';
+import { CreatePlatformDto } from './create-platform.dto';
+import { PlatformType } from '../../common/enums/platform-type.enum';
 
 describe('CreatePlatformDto', () => {
   it('should validate valid platform name with allowed characters', async () => {

@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlatformDto } from './dto/create-platform.dto';
 import { UpdatePlatformDto } from './dto/update-platform.dto';
 import { CryptoUtil } from '../common/utils/crypto.util';
+import { PlatformType } from '../common/enums/platform-type.enum';
 import { SecurityUtil, AuthContext } from '../common/utils/security.util';
 import { CredentialMaskUtil } from '../common/utils/credential-mask.util';
 import { CredentialValidationService } from './services/credential-validation.service';
@@ -512,7 +513,10 @@ export class PlatformsService {
       platform.credentialsEncrypted,
     );
 
-    if (platform.platform === 'telegram') {
+    // Cast string to enum for type-safe comparison
+    const platformType = platform.platform as PlatformType;
+
+    if (platformType === PlatformType.TELEGRAM) {
       try {
         // Create temporary bot instance to register webhook
         const bot = new TelegramBot(credentials.token, { webHook: true });
@@ -557,7 +561,7 @@ export class PlatformsService {
           `Failed to register webhook: ${error.message}`,
         );
       }
-    } else if (platform.platform === 'discord') {
+    } else if (platformType === PlatformType.DISCORD) {
       // Discord doesn't need webhook registration - it uses WebSocket
       return {
         message:
@@ -593,7 +597,8 @@ export class PlatformsService {
       throw new NotFoundException(`Platform with id '${platformId}' not found`);
     }
 
-    if (platform.platform !== 'whatsapp-evo') {
+    const platformType = platform.platform as PlatformType;
+    if (platformType !== PlatformType.WHATSAPP_EVO) {
       throw new BadRequestException(
         'QR code is only available for WhatsApp Evolution API platforms',
       );
@@ -604,7 +609,9 @@ export class PlatformsService {
     }
 
     // Get WhatsApp provider from registry
-    const whatsappProvider = this.platformRegistry.getProvider('whatsapp-evo');
+    const whatsappProvider = this.platformRegistry.getProvider(
+      PlatformType.WHATSAPP_EVO,
+    );
     if (!whatsappProvider) {
       throw new NotFoundException('WhatsApp provider not available');
     }

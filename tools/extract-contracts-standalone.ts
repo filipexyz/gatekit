@@ -4,6 +4,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { glob } from 'glob';
 import { TypeExtractorService } from './extractors/type-extractor.service';
+import { DecoratorMetadataParser } from './extractors/decorator-metadata-parser';
 
 // Standalone contract extraction without NestJS context
 // This avoids database dependencies in CI/CD environments
@@ -111,6 +112,9 @@ function extractContractsFromFile(
 ): ExtractedContract[] {
   const contracts: ExtractedContract[] = [];
 
+  // Create parser instance for this file (discovers enums from imports)
+  const parser = new DecoratorMetadataParser(filePath, content);
+
   // Extract proper controller class name
   const controllerClassMatch = content.match(/export class (\w+Controller)/);
   const controllerName = controllerClassMatch
@@ -135,8 +139,8 @@ function extractContractsFromFile(
         .replace('@SdkContract(', '')
         .slice(0, -1);
 
-      // Parse the metadata (simplified - in real implementation, use proper AST parsing)
-      const metadata = parseContractMetadata(metadataText);
+      // Parse the metadata using AST parser with enum resolution
+      const metadata = parser.parseObjectLiteral(metadataText);
 
       if (metadata) {
         // Extract method info
@@ -156,16 +160,6 @@ function extractContractsFromFile(
   }
 
   return contracts;
-}
-
-function parseContractMetadata(metadataText: string): ContractMetadata | null {
-  try {
-    // Simple JSON-like parsing (in production, use proper AST parser)
-    const metadata = eval(`(${metadataText})`);
-    return metadata;
-  } catch {
-    return null;
-  }
 }
 
 function extractMethodInfo(

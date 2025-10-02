@@ -17,6 +17,7 @@ import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { AuthContextParam } from '../common/decorators/auth-context.decorator';
 import type { AuthContext } from '../common/utils/security.util';
 import { Throttle } from '@nestjs/throttler';
+import { ApiScope } from '../common/enums/api-scopes.enum';
 
 @Controller('api/v1/projects/:projectSlug/keys')
 @UseGuards(AppAuthGuard, ProjectAccessGuard)
@@ -24,13 +25,13 @@ export class ApiKeysController {
   constructor(private readonly apiKeysService: ApiKeysService) {}
 
   @Post()
-  @RequireScopes('keys:manage')
+  @RequireScopes(ApiScope.KEYS_MANAGE)
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 key creations per minute
   @SdkContract({
     command: 'keys create',
     description: 'Generate a new API key',
     category: 'ApiKeys',
-    requiredScopes: ['keys:manage'],
+    requiredScopes: [ApiScope.KEYS_MANAGE],
     inputType: 'CreateApiKeyDto',
     outputType: 'ApiKeyResponse',
     options: {
@@ -63,12 +64,12 @@ export class ApiKeysController {
   }
 
   @Get()
-  @RequireScopes('keys:read')
+  @RequireScopes(ApiScope.KEYS_READ)
   @SdkContract({
     command: 'keys list',
     description: 'List all API keys for project',
     category: 'ApiKeys',
-    requiredScopes: ['keys:read'],
+    requiredScopes: [ApiScope.KEYS_READ],
     outputType: 'ApiKeyListResponse[]',
     examples: [
       {
@@ -85,12 +86,12 @@ export class ApiKeysController {
   }
 
   @Delete(':keyId')
-  @RequireScopes('keys:manage')
+  @RequireScopes(ApiScope.KEYS_MANAGE)
   @SdkContract({
     command: 'keys revoke',
     description: 'Revoke an API key',
     category: 'ApiKeys',
-    requiredScopes: ['keys:manage'],
+    requiredScopes: [ApiScope.KEYS_MANAGE],
     outputType: 'MessageResponse',
     options: {
       keyId: {
@@ -116,13 +117,13 @@ export class ApiKeysController {
 
   @Post(':keyId/roll')
   @HttpCode(200)
-  @RequireScopes('keys:manage')
+  @RequireScopes(ApiScope.KEYS_MANAGE)
   @Throttle({ default: { limit: 3, ttl: 60000 } }) // 3 key rolls per minute
   @SdkContract({
     command: 'keys roll',
     description: 'Roll an API key (generate new key, revoke old after 24h)',
     category: 'ApiKeys',
-    requiredScopes: ['keys:manage'],
+    requiredScopes: [ApiScope.KEYS_MANAGE],
     outputType: 'ApiKeyRollResponse',
     options: {
       keyId: {

@@ -3,12 +3,13 @@ import {
   PlatformCredentialValidator,
   CredentialValidationResult,
 } from '../interfaces/credential-validator.interface';
+import { PlatformType } from '../../common/enums/platform-type.enum';
 
 @Injectable()
 export class DiscordCredentialsValidator
   implements PlatformCredentialValidator
 {
-  readonly platform = 'discord';
+  readonly platform = PlatformType.DISCORD;
 
   validateCredentials(
     credentials: Record<string, any>,

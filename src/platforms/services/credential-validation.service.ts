@@ -3,6 +3,7 @@ import {
   PlatformCredentialValidator,
   CredentialValidationResult,
 } from '../interfaces/credential-validator.interface';
+import { PlatformType } from '../../common/enums/platform-type.enum';
 import { TelegramCredentialsValidator } from '../validators/telegram-credentials.validator';
 import { DiscordCredentialsValidator } from '../validators/discord-credentials.validator';
 import { WhatsAppCredentialsValidator } from '../validators/whatsapp-credentials.validator';
@@ -17,9 +18,9 @@ export class CredentialValidationService {
     private readonly whatsappValidator: WhatsAppCredentialsValidator,
   ) {
     // Register platform validators
-    this.validators.set('telegram', this.telegramValidator);
-    this.validators.set('discord', this.discordValidator);
-    this.validators.set('whatsapp-evo', this.whatsappValidator);
+    this.validators.set(PlatformType.TELEGRAM, this.telegramValidator);
+    this.validators.set(PlatformType.DISCORD, this.discordValidator);
+    this.validators.set(PlatformType.WHATSAPP_EVO, this.whatsappValidator);
   }
 
   /**

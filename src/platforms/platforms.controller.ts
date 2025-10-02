@@ -17,7 +17,7 @@ import { RequireScopes } from '../common/decorators/require-scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { AuthContextParam } from '../common/decorators/auth-context.decorator';
 import type { AuthContext } from '../common/utils/security.util';
-import { PlatformResponse } from './dto/platform-response.dto';
+import { ApiScope } from '../common/enums/api-scopes.enum';
 
 @Controller('api/v1/projects/:projectSlug/platforms')
 @UseGuards(AppAuthGuard, ProjectAccessGuard)
@@ -25,12 +25,12 @@ export class PlatformsController {
   constructor(private readonly platformsService: PlatformsService) {}
 
   @Post()
-  @RequireScopes('platforms:write')
+  @RequireScopes(ApiScope.PLATFORMS_WRITE)
   @SdkContract({
     command: 'platforms create',
     description: 'Configure a new platform integration',
     category: 'Platforms',
-    requiredScopes: ['platforms:write'],
+    requiredScopes: [ApiScope.PLATFORMS_WRITE],
     inputType: 'CreatePlatformDto',
     outputType: 'PlatformResponse',
     options: {
@@ -97,12 +97,12 @@ export class PlatformsController {
   }
 
   @Get()
-  @RequireScopes('platforms:read')
+  @RequireScopes(ApiScope.PLATFORMS_READ)
   @SdkContract({
     command: 'platforms list',
     description: 'List configured platforms for project',
     category: 'Platforms',
-    requiredScopes: ['platforms:read'],
+    requiredScopes: [ApiScope.PLATFORMS_READ],
     outputType: 'PlatformResponse[]',
     examples: [
       {
@@ -116,12 +116,12 @@ export class PlatformsController {
   }
 
   @Get(':id')
-  @RequireScopes('platforms:read')
+  @RequireScopes(ApiScope.PLATFORMS_READ)
   @SdkContract({
     command: 'platforms get',
     description: 'Get platform configuration details',
     category: 'Platforms',
-    requiredScopes: ['platforms:read'],
+    requiredScopes: [ApiScope.PLATFORMS_READ],
     outputType: 'PlatformResponse',
     options: {
       id: { required: true, description: 'Platform ID', type: 'string' },
@@ -138,12 +138,12 @@ export class PlatformsController {
   }
 
   @Patch(':id')
-  @RequireScopes('platforms:write')
+  @RequireScopes(ApiScope.PLATFORMS_WRITE)
   @SdkContract({
     command: 'platforms update',
     description: 'Update platform configuration',
     category: 'Platforms',
-    requiredScopes: ['platforms:write'],
+    requiredScopes: [ApiScope.PLATFORMS_WRITE],
     inputType: 'UpdatePlatformDto',
     outputType: 'PlatformResponse',
     options: {
@@ -194,12 +194,12 @@ export class PlatformsController {
   }
 
   @Delete(':id')
-  @RequireScopes('platforms:write')
+  @RequireScopes(ApiScope.PLATFORMS_WRITE)
   @SdkContract({
     command: 'platforms delete',
     description: 'Remove platform configuration',
     category: 'Platforms',
-    requiredScopes: ['platforms:write'],
+    requiredScopes: [ApiScope.PLATFORMS_WRITE],
     outputType: 'MessageResponse',
     options: {
       id: { required: true, description: 'Platform ID', type: 'string' },
@@ -216,12 +216,12 @@ export class PlatformsController {
   }
 
   @Post(':id/register-webhook')
-  @RequireScopes('platforms:write')
+  @RequireScopes(ApiScope.PLATFORMS_WRITE)
   @SdkContract({
     command: 'platforms register-webhook',
     description: 'Register webhook URL with platform provider',
     category: 'Platforms',
-    requiredScopes: ['platforms:write'],
+    requiredScopes: [ApiScope.PLATFORMS_WRITE],
     outputType: 'MessageResponse',
     options: {
       id: { required: true, description: 'Platform ID', type: 'string' },
@@ -241,12 +241,12 @@ export class PlatformsController {
   }
 
   @Get(':id/qr-code')
-  @RequireScopes('platforms:read')
+  @RequireScopes(ApiScope.PLATFORMS_READ)
   @SdkContract({
     command: 'platforms qr-code',
     description: 'Get QR code for WhatsApp authentication',
     category: 'Platforms',
-    requiredScopes: ['platforms:read'],
+    requiredScopes: [ApiScope.PLATFORMS_READ],
     outputType: 'MessageResponse',
     options: {
       id: {

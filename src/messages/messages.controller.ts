@@ -10,8 +10,6 @@ import {
 } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { QueryMessagesDto } from './dto/query-messages.dto';
-// Clean interface for SDK generation
-import type { QueryMessagesDto as QueryMessagesInterface } from './interfaces/query-messages.interface';
 import { SendMessageDto } from '../platforms/dto/send-message.dto';
 import { SendReactionDto } from '../platforms/dto/send-reaction.dto';
 import { MessagesService as PlatformMessagesService } from '../platforms/messages/messages.service';
@@ -21,6 +19,7 @@ import { RequireScopes } from '../common/decorators/require-scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { AuthContextParam } from '../common/decorators/auth-context.decorator';
 import type { AuthContext } from '../common/utils/security.util';
+import { ApiScope } from '../common/enums/api-scopes.enum';
 
 @Controller('api/v1/projects/:projectSlug/messages')
 @UseGuards(AppAuthGuard, ProjectAccessGuard)
@@ -31,12 +30,12 @@ export class MessagesController {
   ) {}
 
   @Get()
-  @RequireScopes('messages:read')
+  @RequireScopes(ApiScope.MESSAGES_READ)
   @SdkContract({
     command: 'messages list',
     description: 'List received messages for a project',
     category: 'Messages',
-    requiredScopes: ['messages:read'],
+    requiredScopes: [ApiScope.MESSAGES_READ],
     inputType: 'QueryMessagesDto',
     outputType: 'MessageListResponse',
     options: {
@@ -131,12 +130,12 @@ export class MessagesController {
   }
 
   @Get('stats')
-  @RequireScopes('messages:read')
+  @RequireScopes(ApiScope.MESSAGES_READ)
   @SdkContract({
     command: 'messages stats',
     description: 'Get message statistics for a project',
     category: 'Messages',
-    requiredScopes: ['messages:read'],
+    requiredScopes: [ApiScope.MESSAGES_READ],
     outputType: 'MessageStatsResponse',
     examples: [
       {
@@ -150,12 +149,12 @@ export class MessagesController {
   }
 
   @Get(':messageId')
-  @RequireScopes('messages:read')
+  @RequireScopes(ApiScope.MESSAGES_READ)
   @SdkContract({
     command: 'messages get',
     description: 'Get a specific message by ID',
     category: 'Messages',
-    requiredScopes: ['messages:read'],
+    requiredScopes: [ApiScope.MESSAGES_READ],
     outputType: 'ReceivedMessageResponse',
     options: {
       messageId: {
@@ -179,12 +178,12 @@ export class MessagesController {
   }
 
   @Delete('cleanup')
-  @RequireScopes('messages:write')
+  @RequireScopes(ApiScope.MESSAGES_WRITE)
   @SdkContract({
     command: 'messages cleanup',
     description: 'Delete messages older than specified days',
     category: 'Messages',
-    requiredScopes: ['messages:write'],
+    requiredScopes: [ApiScope.MESSAGES_WRITE],
     outputType: 'MessageResponse',
     options: {
       daysBefore: {
@@ -208,12 +207,12 @@ export class MessagesController {
   }
 
   @Post('send')
-  @RequireScopes('messages:send')
+  @RequireScopes(ApiScope.MESSAGES_SEND)
   @SdkContract({
     command: 'messages send',
     description: 'Send a message to platforms',
     category: 'Messages',
-    requiredScopes: ['messages:send'],
+    requiredScopes: [ApiScope.MESSAGES_SEND],
     inputType: 'SendMessageDto',
     outputType: 'MessageSendResponse',
     options: {
@@ -266,12 +265,12 @@ export class MessagesController {
   }
 
   @Get('status/:jobId')
-  @RequireScopes('messages:read')
+  @RequireScopes(ApiScope.MESSAGES_READ)
   @SdkContract({
     command: 'messages status',
     description: 'Check message delivery status',
     category: 'Messages',
-    requiredScopes: ['messages:read'],
+    requiredScopes: [ApiScope.MESSAGES_READ],
     outputType: 'MessageStatusResponse',
     options: {
       jobId: { required: true, description: 'Message job ID', type: 'string' },
@@ -291,12 +290,12 @@ export class MessagesController {
   }
 
   @Post('retry/:jobId')
-  @RequireScopes('messages:send')
+  @RequireScopes(ApiScope.MESSAGES_SEND)
   @SdkContract({
     command: 'messages retry',
     description: 'Retry a failed message',
     category: 'Messages',
-    requiredScopes: ['messages:send'],
+    requiredScopes: [ApiScope.MESSAGES_SEND],
     outputType: 'MessageRetryResponse',
     options: {
       jobId: {
@@ -320,12 +319,12 @@ export class MessagesController {
   }
 
   @Get('sent')
-  @RequireScopes('messages:read')
+  @RequireScopes(ApiScope.MESSAGES_READ)
   @SdkContract({
     command: 'messages sent',
     description: 'List sent messages for a project',
     category: 'Messages',
-    requiredScopes: ['messages:read'],
+    requiredScopes: [ApiScope.MESSAGES_READ],
     outputType: 'SentMessageResponse[]',
     options: {
       platform: { description: 'Filter by platform', type: 'string' },
@@ -369,12 +368,12 @@ export class MessagesController {
   }
 
   @Post('react')
-  @RequireScopes('messages:send')
+  @RequireScopes(ApiScope.MESSAGES_SEND)
   @SdkContract({
     command: 'messages react',
     description: 'Add a reaction to a message',
     category: 'Messages',
-    requiredScopes: ['messages:send'],
+    requiredScopes: [ApiScope.MESSAGES_SEND],
     inputType: 'SendReactionDto',
     outputType: 'MessageResponse',
     options: {
@@ -420,12 +419,12 @@ export class MessagesController {
   }
 
   @Post('unreact')
-  @RequireScopes('messages:send')
+  @RequireScopes(ApiScope.MESSAGES_SEND)
   @SdkContract({
     command: 'messages unreact',
     description: 'Remove a reaction from a message',
     category: 'Messages',
-    requiredScopes: ['messages:send'],
+    requiredScopes: [ApiScope.MESSAGES_SEND],
     inputType: 'SendReactionDto',
     outputType: 'MessageResponse',
     options: {

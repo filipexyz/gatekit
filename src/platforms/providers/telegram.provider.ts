@@ -19,6 +19,7 @@ import { AttachmentDto, ButtonDto } from '../dto/send-message.dto';
 import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
 import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
 import { PlatformCapability } from '../enums/platform-capability.enum';
+import { PlatformType } from '../../common/enums/platform-type.enum';
 import { EmbedDto } from '../dto/send-message.dto';
 import { UrlValidationUtil } from '../../common/utils/url-validation.util';
 import { ProviderUtil } from './provider.util';
@@ -40,7 +41,7 @@ interface TelegramConnection {
 }
 
 @Injectable()
-@PlatformProviderDecorator('telegram', [
+@PlatformProviderDecorator(PlatformType.TELEGRAM, [
   { capability: PlatformCapability.SEND_MESSAGE },
   { capability: PlatformCapability.RECEIVE_MESSAGE },
   {
@@ -66,10 +67,10 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
   private readonly logger = new Logger(TelegramProvider.name);
   private readonly connections = new Map<string, TelegramConnection>();
 
-  readonly name = 'telegram';
+  readonly name = PlatformType.TELEGRAM;
   readonly displayName = 'Telegram';
   readonly connectionType = 'webhook' as const;
-  readonly channel = 'telegram' as const;
+  readonly channel = PlatformType.TELEGRAM;
 
   constructor(
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
@@ -239,7 +240,8 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
           include: { project: true },
         });
 
-        if (!platformConfig || platformConfig.platform !== 'telegram') {
+        const platformType = platformConfig?.platform as PlatformType;
+        if (!platformConfig || platformType !== PlatformType.TELEGRAM) {
           throw new NotFoundException('Webhook not found');
         }
 
@@ -395,7 +397,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
         await this.messagesService.storeIncomingMessage({
           projectId,
           platformId,
-          platform: 'telegram',
+          platform: PlatformType.TELEGRAM,
           providerMessageId: msg.message_id.toString(),
           providerChatId: msg.chat.id.toString(),
           providerUserId: msg.from?.id?.toString() || 'unknown',
@@ -424,7 +426,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
         await this.messagesService.storeIncomingButtonClick({
           projectId,
           platformId,
-          platform: 'telegram',
+          platform: PlatformType.TELEGRAM,
           providerMessageId: `callback_${query.id}`,
           providerChatId: query.message.chat.id.toString(),
           providerUserId: query.from.id.toString(),
@@ -456,7 +458,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
       // Handle callback query
       const callbackQuery = msg;
       return makeEnvelope({
-        channel: 'telegram',
+        channel: PlatformType.TELEGRAM,
         projectId,
         threadId: callbackQuery.message?.chat?.id?.toString(),
         user: {
@@ -480,7 +482,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     // Handle regular message
     const message = msg as TelegramBot.Message;
     return makeEnvelope({
-      channel: 'telegram',
+      channel: PlatformType.TELEGRAM,
       projectId,
       threadId: message.chat.id.toString(),
       user: {
@@ -1207,7 +1209,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
             const success = await this.messagesService.storeIncomingReaction({
               projectId,
               platformId,
-              platform: 'telegram',
+              platform: PlatformType.TELEGRAM,
               providerMessageId: reaction.message_id.toString(),
               providerChatId: reaction.chat.id.toString(),
               providerUserId: reaction.user.id.toString(),
@@ -1238,7 +1240,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
             const success = await this.messagesService.storeIncomingReaction({
               projectId,
               platformId,
-              platform: 'telegram',
+              platform: PlatformType.TELEGRAM,
               providerMessageId: reaction.message_id.toString(),
               providerChatId: reaction.chat.id.toString(),
               providerUserId: reaction.user.id.toString(),

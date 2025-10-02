@@ -7,25 +7,25 @@ import {
   Param,
   Delete,
   Request,
-  ForbiddenException,
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { RequireScopes } from '../common/decorators/scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
+import { ApiScope } from '../common/enums/api-scopes.enum';
 
 @Controller('api/v1/projects')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
-  @RequireScopes('projects:write')
+  @RequireScopes(ApiScope.PROJECTS_WRITE)
   @SdkContract({
     command: 'projects create',
     description: 'Create a new project',
     category: 'Projects',
-    requiredScopes: ['projects:write'],
+    requiredScopes: [ApiScope.PROJECTS_WRITE],
     inputType: 'CreateProjectDto',
     outputType: 'ProjectResponse',
     options: {
@@ -74,12 +74,12 @@ export class ProjectsController {
   }
 
   @Get()
-  @RequireScopes('projects:read')
+  @RequireScopes(ApiScope.PROJECTS_READ)
   @SdkContract({
     command: 'projects list',
     description: 'List all projects',
     category: 'Projects',
-    requiredScopes: ['projects:read'],
+    requiredScopes: [ApiScope.PROJECTS_READ],
     outputType: 'ProjectResponse[]',
     examples: [
       {
@@ -100,12 +100,12 @@ export class ProjectsController {
   }
 
   @Get(':slug')
-  @RequireScopes('projects:read')
+  @RequireScopes(ApiScope.PROJECTS_READ)
   @SdkContract({
     command: 'projects get',
     description: 'Get project details by slug',
     category: 'Projects',
-    requiredScopes: ['projects:read'],
+    requiredScopes: [ApiScope.PROJECTS_READ],
     outputType: 'ProjectResponse',
     examples: [
       {
@@ -119,12 +119,12 @@ export class ProjectsController {
   }
 
   @Patch(':slug')
-  @RequireScopes('projects:write')
+  @RequireScopes(ApiScope.PROJECTS_WRITE)
   @SdkContract({
     command: 'projects update',
     description: 'Update project name, description and settings',
     category: 'Projects',
-    requiredScopes: ['projects:write'],
+    requiredScopes: [ApiScope.PROJECTS_WRITE],
     inputType: 'UpdateProjectDto',
     outputType: 'ProjectResponse',
     options: {
@@ -162,12 +162,12 @@ export class ProjectsController {
   }
 
   @Delete(':slug')
-  @RequireScopes('projects:write')
+  @RequireScopes(ApiScope.PROJECTS_WRITE)
   @SdkContract({
     command: 'projects delete',
     description: 'Delete a project',
     category: 'Projects',
-    requiredScopes: ['projects:write'],
+    requiredScopes: [ApiScope.PROJECTS_WRITE],
     outputType: 'MessageResponse',
     examples: [
       {

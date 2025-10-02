@@ -17,6 +17,7 @@ import { PlatformLogger } from '../utils/platform-logger';
 import { AttachmentUtil } from '../../common/utils/attachment.util';
 import { AttachmentDto, EmbedDto } from '../dto/send-message.dto';
 import { PlatformCapability } from '../enums/platform-capability.enum';
+import { PlatformType } from '../../common/enums/platform-type.enum';
 import { UrlValidationUtil } from '../../common/utils/url-validation.util';
 import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
 import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
@@ -61,7 +62,7 @@ interface EvolutionMessage {
 }
 
 @Injectable()
-@PlatformProviderDecorator('whatsapp-evo', [
+@PlatformProviderDecorator(PlatformType.WHATSAPP_EVO, [
   { capability: PlatformCapability.SEND_MESSAGE },
   { capability: PlatformCapability.RECEIVE_MESSAGE },
   {
@@ -81,10 +82,10 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
   private readonly logger = new Logger(WhatsAppProvider.name);
   private readonly connections = new Map<string, WhatsAppConnection>();
 
-  readonly name = 'whatsapp-evo';
+  readonly name = PlatformType.WHATSAPP_EVO;
   readonly displayName = 'WhatsApp (Evolution API)';
   readonly connectionType = 'webhook' as const;
-  readonly channel = 'whatsapp-evo' as const;
+  readonly channel = PlatformType.WHATSAPP_EVO;
 
   constructor(
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
@@ -320,7 +321,8 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
           include: { project: true },
         });
 
-        if (!platformConfig || platformConfig.platform !== 'whatsapp-evo') {
+        const platformType = platformConfig?.platform as PlatformType;
+        if (!platformConfig || platformType !== PlatformType.WHATSAPP_EVO) {
           throw new NotFoundException('Webhook not found');
         }
 
@@ -654,7 +656,7 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
           const success = await this.messagesService.storeIncomingReaction({
             projectId: connection.projectId,
             platformId,
-            platform: 'whatsapp-evo',
+            platform: PlatformType.WHATSAPP_EVO,
             providerMessageId: reactionKey.id,
             providerChatId: chatId,
             providerUserId: userId,
@@ -684,7 +686,7 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
           await this.messagesService.storeIncomingMessage({
             projectId: connection.projectId,
             platformId,
-            platform: 'whatsapp-evo',
+            platform: PlatformType.WHATSAPP_EVO,
             providerMessageId: msg.key?.id || msg.id || `evo-${Date.now()}`,
             providerChatId: msg.key?.remoteJid || msg.remoteJid || 'unknown',
             providerUserId:
@@ -738,7 +740,7 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
     projectId: string,
   ): MessageEnvelopeV1 {
     return makeEnvelope({
-      channel: 'whatsapp-evo',
+      channel: PlatformType.WHATSAPP_EVO,
       projectId,
       threadId: msg.key.remoteJid,
       user: {
@@ -757,7 +759,7 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
 
   private toEvolutionEnvelope(msg: any, projectId: string): MessageEnvelopeV1 {
     return makeEnvelope({
-      channel: 'whatsapp-evo',
+      channel: PlatformType.WHATSAPP_EVO,
       projectId,
       threadId: msg.key?.remoteJid || msg.remoteJid || 'unknown',
       user: {

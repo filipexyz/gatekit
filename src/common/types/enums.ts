@@ -13,3 +13,7 @@ export enum ProjectEnvironment {
   staging = 'staging',
   production = 'production',
 }
+
+// Re-export other common enums for SDK generation
+export { PlatformType } from '../enums/platform-type.enum';
+export { ApiScope } from '../enums/api-scopes.enum';
