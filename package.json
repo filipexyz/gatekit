@@ -21,7 +21,7 @@
     "extract:contracts": "ts-node -r tsconfig-paths/register tools/extract-contracts.ts",
     "extract:contracts:standalone": "ts-node -r tsconfig-paths/register tools/extract-contracts-standalone.ts",
     "generate:all": "npm run extract:contracts:standalone && npm run validate:contracts:types && npm run generate:sdk && npm run generate:cli && npm run generate:n8n && npm run generate:openapi && npm run validate:generated",
-    "validate:generated": "cd generated/sdk && npm install && npm run build && cd ../cli && npm install && npm run build && cd ../n8n && npm install && npm run build && echo '✅ Generated packages validation completed'",
+    "validate:generated": "cd generated/sdk && npm install && npm run build && cd ../../generated/cli && npm install && npm run build && cd ../../generated/n8n && npm install && npm run build && echo '✅ Generated packages validation completed'",
     "validate:contracts:types": "ts-node -r tsconfig-paths/register tools/scripts/validate-contracts.ts",
     "generate:sdk": "ts-node -r tsconfig-paths/register tools/generators/sdk-generator.ts",
     "generate:cli": "ts-node -r tsconfig-paths/register tools/generators/cli-generator.ts",
