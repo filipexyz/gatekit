@@ -57,65 +57,208 @@ jobs:
           npm run generate:cli
           npm run generate:n8n
 
-      - name: Get version and commit info
-        id: version
+      - name: Bump package versions individually
+        id: versions
         run: |
-          VERSION=$(node -p "require('./generated/sdk/package.json').version")
+          # Bump SDK version
+          cd generated/sdk
+          CURRENT_SDK_VERSION=$(npm view @gatekit/sdk version 2>/dev/null || echo "0.0.0")
+          npm version $CURRENT_SDK_VERSION --no-git-tag-version --allow-same-version
+          npm version ${{ inputs.version_bump }} --no-git-tag-version
+          SDK_VERSION=$(node -p "require('./package.json').version")
+          echo "sdk_version=$SDK_VERSION" >> $GITHUB_OUTPUT
+          cd ../..
+
+          # Bump CLI version and sync SDK dependency
+          cd generated/cli
+          CURRENT_CLI_VERSION=$(npm view @gatekit/cli version 2>/dev/null || echo "0.0.0")
+          npm version $CURRENT_CLI_VERSION --no-git-tag-version --allow-same-version
+          npm version ${{ inputs.version_bump }} --no-git-tag-version
+          CLI_VERSION=$(node -p "require('./package.json').version")
+          npm pkg set dependencies.@gatekit/sdk="^$SDK_VERSION"
+          echo "cli_version=$CLI_VERSION" >> $GITHUB_OUTPUT
+          cd ../..
+
+          # Bump n8n version
+          cd generated/n8n
+          CURRENT_N8N_VERSION=$(npm view n8n-nodes-gatekit version 2>/dev/null || echo "0.0.0")
+          npm version $CURRENT_N8N_VERSION --no-git-tag-version --allow-same-version
+          npm version ${{ inputs.version_bump }} --no-git-tag-version
+          N8N_VERSION=$(node -p "require('./package.json').version")
+          echo "n8n_version=$N8N_VERSION" >> $GITHUB_OUTPUT
+          cd ../..
+
+      - name: Get commit info
+        id: commit
+        run: |
           COMMIT_SHA=$(git rev-parse --short HEAD)
           COMMIT_MSG=$(git log -1 --pretty=%B | head -n1)
           TIMESTAMP=$(date +%s)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
           echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
           echo "branch_suffix=$TIMESTAMP" >> $GITHUB_OUTPUT
 
       - name: Setup Git
         run: |
-          git config --global user.email "luis@filipe.xyz"
-          git config --global user.name "filipexyz"
+          git config --global user.email "${{ vars.GIT_USER_EMAIL }}"
+          git config --global user.name "${{ vars.GIT_USER_NAME }}"
+
+      - name: Setup repos for Claude Code analysis
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        run: |
+          # Clone repos and stage changes for git diff analysis
+          if [ "${{ inputs.publish_sdk }}" == "true" ]; then
+            echo "📦 Setting up SDK repo for analysis..."
+            git clone https://x-access-token:$GITHUB_TOKEN@github.com/${{ vars.SDK_REPO }}.git sdk-repo
+            cd sdk-repo
+            find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -not -name '..' -exec rm -rf {} \;
+            cp -r $GITHUB_WORKSPACE/generated/sdk/* .
+            git add .
+            cd ..
+          fi
+
+          if [ "${{ inputs.publish_cli }}" == "true" ]; then
+            echo "🖥️ Setting up CLI repo for analysis..."
+            git clone https://x-access-token:$GITHUB_TOKEN@github.com/${{ vars.CLI_REPO }}.git cli-repo
+            cd cli-repo
+            find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -not -name '..' -exec rm -rf {} \;
+            cp -r $GITHUB_WORKSPACE/generated/cli/* .
+            git add .
+            cd ..
+          fi
+
+          if [ "${{ inputs.publish_n8n }}" == "true" ]; then
+            echo "🎨 Setting up n8n repo for analysis..."
+            git clone https://x-access-token:$GITHUB_TOKEN@github.com/${{ vars.N8N_REPO }}.git n8n-repo
+            cd n8n-repo
+            find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -not -name '..' -exec rm -rf {} \;
+            cp -r $GITHUB_WORKSPACE/generated/n8n/* .
+            git add .
+            cd ..
+          fi
+
+      - name: Generate SDK Changelog
+        if: ${{ inputs.publish_sdk }}
+        id: sdk_changelog
+        timeout-minutes: 5
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          prompt_file: .github/prompts/sdk-changelog.md
+          allowed_tools: "Bash(git:*),Read,Write,Glob,Grep"
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_env: |
+            VERSION=${{ steps.versions.outputs.sdk_version }}
+            COMMIT_SHA=${{ steps.commit.outputs.commit_sha }}
+            COMMIT_MSG=${{ steps.commit.outputs.commit_msg }}
+            GITHUB_WORKSPACE=${{ github.workspace }}
+
+      - name: Extract SDK PR Content
+        if: ${{ inputs.publish_sdk }}
+        id: sdk_pr
+        run: |
+          if [ ! -f /tmp/sdk-pr-title.txt ] || [ ! -f /tmp/sdk-pr-body.md ]; then
+            echo "❌ Claude Code failed to generate SDK changelog"
+            exit 1
+          fi
+          {
+            echo 'title<<EOF'
+            cat /tmp/sdk-pr-title.txt
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+          {
+            echo 'body<<EOF'
+            cat /tmp/sdk-pr-body.md
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+      - name: Generate CLI Changelog
+        if: ${{ inputs.publish_cli }}
+        id: cli_changelog
+        timeout-minutes: 5
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          prompt_file: .github/prompts/cli-changelog.md
+          allowed_tools: "Bash(git:*),Read,Write,Glob,Grep"
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_env: |
+            VERSION=${{ steps.versions.outputs.cli_version }}
+            COMMIT_SHA=${{ steps.commit.outputs.commit_sha }}
+            COMMIT_MSG=${{ steps.commit.outputs.commit_msg }}
+            GITHUB_WORKSPACE=${{ github.workspace }}
+
+      - name: Extract CLI PR Content
+        if: ${{ inputs.publish_cli }}
+        id: cli_pr
+        run: |
+          if [ ! -f /tmp/cli-pr-title.txt ] || [ ! -f /tmp/cli-pr-body.md ]; then
+            echo "❌ Claude Code failed to generate CLI changelog"
+            exit 1
+          fi
+          {
+            echo 'title<<EOF'
+            cat /tmp/cli-pr-title.txt
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+          {
+            echo 'body<<EOF'
+            cat /tmp/cli-pr-body.md
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+      - name: Generate n8n Changelog
+        if: ${{ inputs.publish_n8n }}
+        id: n8n_changelog
+        timeout-minutes: 5
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          prompt_file: .github/prompts/n8n-changelog.md
+          allowed_tools: "Bash(git:*),Read,Write,Glob,Grep"
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_env: |
+            VERSION=${{ steps.versions.outputs.n8n_version }}
+            COMMIT_SHA=${{ steps.commit.outputs.commit_sha }}
+            COMMIT_MSG=${{ steps.commit.outputs.commit_msg }}
+            GITHUB_WORKSPACE=${{ github.workspace }}
+
+      - name: Extract n8n PR Content
+        if: ${{ inputs.publish_n8n }}
+        id: n8n_pr
+        run: |
+          if [ ! -f /tmp/n8n-pr-title.txt ] || [ ! -f /tmp/n8n-pr-body.md ]; then
+            echo "❌ Claude Code failed to generate n8n changelog"
+            exit 1
+          fi
+          {
+            echo 'title<<EOF'
+            cat /tmp/n8n-pr-title.txt
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+          {
+            echo 'body<<EOF'
+            cat /tmp/n8n-pr-body.md
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
 
       - name: Create SDK Branch and PR
         if: ${{ inputs.publish_sdk }}
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
-          BRANCH_NAME="auto-update/v${{ steps.version.outputs.version }}-${{ steps.version.outputs.branch_suffix }}"
+          BRANCH_NAME="auto-update/v${{ steps.versions.outputs.sdk_version }}-${{ steps.commit.outputs.branch_suffix }}"
 
-          # Clone and setup SDK repo
-          git clone https://x-access-token:$GITHUB_TOKEN@github.com/filipexyz/gatekit-sdk.git sdk-repo
+          # Reuse already-cloned SDK repo
           cd sdk-repo
           git checkout -b $BRANCH_NAME
 
-          # Copy generated files (preserve .git and .github)
-          # Remove all files except .git and .github
-          find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -not -name '..' -exec rm -rf {} \;
-
-          # Copy all generated files
-          cp -r $GITHUB_WORKSPACE/generated/sdk/* .
-
-          # Debug: List what was copied
-          echo "Files copied to SDK repo:"
-          find . -type f -not -path './.git/*' | head -20
-
-          # Commit and push
-          git add .
-          git commit -m "feat: update SDK to v${{ steps.version.outputs.version }}"
+          # Commit and push (files already copied and staged)
+          git commit -m "feat: update SDK to v${{ steps.versions.outputs.sdk_version }}"
           git push origin $BRANCH_NAME
 
-          # Create PR
+          # Create PR with Claude-generated title and changelog
           gh pr create \
-            --title "🚀 Auto-update SDK to v${{ steps.version.outputs.version }}" \
-            --body "## Auto-generated SDK Update
-
-          **Version**: v${{ steps.version.outputs.version }}
-          **Source**: [${{ steps.version.outputs.commit_sha }}](https://github.com/GateKit/backend/commit/${{ github.sha }})
-
-          ### Changes
-          - ${{ steps.version.outputs.commit_msg }}
-          - Updated TypeScript types and client methods
-          - Enhanced API coverage and type safety
-
-          **Ready for review and merge** 🚀" \
+            --title "${{ steps.sdk_pr.outputs.title }}" \
+            --body "${{ steps.sdk_pr.outputs.body }}" \
             --head $BRANCH_NAME \
             --base main
 
@@ -124,45 +267,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
-          BRANCH_NAME="auto-update/v${{ steps.version.outputs.version }}-${{ steps.version.outputs.branch_suffix }}"
+          BRANCH_NAME="auto-update/v${{ steps.versions.outputs.cli_version }}-${{ steps.commit.outputs.branch_suffix }}"
 
-          # Clone and setup CLI repo
-          git clone https://x-access-token:$GITHUB_TOKEN@github.com/filipexyz/gatekit-cli.git cli-repo
+          # Reuse already-cloned CLI repo
           cd cli-repo
           git checkout -b $BRANCH_NAME
 
-          # Copy generated files (preserve .git and .github)
-          find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -not -name '..' -exec rm -rf {} \;
-          cp -r $GITHUB_WORKSPACE/generated/cli/* .
-
-          # Debug: List what was copied
-          echo "Files copied to CLI repo:"
-          find . -type f -not -path './.git/*' | head -20
-
-          # Commit and push
-          git add .
-          git commit -m "feat: update CLI to v${{ steps.version.outputs.version }}"
+          # Commit and push (files already copied and staged)
+          git commit -m "feat: update CLI to v${{ steps.versions.outputs.cli_version }}"
           git push origin $BRANCH_NAME
 
-          # Create PR
+          # Create PR with Claude-generated title and changelog
           gh pr create \
-            --title "🚀 Auto-update CLI to v${{ steps.version.outputs.version }}" \
-            --body "## Auto-generated CLI Update
-
-          **Version**: v${{ steps.version.outputs.version }}
-          **Source**: [${{ steps.version.outputs.commit_sha }}](https://github.com/GateKit/backend/commit/${{ github.sha }})
-
-          ### Changes
-          - ${{ steps.version.outputs.commit_msg }}
-          - Updated CLI commands with latest endpoints
-          - Enhanced pattern system and permission checking
-
-          ### Revolutionary Pattern System
-          - Simple targets: \`--target \"platformId:user:123\"\`
-          - Multiple targets: \`--targets \"p1:user:123,p2:channel:456\"\`
-          - Text shortcuts: \`--text \"Your message\"\`
-
-          **Ready for review and merge** 🚀" \
+            --title "${{ steps.cli_pr.outputs.title }}" \
+            --body "${{ steps.cli_pr.outputs.body }}" \
             --head $BRANCH_NAME \
             --base main
 
@@ -171,45 +289,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
-          BRANCH_NAME="auto-update/v${{ steps.version.outputs.version }}-${{ steps.version.outputs.branch_suffix }}"
+          BRANCH_NAME="auto-update/v${{ steps.versions.outputs.n8n_version }}-${{ steps.commit.outputs.branch_suffix }}"
 
-          # Clone and setup n8n repo
-          git clone https://x-access-token:$GITHUB_TOKEN@github.com/filipexyz/n8n-nodes-gatekit.git n8n-repo
+          # Reuse already-cloned n8n repo
           cd n8n-repo
           git checkout -b $BRANCH_NAME
 
-          # Copy generated files (preserve .git and .github)
-          find . -maxdepth 1 -not -name '.git' -not -name '.github' -not -name '.' -not -name '..' -exec rm -rf {} \;
-          cp -r $GITHUB_WORKSPACE/generated/n8n/* .
-
-          # Debug: List what was copied
-          echo "Files copied to n8n repo:"
-          find . -type f -not -path './.git/*' | head -20
-
-          # Commit and push
-          git add .
-          git commit -m "feat: update n8n nodes to v${{ steps.version.outputs.version }}"
+          # Commit and push (files already copied and staged)
+          git commit -m "feat: update n8n nodes to v${{ steps.versions.outputs.n8n_version }}"
           git push origin $BRANCH_NAME
 
-          # Create PR
+          # Create PR with Claude-generated title and changelog
           gh pr create \
-            --title "🚀 Auto-update n8n nodes to v${{ steps.version.outputs.version }}" \
-            --body "## Auto-generated n8n Nodes Update
-
-          **Version**: v${{ steps.version.outputs.version }}
-          **Source**: [${{ steps.version.outputs.commit_sha }}](https://github.com/GateKit/backend/commit/${{ github.sha }})
-
-          ### Changes
-          - ${{ steps.version.outputs.commit_msg }}
-          - Updated n8n community nodes with latest endpoints
-          - Enhanced visual automation capabilities
-
-          ### n8n Community Impact
-          - 🎯 **300k+ n8n users** get GateKit automation
-          - 🔧 **Visual workflows** for messaging
-          - 🚀 **Drag-and-drop** platform management
-
-          **Ready for review and merge** 🚀" \
+            --title "${{ steps.n8n_pr.outputs.title }}" \
+            --body "${{ steps.n8n_pr.outputs.body }}" \
             --head $BRANCH_NAME \
             --base main
 
@@ -217,25 +310,29 @@ jobs:
         run: |
           echo "## 🚀 Multi-Repo Publishing Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version**: v${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit**: [${{ steps.version.outputs.commit_sha }}](https://github.com/GateKit/backend/commit/${{ github.sha }})" >> $GITHUB_STEP_SUMMARY
-          echo "**Version Bump**: ${{ inputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Backend Commit**: [${{ steps.commit.outputs.commit_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})" >> $GITHUB_STEP_SUMMARY
+          echo "**Version Bump Type**: ${{ inputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Packages Selected:" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Packages Published:" >> $GITHUB_STEP_SUMMARY
           if [ "${{ inputs.publish_sdk }}" == "true" ]; then
-            echo "- ✅ [📦 SDK PR](https://github.com/filipexyz/gatekit-sdk/pulls)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ **SDK v${{ steps.versions.outputs.sdk_version }}** - [View PR](https://github.com/${{ vars.SDK_REPO }}/pulls)" >> $GITHUB_STEP_SUMMARY
           else
             echo "- ⏭️ SDK (skipped)" >> $GITHUB_STEP_SUMMARY
           fi
           if [ "${{ inputs.publish_cli }}" == "true" ]; then
-            echo "- ✅ [🖥️ CLI PR](https://github.com/filipexyz/gatekit-cli/pulls)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ **CLI v${{ steps.versions.outputs.cli_version }}** - [View PR](https://github.com/${{ vars.CLI_REPO }}/pulls)" >> $GITHUB_STEP_SUMMARY
           else
             echo "- ⏭️ CLI (skipped)" >> $GITHUB_STEP_SUMMARY
           fi
           if [ "${{ inputs.publish_n8n }}" == "true" ]; then
-            echo "- ✅ [🎨 n8n Nodes PR](https://github.com/filipexyz/n8n-nodes-gatekit/pulls)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ **n8n Nodes v${{ steps.versions.outputs.n8n_version }}** - [View PR](https://github.com/${{ vars.N8N_REPO }}/pulls)" >> $GITHUB_STEP_SUMMARY
           else
             echo "- ⏭️ n8n Nodes (skipped)" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Next Steps**: Review and merge PRs to publish selected packages to npm" >> $GITHUB_STEP_SUMMARY
+          echo "### 🤖 Claude Code Generated:" >> $GITHUB_STEP_SUMMARY
+          echo "- PR titles and descriptions automatically generated from contract analysis" >> $GITHUB_STEP_SUMMARY
+          echo "- Breaking changes detected and documented" >> $GITHUB_STEP_SUMMARY
+          echo "- Usage examples included for new features" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Steps**: Review and merge PRs to publish packages to npm" >> $GITHUB_STEP_SUMMARY
