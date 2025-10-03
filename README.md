@@ -197,7 +197,7 @@ GateKit integrates with WhatsApp through the [Evolution API](https://evolution-a
 - ✅ Message persistence with full metadata
 - ✅ Evolution Manager integration for connection management
 
-📚 **[Complete WhatsApp Guide](WHATSAPP_EVO.md)** - Detailed setup, troubleshooting, and API reference
+📚 **[Complete WhatsApp Guide](docs/WHATSAPP_EVO.md)** - Detailed setup, troubleshooting, and API reference
 
 > **Note:** All platforms (Discord, Telegram, WhatsApp) support media attachments via URL or base64 data when sending messages.
 
@@ -257,14 +257,14 @@ const logs = await gk.platformLogs.list('project', { category: 'message' });
 
 ## 📊 **Production Stats**
 
-- **✅ 656 tests passing** - Comprehensive coverage including identity resolution
-- **✅ 35+ API endpoints** - Auto-generated SDK/CLI/n8n/OpenAPI
+- **✅ 53 API endpoints** - Auto-generated SDK/CLI/n8n/OpenAPI from backend contracts
 - **✅ 3 platform providers** - Discord, Telegram, WhatsApp-Evo (production-ready)
 - **✅ Universal identity system** - Cross-platform user identity mapping
 - **✅ Webhook notifications** - Event subscriptions with HMAC signatures
 - **✅ Message storage** - Complete conversation history with batch resolution
 - **✅ Activity monitoring** - Rich platform logs with structured metadata
 - **✅ Defense-in-depth security** - Multi-layer validation with guard bypass detection
+- **✅ Comprehensive test coverage** - Full integration and unit test suites
 
 ## ⚠️ **AI Development Disclaimers**
 
@@ -286,9 +286,12 @@ const logs = await gk.platformLogs.list('project', { category: 'message' });
 
 ### **📚 Documentation**
 
-- **[Architecture Guide](CLAUDE.md)** - Complete technical overview
-- **[Contract System](CONTRACT_DRIVEN_DEVELOPMENT.md)** - Auto-generation pipeline
+- **[Architecture Guide](CLAUDE.md)** - Complete technical overview and API reference
+- **[Development Guide](CONTRIBUTING.md)** - Workflow, versioning, and publishing
+- **[Semantic Playbook](SEMANTIC_PLAYBOOK.md)** - Conventions and patterns
 - **[Testing Guide](test/CLAUDE.md)** - Comprehensive testing approach
+- **[WhatsApp Guide](docs/WHATSAPP_EVO.md)** - Evolution API integration
+- **[Email Guide](docs/EMAIL_PLATFORM_GUIDE.md)** - Email platform setup
 
 ### **📦 Generated Packages**
 

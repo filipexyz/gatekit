@@ -670,10 +670,10 @@ import { CreatePlatformDto, PlatformResponse } from './dto';
 
 ## Related Documentation
 
-- [CONTRACT_DRIVEN_DEVELOPMENT.md](CONTRACT_DRIVEN_DEVELOPMENT.md) - Contract-first development workflow
-- [SDK_SPECIFICATION.md](SDK_SPECIFICATION.md) - TypeScript SDK architecture
-- [CLI_SPECIFICATION.md](CLI_SPECIFICATION.md) - CLI design patterns
-- [test/CLAUDE.md](test/CLAUDE.md) - Testing conventions
+- [CLAUDE.md](CLAUDE.md) - Complete technical architecture and contract system
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Development workflow and versioning
+- [VERSIONING.md](VERSIONING.md) - Synchronized version management
+- [test/CLAUDE.md](test/CLAUDE.md) - Testing conventions and patterns
 
 ---
 

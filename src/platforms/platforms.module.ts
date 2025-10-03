@@ -24,6 +24,7 @@ import { MessageQueue } from '../queues/message.queue';
 import { DiscordProvider } from './providers/discord.provider';
 import { TelegramProvider } from './providers/telegram.provider';
 import { WhatsAppProvider } from './providers/whatsapp.provider';
+import { EmailProvider } from './providers/email.provider';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { WhatsAppProvider } from './providers/whatsapp.provider';
     DiscordProvider,
     TelegramProvider,
     WhatsAppProvider,
+    EmailProvider,
   ],
   exports: [
     PlatformsService,

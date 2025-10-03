@@ -30,6 +30,7 @@ interface ExtractedContract {
   path: string;
   contractMetadata: ContractMetadata;
   typeDefinitions?: Record<string, string>;
+  platformMetadata?: Record<string, any>;
 }
 
 async function extractContractsStandalone() {
@@ -54,9 +55,13 @@ async function extractContractsStandalone() {
     // Extract type definitions
     const typeDefinitions = await extractTypeDefinitions(allContracts);
 
-    // Add type definitions to first contract
+    // Extract platform metadata
+    const platformMetadata = await extractPlatformMetadata();
+
+    // Add type definitions and platform metadata to first contract
     if (allContracts.length > 0) {
       allContracts[0].typeDefinitions = typeDefinitions;
+      allContracts[0].platformMetadata = platformMetadata;
     }
 
     // Create output directory
@@ -298,6 +303,195 @@ async function extractTypeDefinitions(
   );
 
   return typeDefinitions;
+}
+
+async function extractPlatformMetadata(): Promise<Record<string, any>> {
+  console.log('🔍 Extracting platform metadata...');
+
+  const platformMetadata: Record<string, any> = {};
+
+  // Find all platform provider files
+  const providerFiles = await glob('src/platforms/providers/*.provider.ts');
+
+  for (const file of providerFiles) {
+    const content = await fs.readFile(file, 'utf-8');
+
+    // Extract platform name from PlatformType enum usage
+    const platformTypeMatch = content.match(/PlatformType\.(\w+)/);
+    if (!platformTypeMatch) continue;
+
+    const platformName = platformTypeMatch[1].toLowerCase();
+
+    // Extract display name from provider class
+    const displayNameMatch = content.match(
+      /displayName\s*=\s*['"`]([^'"`]+)['"`]/,
+    );
+
+    // Extract connection type
+    const connectionTypeMatch = content.match(
+      /connectionType\s*=\s*['"`]([^'"`]+)['"`]/,
+    );
+
+    // Extract capabilities from @PlatformProviderDecorator
+    const capabilitiesMatch = content.match(
+      /@PlatformProviderDecorator\([^,]+,\s*\[([\s\S]*?)\]\)/,
+    );
+    const capabilities: any[] = [];
+    if (capabilitiesMatch) {
+      const capabilitiesText = capabilitiesMatch[1];
+      // Extract capability objects
+      const capabilityMatches = capabilitiesText.matchAll(
+        /\{\s*capability:\s*PlatformCapability\.(\w+)(?:,\s*limitations:\s*['"`]([^'"`]+)['"`])?\s*\}/g,
+      );
+      for (const match of capabilityMatches) {
+        const cap: any = {
+          capability: match[1].toLowerCase().replace(/_/g, '-'),
+        };
+        if (match[2]) cap.limitations = match[2];
+        capabilities.push(cap);
+      }
+    }
+
+    // Extract platform options schema class name from @PlatformOptionsDecorator
+    const optionsMatch = content.match(/@PlatformOptionsDecorator\((\w+)\)/);
+    let optionsSchema = null;
+    if (optionsMatch) {
+      const optionsClassName = optionsMatch[1];
+      // Find the options file
+      const optionsFiles = await glob(
+        `src/platforms/providers/*-platform-options.dto.ts`,
+      );
+      for (const optionsFile of optionsFiles) {
+        const optionsContent = await fs.readFile(optionsFile, 'utf-8');
+        if (optionsContent.includes(`export class ${optionsClassName}`)) {
+          // Extract class-validator decorators and properties
+          optionsSchema = await extractOptionsSchema(
+            optionsContent,
+            optionsClassName,
+          );
+          break;
+        }
+      }
+    }
+
+    platformMetadata[platformName] = {
+      name: platformName,
+      displayName: displayNameMatch ? displayNameMatch[1] : platformName,
+      connectionType: connectionTypeMatch ? connectionTypeMatch[1] : 'unknown',
+      capabilities,
+      optionsSchema,
+    };
+  }
+
+  console.log(
+    `📝 Extracted metadata for ${Object.keys(platformMetadata).length} platforms`,
+  );
+
+  return platformMetadata;
+}
+
+async function extractOptionsSchema(
+  content: string,
+  className: string,
+): Promise<any> {
+  const schema: any = {
+    type: 'object',
+    properties: {},
+    className,
+  };
+
+  // Find the class body - match from class declaration to end of file
+  const classStartMatch = content.match(
+    new RegExp(`export class ${className}\\s*\\{`),
+  );
+  if (!classStartMatch) return schema;
+
+  const classStart = classStartMatch.index! + classStartMatch[0].length;
+  // Find the matching closing brace (last one before end of file usually)
+  const remainingContent = content.substring(classStart);
+  const lastBrace = remainingContent.lastIndexOf('}');
+  const classBody = remainingContent.substring(0, lastBrace);
+
+  // Extract properties with their decorators and comments
+  // Match: optional JSDoc comment + @IsOptional + any decorators + property declaration
+  const propertyRegex =
+    /(\/\*\*[\s\S]*?\*\/)?\s*@IsOptional\(\)\s*(?:@\w+\([^)]*\)\s*)*(\w+)\?:\s*([^;]+);/g;
+  let match;
+
+  while ((match = propertyRegex.exec(classBody)) !== null) {
+    const jsdocComment = match[1];
+    const propertyName = match[2];
+    const propertyType = match[3].trim();
+
+    // Find decorators ONLY between @IsOptional and property name (not from previous properties)
+    // Look backwards from property name to @IsOptional
+    const propertyStart = match.index;
+    const fullMatch = match[0];
+    const optionalIndex = fullMatch.indexOf('@IsOptional');
+    const propertyNameIndex = fullMatch.indexOf(propertyName + '?:');
+    const decoratorsSection = fullMatch.substring(
+      optionalIndex,
+      propertyNameIndex,
+    );
+
+    const isEmailMatch = decoratorsSection.match(/@IsEmail\(/);
+    const isArrayMatch = decoratorsSection.match(/@IsArray\(/);
+    const isStringMatch = decoratorsSection.match(/@IsString\(/);
+
+    const property: any = {
+      type: mapTypeScriptTypeToJsonSchema(propertyType),
+      description: extractPropertyDescriptionFromJSDoc(jsdocComment),
+    };
+
+    // Handle array types (priority over other validators)
+    if (isArrayMatch && propertyType.includes('[]')) {
+      property.type = 'array';
+      const itemType = propertyType.replace('[]', '').trim();
+      property.items = { type: mapTypeScriptTypeToJsonSchema(itemType) };
+
+      // Add email format to array items if validator is Email
+      if (isEmailMatch) {
+        property.items.format = 'email';
+      }
+    }
+    // Handle email validation for non-array types
+    else if (isEmailMatch && !propertyType.includes('[]')) {
+      property.format = 'email';
+    }
+
+    schema.properties[propertyName] = property;
+  }
+
+  return schema;
+}
+
+function mapTypeScriptTypeToJsonSchema(tsType: string): string {
+  if (tsType.includes('Record<')) return 'object';
+  if (tsType.includes('[]')) return 'array';
+  if (tsType.includes('string')) return 'string';
+  if (tsType.includes('number')) return 'number';
+  if (tsType.includes('boolean')) return 'boolean';
+  return 'string';
+}
+
+function extractPropertyDescriptionFromJSDoc(
+  jsdocComment: string | undefined,
+): string {
+  if (!jsdocComment) return '';
+
+  // Extract all lines from JSDoc, removing asterisks and whitespace
+  const lines = jsdocComment
+    .split('\n')
+    .map((line) => line.replace(/^\s*\*\/?/, '').trim()) // Remove * and optional trailing /
+    .filter(
+      (line) =>
+        line &&
+        !line.startsWith('@') &&
+        !line.includes('/**') &&
+        !line.includes('*/'),
+    );
+
+  return lines.join(' ').trim();
 }
 
 // Run extraction

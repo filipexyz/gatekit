@@ -12,6 +12,7 @@ interface GeneratedCLI {
   index: string;
   config: string;
   packageJson: string;
+  messageUtils: string; // Message parsing utilities
   contracts: ExtractedContract[]; // Keep for README generation
   groups: Record<string, ExtractedContract[]>; // Keep for README generation
 }
@@ -32,8 +33,13 @@ export class CLIGenerator {
       throw new Error('Invalid contracts file: empty or not an array');
     }
 
+    // Get platform metadata for platform options
+    const platformMetadata = contracts[0]?.platformMetadata || {};
+    const platformCount = Object.keys(platformMetadata).length;
+    console.log(`🎯 Found ${platformCount} platforms with metadata`);
+
     // Generate CLI components
-    const cli = this.generateCLI(contracts);
+    const cli = this.generateCLI(contracts, platformMetadata);
 
     // Create output directory
     await fs.mkdir(outputDir, { recursive: true });
@@ -46,7 +52,10 @@ export class CLIGenerator {
     console.log(`📦 Ready for: cd ${outputDir} && npm publish`);
   }
 
-  private generateCLI(contracts: ExtractedContract[]): GeneratedCLI {
+  private generateCLI(
+    contracts: ExtractedContract[],
+    platformMetadata: Record<string, any>,
+  ): GeneratedCLI {
     const groups = this.groupContractsByCategory(contracts);
 
     const commands: Record<string, string> = {};
@@ -54,7 +63,7 @@ export class CLIGenerator {
       .sort(([a], [b]) => a.localeCompare(b))
       .forEach(([category, contracts]) => {
         commands[CaseConverter.toValidFilename(category)] =
-          this.generateCommandFile(category, contracts);
+          this.generateCommandFile(category, contracts, platformMetadata);
       });
 
     return {
@@ -62,6 +71,7 @@ export class CLIGenerator {
       index: this.generateIndex(contracts, groups),
       config: this.generateConfig(),
       packageJson: this.generatePackageJson(),
+      messageUtils: this.generateMessageUtils(platformMetadata),
       contracts,
       groups,
     };
@@ -70,10 +80,24 @@ export class CLIGenerator {
   private generateCommandFile(
     category: string,
     contracts: ExtractedContract[],
+    platformMetadata: Record<string, any>,
   ): string {
     const commandMethods = contracts
-      .map((contract) => this.generateCommand(contract))
+      .map((contract) => this.generateCommand(contract, platformMetadata))
       .join('\n\n');
+
+    // Check if any command in this category uses pattern-based DTO (has target/targets patterns)
+    const needsMessageUtils = contracts.some((contract) => {
+      const options = contract.contractMetadata?.options || {};
+      return Object.values(options).some(
+        (opt: any) =>
+          opt.type === 'target_pattern' || opt.type === 'targets_pattern',
+      );
+    });
+
+    const messageUtilsImport = needsMessageUtils
+      ? `import { buildMessageDto } from '../lib/message-utils';`
+      : '';
 
     return `// Generated ${category} commands for GateKit CLI
 // DO NOT EDIT - This file is auto-generated from backend contracts
@@ -81,6 +105,7 @@ export class CLIGenerator {
 import { Command } from 'commander';
 import { GateKit } from '@gatekit/sdk';
 import { loadConfig, formatOutput, handleError } from '../lib/utils';
+${messageUtilsImport}
 
 export function create${CaseConverter.toValidClassName(category)}Command(): Command {
   const ${CaseConverter.toValidPropertyName(category)} = new Command('${CaseConverter.toValidFilename(category)}');
@@ -90,11 +115,14 @@ ${commandMethods}
   return ${CaseConverter.toValidPropertyName(category)};
 }
 
-${this.generateCommandHelpers()}
+${this.generateCommandHelpers(platformMetadata, needsMessageUtils)}
 `;
   }
 
-  private generateCommand(contract: ExtractedContract): string {
+  private generateCommand(
+    contract: ExtractedContract,
+    platformMetadata: Record<string, any>,
+  ): string {
     const { contractMetadata, path } = contract;
     const commandParts = contractMetadata.command.split(' ');
     const subCommand = commandParts[commandParts.length - 1]; // 'projects create' -> 'create'
@@ -128,7 +156,15 @@ ${this.generateCommandHelpers()}
       })
       .join('\n');
 
-    const allOptions = [options, pathParamOptions].filter(Boolean).join('\n');
+    // Add platform-specific options (only for message sending commands)
+    const platformOptions = this.generatePlatformOptions(
+      contractMetadata,
+      platformMetadata,
+    );
+
+    const allOptions = [options, pathParamOptions, platformOptions]
+      .filter(Boolean)
+      .join('\n');
 
     // Convert kebab-case to camelCase for method calls
     const camelCaseMethod = subCommand.replace(/-([a-z])/g, (_, letter) =>
@@ -285,10 +321,63 @@ ${optionEntries}
     return `buildMessageDto(options)`;
   }
 
-  private generateCommandHelpers(): string {
+  private generateCommandHelpers(
+    platformMetadata: Record<string, any>,
+    needsMessageUtils: boolean,
+  ): string {
+    // Only include checkPermissions helper (always needed)
+    // Message utils are now in separate module
     return `
+async function checkPermissions(config: any, requiredScopes: string[]): Promise<boolean> {
+  try {
+    // We need to add a permissions method to the SDK
+    // For now, use axios directly
+    const axios = require('axios');
+    const client = axios.create({
+      baseURL: config.apiUrl,
+      headers: config.apiKey ? { 'X-API-Key': config.apiKey } : { 'Authorization': \`Bearer \${config.jwtToken}\` }
+    });
+
+    const response = await client.get('/api/v1/auth/whoami');
+    const userPermissions = response.data.permissions || [];
+
+    return requiredScopes.every(scope => userPermissions.includes(scope));
+  } catch {
+    return false; // Assume no permission if check fails
+  }
+}`;
+  }
+
+  private generateMessageUtils(platformMetadata: Record<string, any>): string {
+    // Build schema lookup for array detection
+    const schemaLookup: Record<string, Record<string, any>> = {};
+    for (const [platformName, metadata] of Object.entries(platformMetadata)) {
+      if (metadata.optionsSchema?.properties) {
+        schemaLookup[platformName] = metadata.optionsSchema.properties;
+      }
+    }
+
+    return `// Message parsing utilities for GateKit CLI
+// Auto-generated - DO NOT EDIT
+
+// Platform options schema (for array detection and object types)
+interface PropertySchema {
+  type: string;
+  description?: string;
+  format?: string;
+  items?: { type: string; format?: string };
+}
+
+const PLATFORM_SCHEMAS: Record<string, Record<string, PropertySchema>> = ${JSON.stringify(schemaLookup, null, 2)};
+
 // Target pattern parsing helpers
-function parseTargetPattern(pattern: string): { platformId: string; type: string; id: string } {
+export interface TargetPattern {
+  platformId: string;
+  type: string;
+  id: string;
+}
+
+export function parseTargetPattern(pattern: string): TargetPattern {
   const parts = pattern.split(':');
   if (parts.length !== 3) {
     throw new Error('Invalid target pattern. Expected format: platformId:type:id');
@@ -303,13 +392,30 @@ function parseTargetPattern(pattern: string): { platformId: string; type: string
   return { platformId, type, id };
 }
 
-function parseTargetsPattern(pattern: string): Array<{ platformId: string; type: string; id: string }> {
+export function parseTargetsPattern(pattern: string): TargetPattern[] {
   const patterns = pattern.split(',').map(p => p.trim());
   return patterns.map(parseTargetPattern);
 }
 
-function buildMessageDto(options: any): any {
-  const dto: any = {};
+interface MessageOptions {
+  targets?: string;
+  target?: string;
+  text?: string;
+  content?: string;
+  options?: string;
+  metadata?: string;
+  [key: string]: unknown; // For platform-specific options
+}
+
+interface MessageDto {
+  targets?: TargetPattern[];
+  content?: Record<string, unknown>;
+  options?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}
+
+export function buildMessageDto(options: MessageOptions): any {
+  const dto: MessageDto = {};
 
   // Handle targets - priority: targets pattern > target pattern > content object
   if (options.targets) {
@@ -327,6 +433,13 @@ function buildMessageDto(options: any): any {
     } catch (e) {
       throw new Error(\`Invalid JSON for --content: \${e instanceof Error ? e.message : String(e)}\`);
     }
+  }
+
+  // Parse platform-specific options from dotted flags (e.g., --email.cc)
+  const platformOptions = parsePlatformOptions(options);
+  if (platformOptions) {
+    dto.content = dto.content || {};
+    dto.content.platformOptions = platformOptions;
   }
 
   // Handle optional fields with error handling
@@ -348,24 +461,46 @@ function buildMessageDto(options: any): any {
   return dto;
 }
 
-async function checkPermissions(config: any, requiredScopes: string[]): Promise<boolean> {
-  try {
-    // We need to add a permissions method to the SDK
-    // For now, use axios directly
-    const axios = require('axios');
-    const client = axios.create({
-      baseURL: config.apiUrl,
-      headers: config.apiKey ? { 'X-API-Key': config.apiKey } : { 'Authorization': \`Bearer \${config.jwtToken}\` }
-    });
+function parsePlatformOptions(options: MessageOptions): Record<string, Record<string, unknown>> | undefined {
+  const platformOptions: Record<string, Record<string, unknown>> = {};
 
-    const response = await client.get('/api/v1/auth/whoami');
-    const userPermissions = response.data.permissions || [];
+  // Find all dotted options (e.g., email.cc, email.bcc)
+  for (const [key, value] of Object.entries(options)) {
+    if (typeof key === 'string' && key.includes('.')) {
+      const [platform, prop] = key.split('.');
 
-    return requiredScopes.every(scope => userPermissions.includes(scope));
-  } catch {
-    return false; // Assume no permission if check fails
+      if (!platformOptions[platform]) {
+        platformOptions[platform] = {};
+      }
+
+      // Get schema for this property to determine type
+      const propSchema = PLATFORM_SCHEMAS[platform]?.[prop];
+
+      if (propSchema?.type === 'object') {
+        // Handle object types (like headers: Record<string, string>)
+        try {
+          platformOptions[platform][prop] = JSON.parse(value as string);
+        } catch (e) {
+          throw new Error(\`Invalid JSON for --\${platform}.\${prop}: \${e instanceof Error ? e.message : String(e)}\`);
+        }
+      } else if (propSchema?.type === 'array') {
+        // Handle array types (split on comma)
+        if (typeof value === 'string' && value.includes(',')) {
+          platformOptions[platform][prop] = value.split(',').map((v: string) => v.trim());
+        } else {
+          // Single value becomes single-element array
+          platformOptions[platform][prop] = [value];
+        }
+      } else {
+        // Handle scalar types (string, number, boolean)
+        platformOptions[platform][prop] = value;
+      }
+    }
   }
-}`;
+
+  return Object.keys(platformOptions).length > 0 ? platformOptions : undefined;
+}
+`;
   }
 
   private generateIndex(
@@ -641,6 +776,38 @@ export function handleError(error: any): void {
     );
   }
 
+  private generatePlatformOptions(
+    contractMetadata: any,
+    platformMetadata: Record<string, any>,
+  ): string {
+    // Only add platform options for message sending commands
+    if (
+      !contractMetadata.command.includes('send') &&
+      !contractMetadata.command.includes('message')
+    ) {
+      return '';
+    }
+
+    const platformOptionFlags: string[] = [];
+
+    for (const [platformName, metadata] of Object.entries(platformMetadata)) {
+      if (!metadata.optionsSchema) continue;
+
+      const schema = metadata.optionsSchema;
+      for (const [propName, propSchema] of Object.entries<any>(
+        schema.properties,
+      )) {
+        const flagName = `--${platformName}.${propName}`;
+        const description = `[${metadata.displayName}] ${propSchema.description || propName}`;
+        platformOptionFlags.push(
+          `    .option('${flagName} <value>', '${description}')`,
+        );
+      }
+    }
+
+    return platformOptionFlags.join('\n');
+  }
+
   private groupContractsByCategory(
     contracts: ExtractedContract[],
   ): Record<string, ExtractedContract[]> {
@@ -685,6 +852,7 @@ export function handleError(error: any): void {
       await Promise.all([
         fs.writeFile(path.join(srcDir, 'index.ts'), cli.index),
         fs.writeFile(path.join(libDir, 'utils.ts'), cli.config),
+        fs.writeFile(path.join(libDir, 'message-utils.ts'), cli.messageUtils),
         fs.writeFile(path.join(outputDir, 'package.json'), cli.packageJson),
       ]);
     } catch (error) {

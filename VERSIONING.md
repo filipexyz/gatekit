@@ -283,6 +283,7 @@ npm run generate:all
 
 ## Links
 
-- [CLAUDE.md](./CLAUDE.md) - Project overview and development guidelines
-- [CONTRACT_DRIVEN_DEVELOPMENT.md](./CONTRACT_DRIVEN_DEVELOPMENT.md) - Contract system documentation
+- [CLAUDE.md](./CLAUDE.md) - Complete technical architecture and contract system
+- [CONTRIBUTING.md](./CONTRIBUTING.md) - Development workflow and release process
+- [SEMANTIC_PLAYBOOK.md](./SEMANTIC_PLAYBOOK.md) - Development conventions
 - [.github/workflows/multi-repo-publish.yml](./.github/workflows/multi-repo-publish.yml) - Automated publish workflow

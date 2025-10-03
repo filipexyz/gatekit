@@ -165,16 +165,17 @@ See [test/CLAUDE.md](./test/CLAUDE.md) for complete testing guidelines.
 **Quick Commands:**
 
 ```bash
-npm test         # Run all tests (544 tests)
+npm test         # Run all tests
 npm test:e2e     # Run integration tests
-npm test -- webhook  # Run webhook tests (36 tests)
+npm test -- webhook  # Run specific test suites
 ```
 
 ## Links
 
-- [CLAUDE.md](./CLAUDE.md) - Project overview
-- [VERSIONING.md](./VERSIONING.md) - Complete versioning guide
-- [CONTRACT_DRIVEN_DEVELOPMENT.md](./CONTRACT_DRIVEN_DEVELOPMENT.md) - Contract system documentation
+- [CLAUDE.md](./CLAUDE.md) - Complete technical overview and architecture
+- [VERSIONING.md](./VERSIONING.md) - Synchronized versioning system
+- [SEMANTIC_PLAYBOOK.md](./SEMANTIC_PLAYBOOK.md) - Development conventions and patterns
+- [test/CLAUDE.md](./test/CLAUDE.md) - Testing guidelines
 - [.github/workflows/README.md](./.github/workflows/README.md) - GitHub Actions workflows
 
 This revolutionary architecture ensures that GateKit maintains the most advanced API tooling in the messaging space with zero maintenance overhead!
