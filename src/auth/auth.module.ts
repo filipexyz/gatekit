@@ -1,13 +1,20 @@
 import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { LocalJwtStrategy } from './strategies/local-jwt.strategy';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
+import { LocalAuthService } from './local-auth.service';
 
 @Module({
-  imports: [PassportModule.register({ defaultStrategy: 'jwt' }), UsersModule],
+  imports: [
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    JwtModule.register({}), // Configuration done per-request via secret
+    UsersModule,
+  ],
   controllers: [AuthController],
-  providers: [JwtStrategy],
-  exports: [PassportModule],
+  providers: [JwtStrategy, LocalJwtStrategy, LocalAuthService],
+  exports: [PassportModule, LocalAuthService],
 })
 export class AuthModule {}

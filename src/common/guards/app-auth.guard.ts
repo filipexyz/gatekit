@@ -98,8 +98,26 @@ export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
   private async validateJwt(context: ExecutionContext): Promise<boolean> {
     console.log('AppAuthGuard - validateJwt() called');
 
+    // Try local JWT first (our own JWT_SECRET)
     try {
-      console.log('AppAuthGuard - Calling super.canActivate()');
+      const localJwtResult = await this.validateLocalJwt(context);
+      if (localJwtResult) {
+        return localJwtResult;
+      }
+    } catch (error) {
+      console.log('AppAuthGuard - Local JWT validation failed, trying Auth0');
+    }
+
+    // Fallback to Auth0 JWT
+    const auth0Config = this.configService.get<AppConfig['auth0']>('app.auth0');
+    if (!auth0Config?.domain || !auth0Config?.audience) {
+      throw new UnauthorizedException(
+        'JWT authentication is not configured. Please use API key authentication.',
+      );
+    }
+
+    try {
+      console.log('AppAuthGuard - Calling Auth0 super.canActivate()');
       const result = await super.canActivate(context);
       console.log('AppAuthGuard - super.canActivate() result:', result);
 
@@ -160,6 +178,30 @@ export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
         throw error;
       }
       throw new UnauthorizedException('Invalid or expired token');
+    }
+  }
+
+  private async validateLocalJwt(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    const jwtSecret = this.configService.get<string>('app.jwtSecret');
+
+    if (!jwtSecret) {
+      return false;
+    }
+
+    // Use local-jwt strategy via Passport
+    const guard = new (AuthGuard('local-jwt'))();
+    try {
+      const result = await guard.canActivate(context);
+
+      if (result) {
+        request.authType = 'jwt';
+        console.log('AppAuthGuard - Local JWT validation successful');
+      }
+
+      return result as boolean;
+    } catch (error) {
+      return false;
     }
   }
 

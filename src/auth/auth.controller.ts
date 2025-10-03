@@ -1,7 +1,19 @@
-import { Controller, Get, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { AppAuthGuard } from '../common/guards/app-auth.guard';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { PermissionResponse } from './dto/permission-response.dto';
+import { SignupDto } from './dto/signup.dto';
+import { LoginDto } from './dto/login.dto';
+import { AuthResponseDto } from './dto/auth-response.dto';
+import { LocalAuthService } from './local-auth.service';
 
 interface ApiKeyRequest {
   authType: 'api-key';
@@ -31,6 +43,31 @@ type AuthenticatedRequest = ApiKeyRequest | JwtRequest;
 @Controller('api/v1/auth')
 @UseGuards(AppAuthGuard)
 export class AuthController {
+  constructor(private readonly localAuthService: LocalAuthService) {}
+  @Post('signup')
+  @Public()
+  @SdkContract({
+    command: 'auth signup',
+    description: 'Create a new user account (first user becomes admin)',
+    category: 'Auth',
+    outputType: 'AuthResponseDto',
+  })
+  async signup(@Body() signupDto: SignupDto): Promise<AuthResponseDto> {
+    return this.localAuthService.signup(signupDto);
+  }
+
+  @Post('login')
+  @Public()
+  @SdkContract({
+    command: 'auth login',
+    description: 'Login with email and password',
+    category: 'Auth',
+    outputType: 'AuthResponseDto',
+  })
+  async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
+    return this.localAuthService.login(loginDto);
+  }
+
   @Get('whoami')
   @SdkContract({
     command: 'auth whoami',

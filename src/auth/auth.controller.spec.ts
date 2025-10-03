@@ -1,12 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController, PermissionResponse } from './auth.controller';
+import { LocalAuthService } from './local-auth.service';
 
 describe('AuthController', () => {
   let controller: AuthController;
 
+  const mockLocalAuthService = {
+    signup: jest.fn(),
+    login: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
+      providers: [
+        {
+          provide: LocalAuthService,
+          useValue: mockLocalAuthService,
+        },
+      ],
     })
       .overrideGuard(require('../common/guards/app-auth.guard').AppAuthGuard)
       .useValue({
