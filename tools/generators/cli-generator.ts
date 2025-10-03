@@ -612,6 +612,7 @@ export function handleError(error: any): void {
         files: ['dist'],
         scripts: {
           build: 'tsc',
+          test: 'echo "No tests for generated CLI - tested in backend"',
           prepublishOnly: 'npm run build',
         },
         dependencies: {
