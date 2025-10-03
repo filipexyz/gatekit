@@ -6,7 +6,7 @@
 [![Discord Community](https://img.shields.io/badge/Discord-Join%20Community-7289da?style=flat&logo=discord)](https://discord.gg/bQPsvycW)
 [![Telegram](https://img.shields.io/badge/Telegram-Ready-0088cc?style=flat&logo=telegram)](https://github.com/filipexyz/gatekit)
 [![WhatsApp](https://img.shields.io/badge/WhatsApp-Evolution%20API-25d366?style=flat&logo=whatsapp)](https://github.com/filipexyz/gatekit)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![AI Generated](https://img.shields.io/badge/100%25-AI%20Generated-blueviolet?style=flat)](https://github.com/filipexyz/gatekit)
 
 ---
@@ -330,4 +330,4 @@ _GateKit: Built with AI assistance under human supervision to provide conversati
 
 ---
 
-**MIT Licensed - Build the agentic future freely! 🌟**
+**Apache 2.0 Licensed - Build the agentic future freely! 🌟**
