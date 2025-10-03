@@ -22,10 +22,14 @@ interface MessageJob {
       id: string;
     }>;
     content: {
+      subject?: string;
       text?: string;
+      markdown?: string;
+      html?: string;
       attachments?: any[];
       buttons?: any[];
       embeds?: any[];
+      platformOptions?: Record<string, any>;
     };
     options?: {
       replyTo?: string;
