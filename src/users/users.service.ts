@@ -13,15 +13,19 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async upsertFromAuth0(auth0Payload: Auth0UserPayload) {
+    if (!auth0Payload.email) {
+      throw new Error('Email is required for Auth0 users');
+    }
+
     const user = await this.prisma.user.upsert({
       where: { auth0Id: auth0Payload.sub },
       update: {
-        email: auth0Payload.email || null,
+        email: auth0Payload.email,
         name: auth0Payload.name,
       },
       create: {
         auth0Id: auth0Payload.sub,
-        email: auth0Payload.email || null,
+        email: auth0Payload.email,
         name: auth0Payload.name,
       },
     });

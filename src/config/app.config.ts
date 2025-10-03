@@ -5,6 +5,7 @@ export interface AppConfig {
   nodeEnv: string;
   port: number;
   encryptionKey: string;
+  jwtSecret: string;
   corsOrigins: string[];
   database: {
     url: string;
@@ -31,6 +32,7 @@ export const appConfig = registerAs(
     nodeEnv: process.env.NODE_ENV || 'development',
     port: parseInt(process.env.PORT || '3000', 10),
     encryptionKey: process.env.ENCRYPTION_KEY || '',
+    jwtSecret: process.env.JWT_SECRET || '',
     corsOrigins: process.env.CORS_ORIGINS?.split(',') || [
       'http://localhost:3000',
     ],
@@ -66,6 +68,12 @@ export const configValidationSchema = Joi.object({
     'string.min':
       'ENCRYPTION_KEY must be at least 32 characters. Generate using: openssl rand -hex 32',
     'any.required': 'ENCRYPTION_KEY is required for securing sensitive data',
+  }),
+  JWT_SECRET: Joi.string().min(32).required().messages({
+    'string.min':
+      'JWT_SECRET must be at least 32 characters. Generate using: openssl rand -hex 32',
+    'any.required':
+      'JWT_SECRET is required for local authentication. Generate using: openssl rand -hex 32',
   }),
   CORS_ORIGINS: Joi.string().optional(),
   DATABASE_URL: Joi.string().required(),

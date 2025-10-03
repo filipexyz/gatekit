@@ -77,6 +77,7 @@ jobs:
         echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/gatekit_test" >> .env.test
         echo "REDIS_URL=redis://localhost:6379" >> .env.test
         echo "ENCRYPTION_KEY=603ce4d06f761f2ace4ae4eda60987f404644414032d1ef216e9a306277afb00" >> .env.test
+        echo "JWT_SECRET=test-jwt-secret-key-for-ci-pipeline-12345678901234567890" >> .env.test
         echo "AUTH0_DOMAIN=test.auth0.com" >> .env.test
         echo "AUTH0_AUDIENCE=https://api.test.com" >> .env.test
         echo "AUTH0_CLIENT_ID=test-client-id" >> .env.test
@@ -96,6 +97,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gatekit_test
         REDIS_URL: redis://localhost:6379
         ENCRYPTION_KEY: 603ce4d06f761f2ace4ae4eda60987f404644414032d1ef216e9a306277afb00
+        JWT_SECRET: test-jwt-secret-key-for-ci-pipeline-12345678901234567890
         AUTH0_DOMAIN: test.auth0.com
         AUTH0_AUDIENCE: https://api.test.com
         AUTH0_CLIENT_ID: test-client-id
@@ -107,6 +109,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gatekit_test
         REDIS_URL: redis://localhost:6379
         ENCRYPTION_KEY: 603ce4d06f761f2ace4ae4eda60987f404644414032d1ef216e9a306277afb00
+        JWT_SECRET: test-jwt-secret-key-for-ci-pipeline-12345678901234567890
         AUTH0_DOMAIN: test.auth0.com
         AUTH0_AUDIENCE: https://api.test.com
         AUTH0_CLIENT_ID: test-client-id

@@ -1,7 +1,19 @@
-import { Controller, Get, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { AppAuthGuard } from '../common/guards/app-auth.guard';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { PermissionResponse } from './dto/permission-response.dto';
+import { SignupDto } from './dto/signup.dto';
+import { LoginDto } from './dto/login.dto';
+import { AuthResponse } from './dto/auth-response';
+import { LocalAuthService } from './local-auth.service';
 
 interface ApiKeyRequest {
   authType: 'api-key';
@@ -31,12 +43,91 @@ type AuthenticatedRequest = ApiKeyRequest | JwtRequest;
 @Controller('api/v1/auth')
 @UseGuards(AppAuthGuard)
 export class AuthController {
+  constructor(private readonly localAuthService: LocalAuthService) {}
+  @Post('signup')
+  @Public()
+  @SdkContract({
+    command: 'auth signup',
+    description: 'Create a new user account (first user becomes admin)',
+    category: 'Auth',
+    requiredScopes: [],
+    inputType: 'SignupDto',
+    outputType: 'AuthResponse',
+    options: {
+      email: {
+        required: true,
+        description: 'Email address',
+        type: 'string',
+      },
+      password: {
+        required: true,
+        description: 'Password (min 8 chars, 1 uppercase, 1 number)',
+        type: 'string',
+      },
+      name: {
+        required: false,
+        description: 'Full name',
+        type: 'string',
+      },
+    },
+    examples: [
+      {
+        description: 'Create first admin user',
+        command:
+          'gatekit auth signup --email admin@example.com --password Admin123 --name "Admin User"',
+      },
+    ],
+  })
+  async signup(@Body() signupDto: SignupDto): Promise<AuthResponse> {
+    return this.localAuthService.signup(signupDto);
+  }
+
+  @Post('login')
+  @Public()
+  @SdkContract({
+    command: 'auth login',
+    description: 'Login with email and password',
+    category: 'Auth',
+    requiredScopes: [],
+    inputType: 'LoginDto',
+    outputType: 'AuthResponse',
+    options: {
+      email: {
+        required: true,
+        description: 'Email address',
+        type: 'string',
+      },
+      password: {
+        required: true,
+        description: 'Password',
+        type: 'string',
+      },
+    },
+    examples: [
+      {
+        description: 'Login with email and password',
+        command:
+          'gatekit auth login --email admin@example.com --password Admin123',
+      },
+    ],
+  })
+  async login(@Body() loginDto: LoginDto): Promise<AuthResponse> {
+    return this.localAuthService.login(loginDto);
+  }
+
   @Get('whoami')
   @SdkContract({
     command: 'auth whoami',
     description: 'Get current authentication context and permissions',
     category: 'Auth',
+    requiredScopes: [],
     outputType: 'PermissionResponse',
+    examples: [
+      {
+        description: 'Check your authentication context',
+        command: 'gatekit auth whoami',
+      },
+    ],
   })
   getPermissions(@Request() req: any): PermissionResponse {
     if (!req) {

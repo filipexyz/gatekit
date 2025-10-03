@@ -26,15 +26,36 @@ GateKit implements **defense-in-depth security** with multiple overlapping layer
 
 #### **Authentication Methods**
 
-1. **JWT Token (Auth0)**
-   - Header: `Authorization: Bearer <jwt_token>`
-   - Requires Auth0 configuration (AUTH0_DOMAIN, AUTH0_AUDIENCE)
-   - When not configured, returns error asking for API key authentication
+GateKit supports **three authentication methods** to cover all use cases from local development to enterprise deployments:
 
-2. **API Keys**
-   - Header: `X-API-Key: <api_key>`
-   - Primary authentication method
-   - Works independently of Auth0 configuration
+1. **Local Authentication (Email/Password + JWT)**
+   - **Use Case**: Local development, self-hosted deployments, simple setups
+   - **Endpoints**:
+     - `POST /api/v1/auth/signup` - Create first admin account (signup disabled after first user)
+     - `POST /api/v1/auth/login` - Login and receive JWT token
+   - **Header**: `Authorization: Bearer <jwt_token>`
+   - **JWT Secret**: Configure via `JWT_SECRET` environment variable (min 32 characters)
+   - **Token Expiration**: 7 days
+   - **Signup Policy**: Only first user can signup and becomes admin. Additional users must be invited by admin.
+   - **Password Requirements**:
+     - Minimum 8 characters
+     - At least 1 uppercase letter
+     - At least 1 number
+   - **Security**: bcrypt password hashing with 10 salt rounds
+
+2. **Auth0 JWT (Enterprise SSO)**
+   - **Use Case**: Production deployments requiring enterprise SSO, OAuth, social logins
+   - **Header**: `Authorization: Bearer <auth0_jwt_token>`
+   - **Requirements**: AUTH0_DOMAIN, AUTH0_AUDIENCE environment variables
+   - **Hybrid Mode**: Can coexist with local auth - system tries local JWT first, falls back to Auth0
+   - **Optional**: When not configured, Auth0 endpoints return clear error messages
+
+3. **API Keys (Programmatic Access)**
+   - **Use Case**: Programmatic API access, integrations, automation
+   - **Header**: `X-API-Key: <api_key>`
+   - **Scope-based**: Granular permissions per key (e.g., `messages:send`, `projects:read`)
+   - **Project-scoped**: Each API key belongs to a specific project
+   - **Management**: Create/revoke/roll keys via project endpoints
 
 #### **Multi-Layer Security Implementation**
 
@@ -104,6 +125,12 @@ authContext: AuthContext; // Required, not optional
 - **Keep Co-Authored-By: Claude <noreply@anthropic.com>** for attribution
 
 ## Current Implementation
+
+### Authentication Endpoints
+
+- `POST /api/v1/auth/signup` - Create account with email/password (returns JWT token)
+- `POST /api/v1/auth/login` - Login with email/password (returns JWT token)
+- `GET /api/v1/auth/whoami` - Get current user info and permissions
 
 ### Core Endpoints
 
@@ -370,6 +397,61 @@ docker compose up -d postgres redis
 npm run start:dev
 ```
 
+### Environment Variables
+
+**Required for Local Authentication:**
+
+```bash
+# Generate a secure JWT secret (min 32 characters)
+JWT_SECRET=$(openssl rand -hex 32)
+```
+
+**Optional for Enterprise Auth0:**
+
+```bash
+AUTH0_DOMAIN=your-tenant.auth0.com
+AUTH0_AUDIENCE=https://api.gatekit.dev
+```
+
+### First User Setup
+
+**Important**: Signup is only available for the first user. After the first admin user is created, signup is disabled and additional users must be invited by the admin.
+
+Create the first admin user:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "SecurePass123",
+    "name": "Admin User"
+  }'
+```
+
+Response includes JWT token for immediate use:
+
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "uuid",
+    "email": "admin@example.com",
+    "name": "Admin User",
+    "isAdmin": true
+  }
+}
+```
+
+Subsequent signup attempts will receive:
+
+```json
+{
+  "statusCode": 409,
+  "message": "Signup is disabled. Please contact your administrator for an invitation."
+}
+```
+
 ### Docker Usage
 
 - **Docker is for production deployment only**
@@ -391,19 +473,21 @@ When writing or modifying tests:
 ### Quick Commands
 
 ```bash
-npm test         # Run all tests (544 tests)
+npm test         # Run all tests (665 tests)
 npm test:e2e     # Run integration tests
 npm test -- webhook  # Run webhook tests (36 tests)
+npm test -- local-auth  # Run local authentication tests
 ```
 
 ### Test Coverage Summary
 
-**Total Tests**: 544 tests (all passing)
+**Total Tests**: 665 tests (all passing)
 
 #### **Key Test Coverage**
 
+- **Local Authentication**: Complete signup/login flow with password validation, first-user-is-admin logic, JWT token generation
 - **Webhooks**: 36 tests (delivery, retry logic, HMAC signatures, stats, cleanup)
-- **Security**: Complete auth guard and context validation coverage
+- **Security**: Complete auth guard and context validation coverage (API keys, local JWT, Auth0 JWT)
 - **Platforms**: Discord, Telegram, WhatsApp-Evo providers fully tested
 - **Messages**: Queue processing, delivery, storage, and retrieval
 
