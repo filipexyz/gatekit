@@ -76,6 +76,7 @@ describe('Local Authentication (e2e)', () => {
     });
 
     it('should reject duplicate email', async () => {
+      // Since only first signup is allowed, this now returns "Signup is disabled"
       await request(app.getHttpServer())
         .post('/api/v1/auth/signup')
         .send({
@@ -85,7 +86,9 @@ describe('Local Authentication (e2e)', () => {
         })
         .expect(409)
         .expect((res) => {
-          expect(res.body.message).toBe('User with this email already exists');
+          expect(res.body.message).toBe(
+            'Signup is disabled. Please contact your administrator for an invitation.',
+          );
         });
     });
 
@@ -147,7 +150,11 @@ describe('Local Authentication (e2e)', () => {
         })
         .expect(400)
         .expect((res) => {
-          expect(res.body.message).toContain('email');
+          // NestJS validation returns message as array
+          const message = Array.isArray(res.body.message)
+            ? res.body.message.join(' ')
+            : res.body.message;
+          expect(message).toContain('email');
         });
     });
   });
