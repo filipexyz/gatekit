@@ -4,12 +4,14 @@ import { CredentialValidationService } from './credential-validation.service';
 import { TelegramCredentialsValidator } from '../validators/telegram-credentials.validator';
 import { DiscordCredentialsValidator } from '../validators/discord-credentials.validator';
 import { WhatsAppCredentialsValidator } from '../validators/whatsapp-credentials.validator';
+import { EmailCredentialsValidator } from '../validators/email-credentials.validator';
 
 describe('CredentialValidationService', () => {
   let service: CredentialValidationService;
   let telegramValidator: TelegramCredentialsValidator;
   let discordValidator: DiscordCredentialsValidator;
   let whatsappValidator: WhatsAppCredentialsValidator;
+  let emailValidator: EmailCredentialsValidator;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -18,6 +20,7 @@ describe('CredentialValidationService', () => {
         TelegramCredentialsValidator,
         DiscordCredentialsValidator,
         WhatsAppCredentialsValidator,
+        EmailCredentialsValidator,
       ],
     }).compile();
 
@@ -185,6 +188,7 @@ describe('CredentialValidationService', () => {
       expect(platforms).toContain('telegram');
       expect(platforms).toContain('discord');
       expect(platforms).toContain('whatsapp-evo');
+      expect(platforms).toContain('email');
     });
   });
 
@@ -210,10 +214,11 @@ describe('CredentialValidationService', () => {
     it('should return schemas for all platforms', () => {
       const schemas = service.getAllValidationSchemas();
 
-      expect(schemas).toHaveLength(3);
+      expect(schemas).toHaveLength(4);
       expect(schemas.map((s) => s.platform)).toContain('telegram');
       expect(schemas.map((s) => s.platform)).toContain('discord');
       expect(schemas.map((s) => s.platform)).toContain('whatsapp-evo');
+      expect(schemas.map((s) => s.platform)).toContain('email');
     });
   });
 });
