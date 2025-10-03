@@ -1,4 +1,4 @@
-export class AuthResponseDto {
+export class AuthResponse {
   accessToken: string;
   user: {
     id: string;

@@ -12,7 +12,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { PermissionResponse } from './dto/permission-response.dto';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
-import { AuthResponseDto } from './dto/auth-response.dto';
+import { AuthResponse } from './dto/auth-response';
 import { LocalAuthService } from './local-auth.service';
 
 interface ApiKeyRequest {
@@ -50,9 +50,18 @@ export class AuthController {
     command: 'auth signup',
     description: 'Create a new user account (first user becomes admin)',
     category: 'Auth',
-    outputType: 'AuthResponseDto',
+    requiredScopes: [],
+    inputType: 'SignupDto',
+    outputType: 'AuthResponse',
+    examples: [
+      {
+        description: 'Create first admin user',
+        command:
+          'gatekit auth signup --email admin@example.com --password Admin123 --name "Admin User"',
+      },
+    ],
   })
-  async signup(@Body() signupDto: SignupDto): Promise<AuthResponseDto> {
+  async signup(@Body() signupDto: SignupDto): Promise<AuthResponse> {
     return this.localAuthService.signup(signupDto);
   }
 
@@ -62,9 +71,18 @@ export class AuthController {
     command: 'auth login',
     description: 'Login with email and password',
     category: 'Auth',
-    outputType: 'AuthResponseDto',
+    requiredScopes: [],
+    inputType: 'LoginDto',
+    outputType: 'AuthResponse',
+    examples: [
+      {
+        description: 'Login with email and password',
+        command:
+          'gatekit auth login --email admin@example.com --password Admin123',
+      },
+    ],
   })
-  async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
+  async login(@Body() loginDto: LoginDto): Promise<AuthResponse> {
     return this.localAuthService.login(loginDto);
   }
 
@@ -73,7 +91,14 @@ export class AuthController {
     command: 'auth whoami',
     description: 'Get current authentication context and permissions',
     category: 'Auth',
+    requiredScopes: [],
     outputType: 'PermissionResponse',
+    examples: [
+      {
+        description: 'Check your authentication context',
+        command: 'gatekit auth whoami',
+      },
+    ],
   })
   getPermissions(@Request() req: any): PermissionResponse {
     if (!req) {

@@ -9,7 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
-import { AuthResponseDto } from './dto/auth-response.dto';
+import { AuthResponse } from './dto/auth-response';
 import { User } from '@prisma/client';
 
 /**
@@ -31,7 +31,7 @@ export class LocalAuthService {
     private configService: ConfigService,
   ) {}
 
-  async signup(signupDto: SignupDto): Promise<AuthResponseDto> {
+  async signup(signupDto: SignupDto): Promise<AuthResponse> {
     // Check if any local user already exists
     const localUserCount = await this.prisma.user.count({
       where: {
@@ -86,7 +86,7 @@ export class LocalAuthService {
     };
   }
 
-  async login(loginDto: LoginDto): Promise<AuthResponseDto> {
+  async login(loginDto: LoginDto): Promise<AuthResponse> {
     // Find user by email
     const user = await this.prisma.user.findUnique({
       where: { email: loginDto.email },
