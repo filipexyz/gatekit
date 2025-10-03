@@ -53,6 +53,23 @@ export class AuthController {
     requiredScopes: [],
     inputType: 'SignupDto',
     outputType: 'AuthResponse',
+    options: {
+      email: {
+        required: true,
+        description: 'Email address',
+        type: 'string',
+      },
+      password: {
+        required: true,
+        description: 'Password (min 8 chars, 1 uppercase, 1 number)',
+        type: 'string',
+      },
+      name: {
+        required: false,
+        description: 'Full name',
+        type: 'string',
+      },
+    },
     examples: [
       {
         description: 'Create first admin user',
@@ -74,6 +91,18 @@ export class AuthController {
     requiredScopes: [],
     inputType: 'LoginDto',
     outputType: 'AuthResponse',
+    options: {
+      email: {
+        required: true,
+        description: 'Email address',
+        type: 'string',
+      },
+      password: {
+        required: true,
+        description: 'Password',
+        type: 'string',
+      },
+    },
     examples: [
       {
         description: 'Login with email and password',
