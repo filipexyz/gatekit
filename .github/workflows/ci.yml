@@ -87,6 +87,9 @@ jobs:
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gatekit_test
 
+    - name: Generate and validate all packages for integration tests
+      run: npm run generate:all
+
     - name: Run unit tests
       run: npm test
       env:
