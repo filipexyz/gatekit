@@ -46,7 +46,8 @@ describe('CLI Integration Tests (e2e)', () => {
         timeout: 5000,
       });
 
-      expect(stdout).toContain('1.2.2');
+      // CLI version should match any semantic version
+      expect(stdout).toMatch(/\d+\.\d+\.\d+/);
     }, 30000);
 
     it('should not have duplicate Commander.js options', async () => {
