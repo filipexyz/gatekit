@@ -89,8 +89,17 @@ jobs:
 
     - name: Generate SDK and CLI for integration tests
       run: |
+        # Generate and pack SDK
         npm run generate:sdk
+        cd generated/sdk && npm pack && cd ../..
+
+        # Generate CLI (will use local SDK tarball)
         npm run generate:cli
+
+        # Install SDK from local tarball in CLI
+        cd generated/cli
+        npm install ../sdk/gatekit-sdk-*.tgz
+        cd ../..
 
     - name: Run unit tests
       run: npm test
