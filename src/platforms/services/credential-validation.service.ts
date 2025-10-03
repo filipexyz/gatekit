@@ -7,6 +7,7 @@ import { PlatformType } from '../../common/enums/platform-type.enum';
 import { TelegramCredentialsValidator } from '../validators/telegram-credentials.validator';
 import { DiscordCredentialsValidator } from '../validators/discord-credentials.validator';
 import { WhatsAppCredentialsValidator } from '../validators/whatsapp-credentials.validator';
+import { EmailCredentialsValidator } from '../validators/email-credentials.validator';
 
 @Injectable()
 export class CredentialValidationService {
@@ -16,11 +17,19 @@ export class CredentialValidationService {
     private readonly telegramValidator: TelegramCredentialsValidator,
     private readonly discordValidator: DiscordCredentialsValidator,
     private readonly whatsappValidator: WhatsAppCredentialsValidator,
+    private readonly emailValidator: EmailCredentialsValidator,
   ) {
     // Register platform validators
     this.validators.set(PlatformType.TELEGRAM, this.telegramValidator);
     this.validators.set(PlatformType.DISCORD, this.discordValidator);
     this.validators.set(PlatformType.WHATSAPP_EVO, this.whatsappValidator);
+    this.validators.set(PlatformType.EMAIL, this.emailValidator);
+
+    // Log registered validators for debugging
+    console.log(
+      '[CredentialValidationService] Registered validators:',
+      Array.from(this.validators.keys()),
+    );
   }
 
   /**
@@ -63,7 +72,13 @@ export class CredentialValidationService {
     platform: string,
     credentials: Record<string, any>,
   ): CredentialValidationResult {
+    console.log('[CredentialValidationService] Validating platform:', platform);
+    console.log(
+      '[CredentialValidationService] Available validators:',
+      Array.from(this.validators.keys()),
+    );
     const validator = this.validators.get(platform.toLowerCase());
+    console.log('[CredentialValidationService] Found validator:', !!validator);
 
     if (!validator) {
       return {

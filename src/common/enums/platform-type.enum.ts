@@ -8,6 +8,7 @@ export enum PlatformType {
   DISCORD = 'discord',
   TELEGRAM = 'telegram',
   WHATSAPP_EVO = 'whatsapp-evo',
+  EMAIL = 'email',
 }
 
 /**

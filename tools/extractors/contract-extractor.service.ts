@@ -1,8 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { DiscoveryService, Reflector } from '@nestjs/core';
 import { InstanceWrapper } from '@nestjs/core/injector/instance-wrapper';
-import { SDK_CONTRACT_KEY, SdkContractMetadata } from '../../src/common/decorators/sdk-contract.decorator';
+import {
+  SDK_CONTRACT_KEY,
+  SdkContractMetadata,
+} from '../../src/common/decorators/sdk-contract.decorator';
 import { TypeExtractorService } from './type-extractor.service';
+import { PlatformRegistry } from '../../src/platforms/services/platform-registry.service';
 
 export interface ExtractedContract {
   controller: string;
@@ -11,6 +15,7 @@ export interface ExtractedContract {
   path: string;
   contractMetadata: SdkContractMetadata;
   typeDefinitions?: Record<string, string>; // Include all type definitions inline
+  platformMetadata?: Record<string, any>; // Platform-specific metadata
 }
 
 @Injectable()
@@ -18,6 +23,7 @@ export class ContractExtractorService {
   constructor(
     private readonly discoveryService: DiscoveryService,
     private readonly reflector: Reflector,
+    private readonly platformRegistry: PlatformRegistry,
   ) {}
 
   async extractContracts(): Promise<ExtractedContract[]> {
@@ -30,13 +36,17 @@ export class ContractExtractorService {
 
     // Create type definitions map
     const typeDefinitions: Record<string, string> = {};
-    extractedTypes.forEach(type => {
+    extractedTypes.forEach((type) => {
       typeDefinitions[type.name] = type.definition;
     });
 
-    // Add type definitions to first contract (so they're available to all generators)
+    // Extract platform metadata from registry
+    const platformMetadata = this.platformRegistry.getAllPlatformMetadata();
+
+    // Add type definitions and platform metadata to first contract (so they're available to all generators)
     if (contracts.length > 0) {
       contracts[0].typeDefinitions = typeDefinitions;
+      contracts[0].platformMetadata = platformMetadata;
     }
 
     return contracts;
@@ -45,7 +55,7 @@ export class ContractExtractorService {
   private getAllReferencedTypes(contracts: ExtractedContract[]): string[] {
     const typeNames = new Set<string>();
 
-    contracts.forEach(contract => {
+    contracts.forEach((contract) => {
       if (contract.contractMetadata.inputType) {
         typeNames.add(contract.contractMetadata.inputType);
       }
@@ -73,7 +83,8 @@ export class ContractExtractorService {
 
       // Get all methods of the controller
       const methodNames = Object.getOwnPropertyNames(prototype).filter(
-        (name) => name !== 'constructor' && typeof prototype[name] === 'function'
+        (name) =>
+          name !== 'constructor' && typeof prototype[name] === 'function',
       );
 
       for (const methodName of methodNames) {
@@ -82,7 +93,7 @@ export class ContractExtractorService {
         // Extract SDK contract metadata
         const contractMetadata = this.reflector.get<SdkContractMetadata>(
           SDK_CONTRACT_KEY,
-          methodRef
+          methodRef,
         );
 
         if (contractMetadata) {
@@ -140,15 +151,36 @@ export class ContractExtractorService {
 
     // Final fallback: infer from method name
     const methodName = methodRef.name.toLowerCase();
-    if (methodName.includes('create') || methodName.includes('add') || methodName.includes('send') || methodName.includes('retry')) return 'POST';
-    if (methodName.includes('update') || methodName.includes('edit')) return 'PATCH';
-    if (methodName.includes('delete') || methodName.includes('remove') || methodName.includes('revoke')) return 'DELETE';
-    if (methodName.includes('find') || methodName.includes('get') || methodName.includes('list') || methodName.includes('status')) return 'GET';
+    if (
+      methodName.includes('create') ||
+      methodName.includes('add') ||
+      methodName.includes('send') ||
+      methodName.includes('retry')
+    )
+      return 'POST';
+    if (methodName.includes('update') || methodName.includes('edit'))
+      return 'PATCH';
+    if (
+      methodName.includes('delete') ||
+      methodName.includes('remove') ||
+      methodName.includes('revoke')
+    )
+      return 'DELETE';
+    if (
+      methodName.includes('find') ||
+      methodName.includes('get') ||
+      methodName.includes('list') ||
+      methodName.includes('status')
+    )
+      return 'GET';
 
     return 'GET'; // Default to GET instead of UNKNOWN
   }
 
-  private getPath(controllerWrapper: InstanceWrapper, methodRef: Function): string {
+  private getPath(
+    controllerWrapper: InstanceWrapper,
+    methodRef: Function,
+  ): string {
     const { metatype } = controllerWrapper;
 
     // Get controller path

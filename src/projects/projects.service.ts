@@ -53,6 +53,12 @@ export class ProjectsService {
         isDefault: createProjectDto.isDefault || false,
         settings: createProjectDto.settings,
         ownerId,
+        members: {
+          create: {
+            userId: ownerId,
+            role: ProjectRole.owner,
+          },
+        },
       },
       include: {
         owner: {

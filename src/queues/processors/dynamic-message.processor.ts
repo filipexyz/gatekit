@@ -22,10 +22,14 @@ interface MessageJob {
       id: string;
     }>;
     content: {
+      subject?: string;
       text?: string;
+      markdown?: string;
+      html?: string;
       attachments?: any[];
       buttons?: any[];
       embeds?: any[];
+      platformOptions?: Record<string, any>;
     };
     options?: {
       replyTo?: string;
@@ -217,10 +221,14 @@ export class DynamicMessageProcessor
 
         // Send the message through the adapter
         const result = await adapter.sendMessage(envelope, {
+          subject: message.content.subject,
           text: message.content.text,
+          markdown: message.content.markdown,
+          html: message.content.html,
           attachments: message.content.attachments,
           buttons: message.content.buttons,
           embeds: message.content.embeds,
+          platformOptions: message.content.platformOptions,
           threadId: target.id,
           replyTo: message.options?.replyTo,
           silent: message.options?.silent,

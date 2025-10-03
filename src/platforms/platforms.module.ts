@@ -15,6 +15,7 @@ import { CredentialValidationService } from './services/credential-validation.se
 import { TelegramCredentialsValidator } from './validators/telegram-credentials.validator';
 import { DiscordCredentialsValidator } from './validators/discord-credentials.validator';
 import { WhatsAppCredentialsValidator } from './validators/whatsapp-credentials.validator';
+import { EmailCredentialsValidator } from './validators/email-credentials.validator';
 import { PrismaModule } from '../prisma/prisma.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { EVENT_BUS } from './interfaces/event-bus.interface';
@@ -24,6 +25,7 @@ import { MessageQueue } from '../queues/message.queue';
 import { DiscordProvider } from './providers/discord.provider';
 import { TelegramProvider } from './providers/telegram.provider';
 import { WhatsAppProvider } from './providers/whatsapp.provider';
+import { EmailProvider } from './providers/email.provider';
 
 @Module({
   imports: [
@@ -59,6 +61,7 @@ import { WhatsAppProvider } from './providers/whatsapp.provider';
     TelegramCredentialsValidator,
     DiscordCredentialsValidator,
     WhatsAppCredentialsValidator,
+    EmailCredentialsValidator,
     MessageQueue,
     {
       provide: EVENT_BUS,
@@ -68,6 +71,7 @@ import { WhatsAppProvider } from './providers/whatsapp.provider';
     DiscordProvider,
     TelegramProvider,
     WhatsAppProvider,
+    EmailProvider,
   ],
   exports: [
     PlatformsService,

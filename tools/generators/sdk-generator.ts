@@ -41,8 +41,13 @@ export class SDKGenerator {
     const typeCount = Object.keys(typeDefinitions).length;
     console.log(`📝 Using ${typeCount} TypeScript types from contract file`);
 
+    // Get platform metadata for platform options
+    const platformMetadata = contracts[0]?.platformMetadata || {};
+    const platformCount = Object.keys(platformMetadata).length;
+    console.log(`🎯 Found ${platformCount} platforms with metadata`);
+
     // Generate SDK components
-    const sdk = this.generateSDK(contracts, typeDefinitions);
+    const sdk = this.generateSDK(contracts, typeDefinitions, platformMetadata);
 
     // Create output directory
     await fs.mkdir(outputDir, { recursive: true });
@@ -72,9 +77,13 @@ export class SDKGenerator {
   private generateSDK(
     contracts: ExtractedContract[],
     typeDefinitions: Record<string, string>,
+    platformMetadata: Record<string, any>,
   ): GeneratedSDK {
     return {
-      types: this.generateTypesFromDefinitions(typeDefinitions),
+      types: this.generateTypesFromDefinitions(
+        typeDefinitions,
+        platformMetadata,
+      ),
       client: this.generateClient(contracts),
       errors: this.generateErrors(),
       index: this.generateIndex(contracts),
@@ -85,13 +94,20 @@ export class SDKGenerator {
 
   private generateTypesFromDefinitions(
     typeDefinitions: Record<string, string>,
+    platformMetadata: Record<string, any>,
   ): string {
     const typeDefinitionsList = Object.values(typeDefinitions).join('\n\n');
+
+    // Generate platform options types from metadata
+    const platformOptionsTypes =
+      this.generatePlatformOptionsTypes(platformMetadata);
 
     return `// Generated TypeScript types for GateKit SDK
 // DO NOT EDIT - This file is auto-generated from backend contracts
 
 ${typeDefinitionsList}
+
+${platformOptionsTypes}
 
 // SDK configuration
 export interface GateKitConfig {
@@ -103,6 +119,96 @@ export interface GateKitConfig {
   retries?: number;
 }
 `;
+  }
+
+  private generatePlatformOptionsTypes(
+    platformMetadata: Record<string, any>,
+  ): string {
+    const platformTypes: string[] = [];
+
+    // Generate individual platform option interfaces
+    for (const [platformName, metadata] of Object.entries(platformMetadata)) {
+      if (!metadata.optionsSchema) continue;
+
+      const schema = metadata.optionsSchema;
+      const interfaceName =
+        schema.className ||
+        `${CaseConverter.toPascalCase(platformName)}PlatformOptions`;
+      const properties = this.generatePropertiesFromSchema(schema.properties);
+
+      platformTypes.push(`/**
+ * Platform-specific options for ${metadata.displayName}
+ * Auto-generated from ${schema.className}
+ */
+export interface ${interfaceName} {
+${properties}
+}`);
+    }
+
+    // Generate union type for all platform options
+    if (platformTypes.length > 0) {
+      const platformNames = Object.entries(platformMetadata)
+        .filter(([_, meta]) => meta.optionsSchema)
+        .map(([name, meta]) => {
+          const interfaceName =
+            meta.optionsSchema.className ||
+            `${CaseConverter.toPascalCase(name)}PlatformOptions`;
+          return `  ${name}?: ${interfaceName};`;
+        });
+
+      platformTypes.push(`/**
+ * Platform-specific options for all supported platforms
+ * Use this in platformOptions field when sending messages
+ */
+export interface PlatformOptions {
+${platformNames.join('\n')}
+}`);
+    }
+
+    return platformTypes.join('\n\n');
+  }
+
+  private generatePropertiesFromSchema(
+    properties: Record<string, any>,
+  ): string {
+    const props: string[] = [];
+
+    for (const [propName, propSchema] of Object.entries(properties)) {
+      const description = propSchema.description;
+      const type = this.jsonSchemaTypeToTypeScript(propSchema);
+
+      if (description) {
+        props.push(`  /** ${description} */`);
+      }
+      props.push(`  ${propName}?: ${type};`);
+    }
+
+    return props.join('\n');
+  }
+
+  private jsonSchemaTypeToTypeScript(schema: any): string {
+    if (schema.type === 'array' && schema.items) {
+      const itemType = this.jsonSchemaTypeToTypeScript(schema.items);
+      return `${itemType}[]`;
+    }
+
+    if (schema.type === 'object') {
+      return 'Record<string, string>';
+    }
+
+    if (schema.type === 'string') {
+      return 'string';
+    }
+
+    if (schema.type === 'number') {
+      return 'number';
+    }
+
+    if (schema.type === 'boolean') {
+      return 'boolean';
+    }
+
+    return 'unknown';
   }
 
   private generateTypes(_contracts: ExtractedContract[]): string {

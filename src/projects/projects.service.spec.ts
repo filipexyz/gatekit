@@ -117,6 +117,12 @@ describe('ProjectsService', () => {
           isDefault: createDto.isDefault,
           settings: undefined,
           ownerId: 'user-1',
+          members: {
+            create: {
+              userId: 'user-1',
+              role: 'owner',
+            },
+          },
         },
         include: {
           owner: {

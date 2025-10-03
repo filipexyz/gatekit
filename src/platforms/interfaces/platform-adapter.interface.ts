@@ -10,10 +10,14 @@ export interface OutboundTransport {
   sendMessage(
     env: MessageEnvelopeV1,
     reply: {
+      subject?: string;
       text?: string;
+      markdown?: string;
+      html?: string;
       attachments?: any[];
       buttons?: any[];
       embeds?: any[];
+      platformOptions?: Record<string, any>;
       threadId?: string;
       replyTo?: string;
       silent?: boolean;

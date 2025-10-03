@@ -164,7 +164,19 @@ export class EmbedDto {
 export class ContentDto {
   @IsOptional()
   @IsString()
+  subject?: string;
+
+  @IsOptional()
+  @IsString()
   text?: string;
+
+  @IsOptional()
+  @IsString()
+  markdown?: string;
+
+  @IsOptional()
+  @IsString()
+  html?: string;
 
   @IsOptional()
   @IsArray()
@@ -183,6 +195,9 @@ export class ContentDto {
   @ValidateNested({ each: true })
   @Type(() => EmbedDto)
   embeds?: EmbedDto[];
+
+  @IsOptional()
+  platformOptions?: Record<string, any>;
 }
 
 export class OptionsDto {

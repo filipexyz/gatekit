@@ -283,6 +283,134 @@ Capabilities defined but not yet implemented:
 - **Registry**: `src/platforms/services/platform-registry.service.ts`
 - **Endpoint**: `src/platforms/controllers/platform-health.controller.ts`
 
+### **Platform Options System (Dynamic & Type-Safe)**
+
+GateKit implements a **decorator-based platform options system** that allows each platform to define its own specific options (like email CC/BCC, custom headers, etc.) with automatic validation, type generation, and documentation.
+
+#### **How It Works**
+
+1. **Platform defines options** using a DTO class with class-validator decorators
+2. **@PlatformOptionsDecorator** registers the schema with the platform
+3. **Contract extractors** parse decorators into JSON Schema
+4. **Generators** create SDK types, CLI flags, and OpenAPI docs automatically
+5. **Runtime validation** ensures type safety at the API layer
+
+#### **Example: Email Platform Options**
+
+**1. Define Platform Options DTO**
+
+```typescript
+// src/platforms/providers/email-platform-options.dto.ts
+export class EmailPlatformOptions {
+  @IsOptional()
+  @IsArray()
+  @IsEmail({}, { each: true })
+  cc?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsEmail({}, { each: true })
+  bcc?: string[];
+
+  @IsOptional()
+  @IsEmail()
+  replyTo?: string;
+
+  @IsOptional()
+  headers?: Record<string, string>;
+}
+```
+
+**2. Register with Platform Provider**
+
+```typescript
+@PlatformProviderDecorator(PlatformType.EMAIL, [...capabilities])
+@PlatformOptionsDecorator(EmailPlatformOptions)
+export class EmailProvider implements PlatformProvider {
+  async sendMessage(env, reply: {
+    platformOptions?: {
+      email?: EmailPlatformOptions;
+    };
+  }) {
+    const emailOptions = reply.platformOptions?.email;
+    await transporter.sendMail({
+      cc: emailOptions?.cc,
+      bcc: emailOptions?.bcc,
+      replyTo: emailOptions?.replyTo,
+      headers: emailOptions?.headers,
+    });
+  }
+}
+```
+
+**3. Auto-Generated SDK Types**
+
+```typescript
+// Auto-generated in @gatekit/sdk
+interface EmailPlatformOptions {
+  cc?: string[];
+  bcc?: string[];
+  replyTo?: string;
+  headers?: Record<string, string>;
+}
+
+interface PlatformOptions {
+  email?: EmailPlatformOptions;
+  // Future: discord?, telegram?, etc.
+}
+```
+
+**4. Auto-Generated CLI Flags**
+
+```bash
+# Auto-generated in @gatekit/cli
+gatekit messages send \
+  --target "platform-id:user:123" \
+  --text "Hello" \
+  --email.cc "manager@example.com,team@example.com" \
+  --email.bcc "archive@example.com" \
+  --email.replyTo "noreply@example.com" \
+  --email.headers '{"X-Custom-Header":"value"}'
+```
+
+#### **Universal Fields vs Platform Options**
+
+**Universal Fields** (available to all platforms):
+- `subject` - Email subject or message title
+- `text` - Plain text content
+- `markdown` - Markdown-formatted content
+- `html` - HTML-formatted content
+
+**Platform Options** (platform-specific):
+- Nested under `platformOptions.{platform}`
+- Each platform extracts only its own options
+- Other platforms ignore options not meant for them
+
+#### **Architecture Benefits**
+
+✅ **Single Source of Truth** - Platform options defined once in DTO
+✅ **Automatic Validation** - class-validator ensures runtime safety
+✅ **Zero Duplication** - SDK, CLI, OpenAPI all auto-generated
+✅ **Type Safety** - Full TypeScript types throughout
+✅ **Self-Documenting** - JSDoc comments become user documentation
+✅ **Multi-Platform Safe** - Each provider extracts only its options
+
+#### **Adding New Platform Options**
+
+1. Create `{platform}-platform-options.dto.ts`
+2. Define properties with class-validator decorators
+3. Add `@PlatformOptionsDecorator(YourOptionsClass)` to provider
+4. Run `npm run generate:all` to regenerate SDK/CLI
+5. Platform options automatically available everywhere
+
+#### **Implementation Files**
+
+- **Decorator**: `src/platforms/decorators/platform-options.decorator.ts`
+- **Email Options**: `src/platforms/providers/email-platform-options.dto.ts`
+- **Contract Extraction**: `tools/extractors/contract-extractor.service.ts`
+- **SDK Generation**: `tools/generators/sdk-generator.ts`
+- **CLI Generation**: `tools/generators/cli-generator.ts`
+
 ## Architecture Highlights
 
 ### Dynamic Platform System
@@ -510,7 +638,7 @@ For detailed testing guidelines, see: **[test/CLAUDE.md](test/CLAUDE.md)**
 
 ## Platform-Specific Documentation
 
-- **[WHATSAPP_EVO.md](WHATSAPP_EVO.md)** - Complete WhatsApp via Evolution API integration guide
+- **[docs/WHATSAPP_EVO.md](docs/WHATSAPP_EVO.md)** - Complete WhatsApp via Evolution API integration guide
 
 ## GateKit Client Architecture
 
@@ -518,13 +646,13 @@ For detailed testing guidelines, see: **[test/CLAUDE.md](test/CLAUDE.md)**
 
 GateKit implements a next-generation architecture where **SDK** and **CLI** are auto-generated from backend API contracts, ensuring perfect sync and zero duplication.
 
-### **Core Architecture Specifications**
+### **Core Architecture Principles**
 
-- **[SDK_SPECIFICATION.md](SDK_SPECIFICATION.md)** - Pure TypeScript API client architecture
-- **[CLI_SPECIFICATION.md](CLI_SPECIFICATION.md)** - Permission-aware CLI design
-- **[PERMISSION_AWARE_CLI.md](PERMISSION_AWARE_CLI.md)** - Dynamic command system based on user permissions
-- **[DEVELOPMENT_PRIORITIZATION.md](DEVELOPMENT_PRIORITIZATION.md)** - Implementation roadmap and effort matrix
-- **[DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md)** - Multi-agent collaboration system
+- **Pure TypeScript SDK** - Auto-generated client with perfect type safety
+- **Permission-Aware CLI** - Dynamic commands based on user permissions (`/auth/whoami`)
+- **Contract-First Development** - Single source of truth generates all clients
+- **Synchronized Versioning** - All packages coordinate automatically
+- **Multi-Platform Publishing** - GitHub Actions workflow for SDK, CLI, and n8n packages
 
 ### **Key Innovation: Single Source → Quintuple Outputs**
 
@@ -550,17 +678,15 @@ Backend Controllers (@SdkContract decorators)
 - ✅ Backend API fully functional with Discord, Telegram, and WhatsApp-Evo support
 - ✅ Revolutionary contract-driven architecture complete and production-ready
 - ✅ Permission Discovery API (`/auth/whoami`) operational
-- ✅ Recursive type auto-discovery system (20 types extracted automatically)
+- ✅ Recursive type auto-discovery system with full TypeScript type safety
 - ✅ Zero `any` types throughout entire system with perfect type safety
-- ✅ 14 contracts across 4 controllers with complete API coverage
+- ✅ 53 contracts across 9 API categories with complete coverage
 - ✅ Quintuple-generation pipeline: SDK + CLI + n8n + OpenAPI + Docs
 - ✅ Self-documenting API with live OpenAPI endpoints (/docs/openapi.json)
 - ✅ n8n community node for visual automation (300k+ potential users)
 - ✅ Production tested: All generated packages compile and deploy successfully
 
 ### **Contract-Driven Development**
-
-**Complete Implementation Guide:** **[CONTRACT_DRIVEN_DEVELOPMENT.md](CONTRACT_DRIVEN_DEVELOPMENT.md)**
 
 **Daily Workflow:**
 

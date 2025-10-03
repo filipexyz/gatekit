@@ -102,18 +102,18 @@ export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
     try {
       const localJwtResult = await this.validateLocalJwt(context);
       if (localJwtResult) {
+        console.log('AppAuthGuard - Local JWT validation successful');
         return localJwtResult;
       }
     } catch (error) {
-      console.log('AppAuthGuard - Local JWT validation failed, trying Auth0');
+      console.log('AppAuthGuard - Local JWT validation failed:', error.message);
     }
 
-    // Fallback to Auth0 JWT
+    // Try Auth0 JWT only if configured
     const auth0Config = this.configService.get<AppConfig['auth0']>('app.auth0');
     if (!auth0Config?.domain || !auth0Config?.audience) {
-      throw new UnauthorizedException(
-        'JWT authentication is not configured. Please use API key authentication.',
-      );
+      console.log('AppAuthGuard - Auth0 not configured, JWT validation failed');
+      throw new UnauthorizedException('Invalid or expired token');
     }
 
     try {

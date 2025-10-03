@@ -6,6 +6,7 @@ import {
   PLATFORM_CAPABILITIES_METADATA,
   PlatformCapabilityInfo,
 } from '../decorators/platform-provider.decorator';
+import { PLATFORM_OPTIONS_METADATA } from '../decorators/platform-options.decorator';
 import { PlatformCapability } from '../enums/platform-capability.enum';
 
 @Injectable()
@@ -168,5 +169,55 @@ export class PlatformRegistry implements OnModuleInit {
         provider.constructor,
       ) || []
     );
+  }
+
+  /**
+   * Get platform options schema class for a specific platform
+   * Returns the class with class-validator decorators
+   */
+  getPlatformOptionsSchema(platformName: string): any {
+    const provider = this.getProvider(platformName);
+    if (!provider) return null;
+
+    return (
+      Reflect.getMetadata(PLATFORM_OPTIONS_METADATA, provider.constructor) ||
+      null
+    );
+  }
+
+  /**
+   * Get complete platform metadata (for contract generation)
+   * Includes provider info, capabilities, and options schema
+   */
+  getPlatformMetadata(platformName: string): {
+    name: string;
+    displayName: string;
+    connectionType: string;
+    capabilities: PlatformCapabilityInfo[];
+    optionsSchema: any;
+  } | null {
+    const provider = this.getProvider(platformName);
+    if (!provider) return null;
+
+    return {
+      name: provider.name,
+      displayName: provider.displayName,
+      connectionType: provider.connectionType,
+      capabilities: this.getProviderCapabilities(provider),
+      optionsSchema: this.getPlatformOptionsSchema(platformName),
+    };
+  }
+
+  /**
+   * Get all platform metadata (for contract generation)
+   */
+  getAllPlatformMetadata(): Record<string, any> {
+    const metadata: Record<string, any> = {};
+
+    for (const name of this.providers.keys()) {
+      metadata[name] = this.getPlatformMetadata(name);
+    }
+
+    return metadata;
   }
 }
