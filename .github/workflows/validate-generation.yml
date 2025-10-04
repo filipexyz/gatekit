@@ -32,8 +32,8 @@ jobs:
 
       - name: Validate contract extraction
         run: |
-          echo "🔍 Testing standalone contract extraction..."
-          npm run extract:contracts:standalone
+          echo "🔍 Testing contract extraction..."
+          npm run extract:contracts
 
           echo "📊 Contract extraction results:"
           cat generated/contracts/extraction-summary.json

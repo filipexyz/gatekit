@@ -28,7 +28,7 @@ jobs:
 
       - name: Generate all packages
         run: |
-          echo "🔧 Generating SDK and CLI from contracts using standalone extractor..."
+          echo "🔧 Generating SDK and CLI from contracts..."
           npm run generate:all
 
       - name: Test package compilation
