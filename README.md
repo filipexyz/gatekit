@@ -6,6 +6,7 @@
 [![Discord Community](https://img.shields.io/badge/Discord-Join%20Community-7289da?style=flat&logo=discord)](https://discord.gg/bQPsvycW)
 [![Telegram](https://img.shields.io/badge/Telegram-Ready-0088cc?style=flat&logo=telegram)](https://github.com/filipexyz/gatekit)
 [![WhatsApp](https://img.shields.io/badge/WhatsApp-Evolution%20API-25d366?style=flat&logo=whatsapp)](https://github.com/filipexyz/gatekit)
+[![Email](https://img.shields.io/badge/Email-SMTP-ea4335?style=flat&logo=gmail)](https://github.com/filipexyz/gatekit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![AI Generated](https://img.shields.io/badge/100%25-AI%20Generated-blueviolet?style=flat)](https://github.com/filipexyz/gatekit)
 
@@ -31,7 +32,7 @@
 
 ### **📨 What We Store:**
 
-- **Received Messages** - Every incoming message from Discord, Telegram, WhatsApp, etc.
+- **Received Messages** - Every incoming message from Discord, Telegram, WhatsApp, Email, etc.
 - **Sent Messages** - Complete delivery tracking with success/failure status
 - **Universal Identities** - Cross-platform user identity mapping and resolution
 - **Platform Logs** - All messaging activity with rich debugging metadata
@@ -86,7 +87,7 @@ class YourAIAgent {
 ### **✅ Core Systems Built:**
 
 - **User-Linked Projects** - Multi-tenant with `owner`/`admin`/`member`/`viewer` roles
-- **Platform Providers** - Discord (WebSocket), Telegram (Webhook), WhatsApp (Evolution API) production-ready
+- **Platform Providers** - Discord (WebSocket), Telegram (Webhook), WhatsApp (Evolution API), Email (SMTP) production-ready
 - **Universal Identity System** - Cross-platform user identity mapping with automatic resolution
 - **Message Queue** - BullMQ with Redis for reliable cross-platform delivery
 - **Attachment Support** - URL and base64 media across all platforms (Discord, Telegram, WhatsApp)
@@ -144,6 +145,7 @@ Query capabilities programmatically via: `GET /api/v1/platforms/health`
 | 💬 **Discord**  | WebSocket  | ✅   | ✅      | ✅          | ✅     | ✅      | ✅        | 🔜   | 🔜     | 🔜      |
 | 📱 **Telegram** | Webhook    | ✅   | ✅      | ✅          | ✅     | ✅      | ✅        | 🔜   | 🔜     | 🔜      |
 | 💚 **WhatsApp** | Webhook    | ✅   | ✅      | ✅          | ✅     | ❌      | ✅        | 🔜   | 🔜     | 🔜      |
+| 📧 **Email**    | SMTP       | ✅   | 🔜      | ✅          | ❌     | ❌      | ❌        | ❌   | ❌     | ❌      |
 
 **Legend:** ✅ Available | 🔜 Planned | ❌ Not Supported by Platform
 
@@ -258,7 +260,7 @@ const logs = await gk.platformLogs.list('project', { category: 'message' });
 ## 📊 **Production Stats**
 
 - **✅ 53 API endpoints** - Auto-generated SDK/CLI/n8n/OpenAPI from backend contracts
-- **✅ 3 platform providers** - Discord, Telegram, WhatsApp-Evo (production-ready)
+- **✅ 4 platform providers** - Discord, Telegram, WhatsApp-Evo, Email (production-ready)
 - **✅ Universal identity system** - Cross-platform user identity mapping
 - **✅ Webhook notifications** - Event subscriptions with HMAC signatures
 - **✅ Message storage** - Complete conversation history with batch resolution
