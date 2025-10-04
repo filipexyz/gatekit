@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PlatformLogsService } from '../services/platform-logs.service';
 import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
 import { MessagesService } from '../messages/messages.service';
+import { TranscriptionService } from '../../voice/services/transcription.service';
 
 describe('TelegramProvider', () => {
   let provider: TelegramProvider;
@@ -34,6 +35,14 @@ describe('TelegramProvider', () => {
     storeIncomingMessage: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockTranscriptionService = {
+    transcribe: jest.fn().mockResolvedValue({
+      text: 'Mock transcription',
+      provider: 'whisper',
+    }),
+    isAvailable: jest.fn().mockResolvedValue(true),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -57,6 +66,10 @@ describe('TelegramProvider', () => {
         {
           provide: MessagesService,
           useValue: mockMessagesService,
+        },
+        {
+          provide: TranscriptionService,
+          useValue: mockTranscriptionService,
         },
       ],
     }).compile();

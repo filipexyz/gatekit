@@ -6,6 +6,7 @@ import { EVENT_BUS } from '../interfaces/event-bus.interface';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
 import { MessagesService } from '../messages/messages.service';
+import { TranscriptionService } from '../../voice/services/transcription.service';
 
 describe('DiscordProvider', () => {
   let provider: DiscordProvider;
@@ -42,6 +43,14 @@ describe('DiscordProvider', () => {
     storeIncomingMessage: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockTranscriptionService = {
+    transcribe: jest.fn().mockResolvedValue({
+      text: 'Mock transcription',
+      provider: 'whisper',
+    }),
+    isAvailable: jest.fn().mockResolvedValue(true),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -65,6 +74,10 @@ describe('DiscordProvider', () => {
         {
           provide: MessagesService,
           useValue: mockMessagesService,
+        },
+        {
+          provide: TranscriptionService,
+          useValue: mockTranscriptionService,
         },
       ],
     }).compile();
