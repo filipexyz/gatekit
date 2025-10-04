@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  @keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  @keyframes shine {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes pulseDots {
+    0% { opacity: 0.1; }
+    100% { opacity: 0.25; }
+  }
+
+  .animate-gradient {
+    background-size: 400% 400%;
+    animation: gradient 15s ease infinite;
+  }
+
+  .animate-shine {
+    animation: shine 8s linear infinite;
+  }
+
+  .bg-grid-pattern {
+    background-image: radial-gradient(rgba(59,130,246,0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .bg-diagonal-lines {
+    background-image: repeating-linear-gradient(135deg, rgba(59,130,246,0.08) 0px, rgba(59,130,246,0.08) 2px, transparent 2px, transparent 20px);
+  }
+
+  .bg-pulse-dots {
+    background-image: radial-gradient(circle, rgba(59,130,246,0.12) 2px, transparent 2px);
+    background-size: 32px 32px;
+    animation: pulseDots 2s infinite alternate;
+  }
+}
