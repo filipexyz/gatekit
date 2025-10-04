@@ -327,11 +327,14 @@ export class EmailPlatformOptions {
 @PlatformProviderDecorator(PlatformType.EMAIL, [...capabilities])
 @PlatformOptionsDecorator(EmailPlatformOptions)
 export class EmailProvider implements PlatformProvider {
-  async sendMessage(env, reply: {
-    platformOptions?: {
-      email?: EmailPlatformOptions;
-    };
-  }) {
+  async sendMessage(
+    env,
+    reply: {
+      platformOptions?: {
+        email?: EmailPlatformOptions;
+      };
+    },
+  ) {
     const emailOptions = reply.platformOptions?.email;
     await transporter.sendMail({
       cc: emailOptions?.cc,
@@ -376,12 +379,14 @@ gatekit messages send \
 #### **Universal Fields vs Platform Options**
 
 **Universal Fields** (available to all platforms):
+
 - `subject` - Email subject or message title
 - `text` - Plain text content
 - `markdown` - Markdown-formatted content
 - `html` - HTML-formatted content
 
 **Platform Options** (platform-specific):
+
 - Nested under `platformOptions.{platform}`
 - Each platform extracts only its own options
 - Other platforms ignore options not meant for them

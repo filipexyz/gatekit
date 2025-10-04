@@ -140,12 +140,12 @@ GET    /api/v1/projects/:id/platforms/logs/stats   # Activity dashboard
 
 Query capabilities programmatically via: `GET /api/v1/platforms/health`
 
-| Platform        | Connection | Send | Receive | Attachments | Embeds | Buttons | Reactions | Edit | Delete | Threads |
-| --------------- | ---------- | ---- | ------- | ----------- | ------ | ------- | --------- | ---- | ------ | ------- |
-| 💬 **Discord**  | WebSocket  | ✅   | ✅      | ✅          | ✅     | ✅      | ✅        | 🔜   | 🔜     | 🔜      |
-| 📱 **Telegram** | Webhook    | ✅   | ✅      | ✅          | ✅     | ✅      | ✅        | 🔜   | 🔜     | 🔜      |
-| 💚 **WhatsApp** | Webhook    | ✅   | ✅      | ✅          | ✅     | ❌      | ✅        | 🔜   | 🔜     | 🔜      |
-| 📧 **Email**    | SMTP       | ✅   | 🔜      | ✅          | ❌     | ❌      | ❌        | ❌   | ❌     | ❌      |
+| Platform        | Connection | Send | Receive | Attachments | Embeds | Buttons | Reactions | Voice | Edit | Delete | Threads |
+| --------------- | ---------- | ---- | ------- | ----------- | ------ | ------- | --------- | ----- | ---- | ------ | ------- |
+| 💬 **Discord**  | WebSocket  | ✅   | ✅      | ✅          | ✅     | ✅      | ✅        | ✅    | 🔜   | 🔜     | 🔜      |
+| 📱 **Telegram** | Webhook    | ✅   | ✅      | ✅          | ✅     | ✅      | ✅        | ✅    | 🔜   | 🔜     | 🔜      |
+| 💚 **WhatsApp** | Webhook    | ✅   | ✅      | ✅          | ✅     | ❌      | ✅        | ✅    | 🔜   | 🔜     | 🔜      |
+| 📧 **Email**    | SMTP       | ✅   | 🔜      | ✅          | ❌     | ❌      | ❌        | ❌    | ❌   | ❌     | ❌      |
 
 **Legend:** ✅ Available | 🔜 Planned | ❌ Not Supported by Platform
 
@@ -157,6 +157,7 @@ Query capabilities programmatically via: `GET /api/v1/platforms/health`
 - **Embeds** - Rich embedded content with graceful cross-platform degradation
 - **Buttons** - Interactive buttons with webhook callbacks (Discord & Telegram)
 - **Reactions** - Send and receive emoji reactions with webhook events (All platforms)
+- **Voice** - Automatic voice-to-text transcription using OpenAI Whisper (Discord, Telegram, WhatsApp)
 
 **Embed Features:**
 
@@ -179,6 +180,16 @@ Query capabilities programmatically via: `GET /api/v1/platforms/health`
 - **WhatsApp** - Send/receive Unicode emojis in DMs and groups
 - **Webhook Events** - `reaction.added` and `reaction.removed` events delivered to subscribed webhooks
 - **Security** - SSRF protection on all button URLs (HTTPS only)
+
+**Voice Transcription Features:**
+
+- **Automatic Speech-to-Text** - OpenAI Whisper API integration for automatic voice message transcription
+- **Discord** - Audio attachments (.mp3, .wav, .ogg, .opus, .webm, .m4a, .flac)
+- **Telegram** - Voice messages (OGG/Opus format)
+- **WhatsApp** - Audio messages and PTT (push-to-talk) via Evolution API
+- **Production Safeguards** - Rate limiting (10 req/min per project), file size validation (25MB max), memory management, timeout protection
+- **Storage** - Transcriptions stored in `rawData.transcription` field
+- **Configuration** - Requires `OPENAI_API_KEY`, optional `WHISPER_RATE_LIMIT` environment variable
 
 **Planned Capabilities:**
 

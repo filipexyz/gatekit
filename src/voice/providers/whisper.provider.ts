@@ -15,9 +15,9 @@ export class WhisperProvider implements TranscriptionProvider {
   readonly name = 'whisper';
   private readonly TRANSCRIPTION_TIMEOUT = 60000; // 60 seconds
 
-  // Rate limiter: 100 requests per minute per project
+  // Rate limiter: configurable requests per minute per project
   private readonly rateLimiter = new RateLimiterMemory({
-    points: 100,
+    points: parseInt(process.env.WHISPER_RATE_LIMIT || '10', 10),
     duration: 60,
     keyPrefix: 'whisper-transcription',
   });
@@ -30,6 +30,10 @@ export class WhisperProvider implements TranscriptionProvider {
         'OPENAI_API_KEY not configured - Whisper transcription will fail',
       );
     }
+
+    this.logger.log(
+      `Whisper rate limit: ${this.rateLimiter.points} requests/min per project`,
+    );
 
     this.client = new OpenAI({
       apiKey: apiKey || 'not-configured',
