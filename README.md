@@ -184,7 +184,6 @@ Query capabilities programmatically via: `GET /api/v1/platforms/health`
 
 - **Edit** - Edit previously sent messages
 - **Delete** - Delete sent messages
-- **Reactions** - Message reactions/emojis
 - **Threads** - Threaded conversations
 
 ### **💚 WhatsApp Integration (Evolution API)**
