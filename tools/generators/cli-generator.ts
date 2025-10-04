@@ -288,6 +288,9 @@ ${allOptions}
         if (option.type === 'object') {
           // Parse JSON strings for object types with try-catch
           return `      ${key}: options.${key} ? (() => { try { return JSON.parse(options.${key}); } catch (e) { throw new Error(\`Invalid JSON for --${key}: \${e instanceof Error ? e.message : String(e)}\`); } })() : undefined`;
+        } else if (option.type === 'array') {
+          // Split comma-separated values into array
+          return `      ${key}: options.${key} ? (typeof options.${key} === 'string' ? options.${key}.split(',').map((v: string) => v.trim()) : options.${key}) : undefined`;
         } else if (option.type === 'boolean') {
           // Convert string to boolean, preserve undefined when not provided
           return `      ${key}: options.${key} !== undefined ? (options.${key} === 'true' || options.${key} === true) : undefined`;
