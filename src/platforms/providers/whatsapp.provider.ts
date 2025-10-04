@@ -25,6 +25,7 @@ import { ProviderUtil } from './provider.util';
 import { EmbedTransformerUtil } from '../utils/embed-transformer.util';
 import { ReactionType } from '@prisma/client';
 import { MessagesService } from '../messages/messages.service';
+import { TranscriptionService } from '../../voice/services/transcription.service';
 
 interface WhatsAppCredentials {
   evolutionApiUrl: string;
@@ -77,6 +78,9 @@ interface EvolutionMessage {
   {
     capability: PlatformCapability.REACTIONS,
   },
+  {
+    capability: PlatformCapability.VOICE_RECEIVE,
+  },
 ])
 export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
   private readonly logger = new Logger(WhatsAppProvider.name);
@@ -93,6 +97,7 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
     private readonly platformLogsService: PlatformLogsService,
     private readonly webhookDeliveryService: WebhookDeliveryService,
     private readonly messagesService: MessagesService,
+    private readonly transcriptionService: TranscriptionService,
   ) {}
 
   async initialize(): Promise<void> {
@@ -683,6 +688,52 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
       // Store message in database using centralized service
       if (platformId) {
         try {
+          let messageType = 'text';
+          let messageText = this.extractEvolutionMessageText(msg);
+          let transcription: string | undefined;
+
+          // Detect voice messages (Evolution API: audioMessage or ptt)
+          if (msg.message?.audioMessage || msg.message?.ptt) {
+            messageType = 'voice';
+            const audioMsg = msg.message.audioMessage || msg.message.ptt;
+
+            this.logger.log(
+              `🎙️ Voice message detected from ${msg.pushName || msg.senderName}: ${audioMsg.url || 'no URL'}`,
+            );
+
+            try {
+              // Download and transcribe voice message
+              const mediaBuffer = await this.getMediaUrl(
+                connection,
+                msg.key?.id || msg.id,
+              );
+
+              if (mediaBuffer) {
+                const transcriptResult =
+                  await this.transcriptionService.transcribe(mediaBuffer, {
+                    projectId: connection.projectId,
+                    format: 'ogg', // WhatsApp typically uses ogg/opus
+                  });
+                transcription = transcriptResult.text;
+                messageText = `🎙️ Voice: ${transcription}`;
+
+                this.logger.log(
+                  `✅ Transcribed: "${transcription.substring(0, 100)}..."`,
+                );
+              } else {
+                this.logger.warn(
+                  'Could not get media buffer for voice message',
+                );
+                messageText = '🎙️ Voice message (no media available)';
+              }
+            } catch (error) {
+              this.logger.error(
+                `❌ Voice transcription failed: ${error.message}`,
+              );
+              messageText = `🎙️ Voice message (transcription failed: ${error.message})`;
+            }
+          }
+
           await this.messagesService.storeIncomingMessage({
             projectId: connection.projectId,
             platformId,
@@ -692,9 +743,12 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
             providerUserId:
               msg.sender || msg.key?.remoteJid || msg.remoteJid || 'unknown',
             userDisplay: msg.pushName || msg.senderName || 'WhatsApp User',
-            messageText: this.extractEvolutionMessageText(msg),
-            messageType: 'text',
-            rawData: msg,
+            messageText,
+            messageType,
+            rawData: {
+              ...msg,
+              transcription: transcription || undefined,
+            },
           });
         } catch (error) {
           this.logger.error(`Failed to store message: ${error.message}`);
@@ -1319,6 +1373,62 @@ export class WhatsAppProvider implements PlatformProvider, PlatformAdapter {
         `Failed to remove WhatsApp reaction [${connectionKey}]: ${error.message}`,
       );
       throw error;
+    }
+  }
+
+  /**
+   * Get media buffer from Evolution API for voice message
+   */
+  private async getMediaUrl(
+    connection: WhatsAppConnection,
+    messageId: string,
+  ): Promise<Buffer | null> {
+    try {
+      const url = `${connection.evolutionApiUrl}/chat/getBase64FromMediaMessage/${connection.instanceName}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: connection.evolutionApiKey,
+        },
+        body: JSON.stringify({
+          message: {
+            key: {
+              id: messageId,
+            },
+          },
+          convertToMp4: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        this.logger.error(
+          `Evolution API getBase64FromMediaMessage error: ${response.status} - ${error}`,
+        );
+        return null;
+      }
+
+      const result = await response.json();
+
+      // Evolution API returns base64 data
+      if (result.base64) {
+        // Convert base64 directly to Buffer (more memory efficient than data URL)
+        const audioBuffer = Buffer.from(result.base64, 'base64');
+
+        // Clear base64 string from memory immediately
+        result.base64 = null;
+
+        return audioBuffer;
+      }
+
+      return null;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get media from Evolution API: ${error.message}`,
+      );
+      return null;
     }
   }
 }

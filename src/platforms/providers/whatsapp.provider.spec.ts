@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PlatformLogsService } from '../services/platform-logs.service';
 import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery.service';
 import { MessagesService } from '../messages/messages.service';
+import { TranscriptionService } from '../../voice/services/transcription.service';
 import { NotFoundException } from '@nestjs/common';
 
 // Mock fetch globally
@@ -41,6 +42,14 @@ describe('WhatsAppProvider', () => {
     storeIncomingMessage: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockTranscriptionService = {
+    transcribe: jest.fn().mockResolvedValue({
+      text: 'Mock transcription',
+      provider: 'whisper',
+    }),
+    isAvailable: jest.fn().mockResolvedValue(true),
+  };
+
   const mockCredentials = {
     evolutionApiUrl: 'https://evolution.example.com',
     evolutionApiKey: 'test-api-key',
@@ -70,6 +79,10 @@ describe('WhatsAppProvider', () => {
         {
           provide: MessagesService,
           useValue: mockMessagesService,
+        },
+        {
+          provide: TranscriptionService,
+          useValue: mockTranscriptionService,
         },
       ],
     }).compile();
