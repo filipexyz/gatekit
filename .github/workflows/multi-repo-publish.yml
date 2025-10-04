@@ -54,7 +54,7 @@ jobs:
 
       - name: Generate all packages with coordinated version
         run: |
-          npm run extract:contracts:standalone
+          npm run extract:contracts
           npm run generate:sdk
           npm run generate:cli
           npm run generate:n8n
