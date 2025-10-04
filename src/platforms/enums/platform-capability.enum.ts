@@ -13,4 +13,8 @@ export enum PlatformCapability {
   // Interactions
   REACTIONS = 'reactions',
   THREADS = 'threads',
+
+  // Voice
+  VOICE_SEND = 'voice-send',
+  VOICE_RECEIVE = 'voice-receive',
 }

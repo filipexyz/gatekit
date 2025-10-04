@@ -40,6 +40,7 @@ import { WebhookDeliveryService } from '../../webhooks/services/webhook-delivery
 import { WebhookEventType } from '../../webhooks/types/webhook-event.types';
 import { ReactionType } from '@prisma/client';
 import { MessagesService } from '../messages/messages.service';
+import { TranscriptionService } from '../../voice/services/transcription.service';
 
 interface DiscordCredentials {
   token: string;
@@ -75,6 +76,10 @@ interface DiscordConnection {
   {
     capability: PlatformCapability.REACTIONS,
   },
+  {
+    capability: PlatformCapability.VOICE_RECEIVE,
+    limitations: 'Automatically transcribes voice messages',
+  },
 ])
 export class DiscordProvider
   implements PlatformProvider, PlatformAdapter, OnModuleInit
@@ -94,6 +99,7 @@ export class DiscordProvider
     private readonly prisma: PrismaService,
     private readonly webhookDeliveryService: WebhookDeliveryService,
     private readonly messagesService: MessagesService,
+    private readonly transcriptionService: TranscriptionService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -663,6 +669,45 @@ export class DiscordProvider
       return;
     }
 
+    // Check for voice/audio attachments
+    const voiceAttachment = msg.attachments.find(
+      (att) =>
+        att.contentType?.startsWith('audio/') ||
+        /\.(mp3|wav|ogg|opus|webm|m4a|flac)$/i.test(att.name || ''),
+    );
+
+    let messageText = msg.content;
+    let messageType: 'text' | 'voice' = 'text';
+    let transcription: string | undefined;
+
+    // If voice attachment found, transcribe it
+    if (voiceAttachment) {
+      messageType = 'voice';
+      try {
+        this.logger.log(
+          `🎙️ Voice message detected from ${msg.author.username}: ${voiceAttachment.url}`,
+        );
+
+        const transcriptResult = await this.transcriptionService.transcribe(
+          voiceAttachment.url,
+          {
+            format: voiceAttachment.name?.split('.').pop(),
+            projectId: connection.projectId,
+          },
+        );
+
+        transcription = transcriptResult.text;
+        messageText = `🎙️ Voice: ${transcription}`;
+
+        this.logger.log(
+          `✅ Transcribed: "${transcription.substring(0, 100)}..."`,
+        );
+      } catch (error) {
+        this.logger.error(`❌ Voice transcription failed: ${error.message}`);
+        messageText = `🎙️ Voice message (transcription failed: ${error.message})`;
+      }
+    }
+
     try {
       // Store message in database using centralized service
       await this.messagesService.storeIncomingMessage({
@@ -673,8 +718,8 @@ export class DiscordProvider
         providerChatId: msg.channelId,
         providerUserId: msg.author.id,
         userDisplay: msg.author.displayName || msg.author.username,
-        messageText: msg.content,
-        messageType: 'text',
+        messageText,
+        messageType,
         rawData: {
           id: msg.id,
           channelId: msg.channelId,
@@ -692,7 +737,9 @@ export class DiscordProvider
             url: att.url,
             name: att.name,
             size: att.size,
+            contentType: att.contentType,
           })),
+          transcription: transcription || undefined,
         },
       });
     } catch (error) {

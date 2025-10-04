@@ -18,6 +18,7 @@ import { WhatsAppCredentialsValidator } from './validators/whatsapp-credentials.
 import { EmailCredentialsValidator } from './validators/email-credentials.validator';
 import { PrismaModule } from '../prisma/prisma.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
+import { VoiceModule } from '../voice/voice.module';
 import { EVENT_BUS } from './interfaces/event-bus.interface';
 import { MessageQueue } from '../queues/message.queue';
 
@@ -31,6 +32,7 @@ import { EmailProvider } from './providers/email.provider';
   imports: [
     PrismaModule,
     WebhooksModule,
+    VoiceModule,
     DiscoveryModule,
     BullModule.registerQueue({
       name: 'messages',

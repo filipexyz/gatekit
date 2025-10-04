@@ -26,6 +26,7 @@ import { ProviderUtil } from './provider.util';
 import { EmbedTransformerUtil } from '../utils/embed-transformer.util';
 import { ReactionType } from '@prisma/client';
 import { MessagesService } from '../messages/messages.service';
+import { TranscriptionService } from '../../voice/services/transcription.service';
 
 interface TelegramCredentials {
   token: string;
@@ -62,6 +63,7 @@ interface TelegramConnection {
     limitations:
       'Send: DMs and groups. Receive: Only in groups/channels where bot is admin (Telegram API limitation).',
   },
+  { capability: PlatformCapability.VOICE_RECEIVE },
 ])
 export class TelegramProvider implements PlatformProvider, PlatformAdapter {
   private readonly logger = new Logger(TelegramProvider.name);
@@ -78,6 +80,7 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
     private readonly platformLogsService: PlatformLogsService,
     private readonly webhookDeliveryService: WebhookDeliveryService,
     private readonly messagesService: MessagesService,
+    private readonly transcriptionService: TranscriptionService,
   ) {
     // Constructor uses dependency injection - no initialization needed
   }
@@ -391,6 +394,48 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
   ) {
     if (msg.from?.is_bot) return;
 
+    let messageType = msg.text ? 'text' : 'other';
+    let messageText = msg.text || null;
+    let transcription: string | undefined;
+
+    // Detect voice messages (Telegram has a dedicated voice field)
+    if (msg.voice) {
+      messageType = 'voice';
+      const connectionKey = platformId
+        ? `${projectId}:${platformId}`
+        : projectId;
+      const connection = this.connections.get(connectionKey);
+
+      if (connection?.bot) {
+        try {
+          this.logger.log(
+            `🎙️ Voice message detected from ${msg.from?.username || msg.from?.first_name}: file_id ${msg.voice.file_id}`,
+          );
+
+          // Get file URL from Telegram
+          const fileLink = await connection.bot.getFileLink(msg.voice.file_id);
+
+          // Transcribe the voice message
+          const transcriptResult = await this.transcriptionService.transcribe(
+            fileLink,
+            {
+              projectId: connection.projectId,
+              format: 'ogg', // Telegram uses ogg/opus for voice messages
+            },
+          );
+          transcription = transcriptResult.text;
+          messageText = `🎙️ Voice: ${transcription}`;
+
+          this.logger.log(
+            `✅ Transcribed: "${transcription.substring(0, 100)}..."`,
+          );
+        } catch (error) {
+          this.logger.error(`❌ Voice transcription failed: ${error.message}`);
+          messageText = `🎙️ Voice message (transcription failed: ${error.message})`;
+        }
+      }
+    }
+
     // Store the message in database using centralized service
     if (platformId) {
       try {
@@ -402,9 +447,12 @@ export class TelegramProvider implements PlatformProvider, PlatformAdapter {
           providerChatId: msg.chat.id.toString(),
           providerUserId: msg.from?.id?.toString() || 'unknown',
           userDisplay: msg.from?.username || msg.from?.first_name || 'Unknown',
-          messageText: msg.text || null,
-          messageType: msg.text ? 'text' : 'other',
-          rawData: msg as any,
+          messageText,
+          messageType,
+          rawData: {
+            ...msg,
+            transcription: transcription || undefined,
+          } as any,
         });
       } catch (error) {
         this.logger.error(`Failed to store message: ${error.message}`);
