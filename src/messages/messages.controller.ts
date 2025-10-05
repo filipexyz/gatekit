@@ -155,7 +155,7 @@ export class MessagesController {
     description: 'List sent messages for a project',
     category: 'Messages',
     requiredScopes: [ApiScope.MESSAGES_READ],
-    outputType: 'SentMessageResponse[]',
+    outputType: 'SentMessageListResponse',
     options: {
       platform: { description: 'Filter by platform', type: 'string' },
       status: {
