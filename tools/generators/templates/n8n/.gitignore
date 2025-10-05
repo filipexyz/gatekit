@@ -6,6 +6,3 @@ dist/
 coverage/
 .env
 .env.local
-credentials/
-nodes/
-package/
