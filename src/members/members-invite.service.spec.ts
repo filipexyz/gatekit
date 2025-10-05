@@ -59,6 +59,25 @@ describe('MembersService - Invite System', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
+    it('should throw NotFoundException if requester is not a member of the project', async () => {
+      const mockProject = {
+        id: projectId,
+        ownerId: 'different-owner-id',
+        members: [], // Requester is NOT a member
+      };
+
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
+
+      await expect(
+        service.createInvite(
+          projectId,
+          'user@example.com',
+          requesterId,
+          baseUrl,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
     it('should throw BadRequestException if user is already a member', async () => {
       const mockProject = {
         id: projectId,
