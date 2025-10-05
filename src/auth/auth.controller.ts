@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   UseGuards,
   Request,
@@ -13,6 +14,7 @@ import { PermissionResponse } from './dto/permission-response.dto';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 import { AuthResponse } from './dto/auth-response';
 import { LocalAuthService } from './local-auth.service';
 
@@ -221,5 +223,48 @@ export class AuthController {
     }
 
     return response;
+  }
+
+  @Patch('password')
+  @SdkContract({
+    command: 'auth update-password',
+    description: 'Update your password (requires current password)',
+    category: 'Auth',
+    requiredScopes: [],
+    inputType: 'UpdatePasswordDto',
+    outputType: 'MessageResponse',
+    options: {
+      currentPassword: {
+        required: true,
+        description: 'Current password',
+        type: 'string',
+      },
+      newPassword: {
+        required: true,
+        description: 'New password (min 8 chars, 1 uppercase, 1 number)',
+        type: 'string',
+      },
+    },
+    examples: [
+      {
+        description: 'Update your password',
+        command:
+          'gatekit auth update-password --currentPassword OldPass123 --newPassword NewPass456',
+      },
+    ],
+  })
+  async updatePassword(
+    @Body() updatePasswordDto: UpdatePasswordDto,
+    @Request() req: any,
+  ): Promise<{ message: string }> {
+    // Only JWT users can update password
+    if (req.authType !== 'jwt') {
+      throw new Error('Password update only available for JWT authentication');
+    }
+
+    return this.localAuthService.updatePassword(
+      req.user.userId,
+      updatePasswordDto,
+    );
   }
 }
