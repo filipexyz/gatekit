@@ -72,8 +72,10 @@ describe('GateKit API (e2e)', () => {
         .get('/api/v1/health')
         .expect(200)
         .expect((res) => {
-          expect(res.body).toHaveProperty('success', true);
-          expect(res.body.data).toHaveProperty('status', 'healthy');
+          expect(res.body.status).toBe('healthy');
+          expect(res.body.version).toBeDefined();
+          expect(typeof res.body.setupRequired).toBe('boolean');
+          expect(res.body.timestamp).toBeDefined();
         });
     });
   });

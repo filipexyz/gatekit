@@ -152,7 +152,10 @@ describe('Auth0 Authentication (e2e)', () => {
         .get('/api/v1/health')
         .expect(200)
         .expect((res) => {
-          expect(res.body.data.status).toBe('healthy');
+          expect(res.body.status).toBe('healthy');
+          expect(res.body.version).toBeDefined();
+          expect(typeof res.body.setupRequired).toBe('boolean');
+          expect(res.body.timestamp).toBeDefined();
         });
     });
 
@@ -162,7 +165,8 @@ describe('Auth0 Authentication (e2e)', () => {
         .set('Authorization', 'Bearer fake.jwt.token')
         .expect(200)
         .expect((res) => {
-          expect(res.body.data.status).toBe('healthy');
+          expect(res.body.status).toBe('healthy');
+          expect(res.body.version).toBeDefined();
         });
     });
 
@@ -172,7 +176,8 @@ describe('Auth0 Authentication (e2e)', () => {
         .set('X-API-Key', 'any-key')
         .expect(200)
         .expect((res) => {
-          expect(res.body.data.status).toBe('healthy');
+          expect(res.body.status).toBe('healthy');
+          expect(res.body.version).toBeDefined();
         });
     });
   });
