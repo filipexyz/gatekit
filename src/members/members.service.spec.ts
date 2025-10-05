@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MembersService } from './members.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ProjectRole } from '@prisma/client';
 
 describe('MembersService', () => {
@@ -423,19 +423,24 @@ describe('MembersService', () => {
       expect(result).toEqual(mockProjectMember);
     });
 
-    it('should throw NotFoundException if trying to remove project owner', async () => {
+    it('should throw BadRequestException if trying to remove project owner', async () => {
       const projectWithAdminAccess = {
         ...mockProject,
         ownerId: 'user-2', // user-2 is the owner
         owner: { ...mockUser, id: 'user-2' },
-        members: [],
+        members: [
+          {
+            userId: 'user-1',
+            role: ProjectRole.admin, // user-1 is admin
+          },
+        ],
       };
 
       prisma.project.findUnique.mockResolvedValue(projectWithAdminAccess);
 
       await expect(
         service.removeProjectMember('test-project', 'user-2', 'user-1'),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -471,12 +476,17 @@ describe('MembersService', () => {
       expect(result).toEqual(updatedMember);
     });
 
-    it('should throw NotFoundException if trying to change owner role', async () => {
+    it('should throw BadRequestException if trying to change owner role', async () => {
       const projectWithAdminAccess = {
         ...mockProject,
         ownerId: 'user-2', // user-2 is the owner
         owner: { ...mockUser, id: 'user-2' },
-        members: [],
+        members: [
+          {
+            userId: 'user-1',
+            role: ProjectRole.admin, // user-1 is admin
+          },
+        ],
       };
 
       prisma.project.findUnique.mockResolvedValue(projectWithAdminAccess);
@@ -488,7 +498,7 @@ describe('MembersService', () => {
           ProjectRole.member,
           'user-1',
         ),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });
