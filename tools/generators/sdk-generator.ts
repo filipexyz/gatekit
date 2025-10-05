@@ -114,6 +114,7 @@ export interface GateKitConfig {
   apiUrl: string;
   apiKey?: string;
   jwtToken?: string;
+  getToken?: () => string | null; // Dynamic token getter (preferred over jwtToken)
   defaultProject?: string;
   timeout?: number;
   retries?: number;
@@ -219,6 +220,7 @@ export interface GateKitConfig {
   apiUrl: string;
   apiKey?: string;
   jwtToken?: string;
+  getToken?: () => string | null; // Dynamic token getter (preferred over jwtToken)
   timeout?: number;
   retries?: number;
 }
@@ -415,7 +417,18 @@ ${Object.keys(groups)
   }
 
   private setupAuthentication(config: GateKitConfig): void {
-    if (config.apiKey) {
+    // For dynamic tokens (browser apps) - use interceptor
+    if (config.getToken) {
+      this.client.interceptors.request.use((axiosConfig) => {
+        const token = config.getToken!();
+        if (token) {
+          axiosConfig.headers.Authorization = \`Bearer \${token}\`;
+        }
+        return axiosConfig;
+      });
+    }
+    // For static credentials (CLI, server-side) - use defaults (faster)
+    else if (config.apiKey) {
       this.client.defaults.headers['X-API-Key'] = config.apiKey;
     } else if (config.jwtToken) {
       this.client.defaults.headers['Authorization'] = \`Bearer \${config.jwtToken}\`;
