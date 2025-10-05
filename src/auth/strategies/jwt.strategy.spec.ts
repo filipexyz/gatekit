@@ -2,11 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtStrategy } from './jwt.strategy';
-import { UsersService } from '../../users/users.service';
+import { MembersService } from '../../members/members.service';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
-  let usersService: UsersService;
+  let membersService: MembersService;
 
   const mockUser = {
     id: 'user-1',
@@ -18,7 +18,7 @@ describe('JwtStrategy', () => {
 
   describe('with Auth0 configuration', () => {
     beforeEach(async () => {
-      const mockUsersService = {
+      const mockMembersService = {
         upsertFromAuth0: jest.fn().mockResolvedValue(mockUser),
       };
 
@@ -42,14 +42,14 @@ describe('JwtStrategy', () => {
             },
           },
           {
-            provide: UsersService,
-            useValue: mockUsersService,
+            provide: MembersService,
+            useValue: mockMembersService,
           },
         ],
       }).compile();
 
       strategy = module.get<JwtStrategy>(JwtStrategy);
-      usersService = module.get<UsersService>(UsersService);
+      membersService = module.get<MembersService>(MembersService);
     });
 
     it('should be defined', () => {
@@ -67,7 +67,7 @@ describe('JwtStrategy', () => {
 
       const result = (await strategy.validate(payload)) as any;
 
-      expect(usersService.upsertFromAuth0).toHaveBeenCalledWith({
+      expect(membersService.upsertFromAuth0).toHaveBeenCalledWith({
         sub: 'auth0|123456',
         email: 'test@example.com',
         name: 'Test User',
@@ -111,7 +111,7 @@ describe('JwtStrategy', () => {
     beforeEach(async () => {
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-      const mockUsersService = {
+      const mockMembersService = {
         upsertFromAuth0: jest.fn().mockResolvedValue(mockUser),
       };
 
@@ -135,8 +135,8 @@ describe('JwtStrategy', () => {
             },
           },
           {
-            provide: UsersService,
-            useValue: mockUsersService,
+            provide: MembersService,
+            useValue: mockMembersService,
           },
         ],
       }).compile();

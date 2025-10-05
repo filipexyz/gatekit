@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UsersService } from './users.service';
+import { MembersService } from './members.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ProjectRole } from '@prisma/client';
 
-describe('UsersService', () => {
-  let service: UsersService;
+describe('MembersService', () => {
+  let service: MembersService;
   let prisma: jest.Mocked<PrismaService>;
 
   const mockUser = {
@@ -58,7 +58,7 @@ describe('UsersService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        UsersService,
+        MembersService,
         {
           provide: PrismaService,
           useValue: mockPrismaService,
@@ -66,7 +66,7 @@ describe('UsersService', () => {
       ],
     }).compile();
 
-    service = module.get<UsersService>(UsersService);
+    service = module.get<MembersService>(MembersService);
     prisma = module.get(PrismaService);
   });
 
@@ -423,19 +423,24 @@ describe('UsersService', () => {
       expect(result).toEqual(mockProjectMember);
     });
 
-    it('should throw NotFoundException if trying to remove project owner', async () => {
+    it('should throw BadRequestException if trying to remove project owner', async () => {
       const projectWithAdminAccess = {
         ...mockProject,
         ownerId: 'user-2', // user-2 is the owner
         owner: { ...mockUser, id: 'user-2' },
-        members: [],
+        members: [
+          {
+            userId: 'user-1',
+            role: ProjectRole.admin, // user-1 is admin
+          },
+        ],
       };
 
       prisma.project.findUnique.mockResolvedValue(projectWithAdminAccess);
 
       await expect(
         service.removeProjectMember('test-project', 'user-2', 'user-1'),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -471,12 +476,17 @@ describe('UsersService', () => {
       expect(result).toEqual(updatedMember);
     });
 
-    it('should throw NotFoundException if trying to change owner role', async () => {
+    it('should throw BadRequestException if trying to change owner role', async () => {
       const projectWithAdminAccess = {
         ...mockProject,
         ownerId: 'user-2', // user-2 is the owner
         owner: { ...mockUser, id: 'user-2' },
-        members: [],
+        members: [
+          {
+            userId: 'user-1',
+            role: ProjectRole.admin, // user-1 is admin
+          },
+        ],
       };
 
       prisma.project.findUnique.mockResolvedValue(projectWithAdminAccess);
@@ -488,7 +498,7 @@ describe('UsersService', () => {
           ProjectRole.member,
           'user-1',
         ),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

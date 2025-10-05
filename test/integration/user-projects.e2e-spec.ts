@@ -4,7 +4,7 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { AppModule } from '../../src/app.module';
 import { ProjectRole, ProjectEnvironment } from '@prisma/client';
 import { ProjectsService } from '../../src/projects/projects.service';
-import { UsersService } from '../../src/users/users.service';
+import { MembersService } from '../../src/members/members.service';
 
 describe('User-Project System (e2e)', () => {
   let app: INestApplication;
@@ -80,8 +80,8 @@ describe('User-Project System (e2e)', () => {
         name: 'New User',
       };
 
-      const usersService = app.get(UsersService);
-      const user = await usersService.upsertFromAuth0(auth0Payload);
+      const membersService = app.get(MembersService);
+      const user = await membersService.upsertFromAuth0(auth0Payload);
 
       expect(user.auth0Id).toBe(auth0Payload.sub);
       expect(user.email).toBe(auth0Payload.email);
@@ -244,9 +244,9 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should add member to project', async () => {
-      const usersService = app.get(UsersService);
+      const membersService = app.get(MembersService);
 
-      const member = await usersService.addProjectMember(
+      const member = await membersService.addProjectMember(
         membershipTestProject.id,
         testUser2.email,
         ProjectRole.member,
@@ -259,9 +259,9 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should update member role', async () => {
-      const usersService = app.get(UsersService);
+      const membersService = app.get(MembersService);
 
-      const updatedMember = await usersService.updateProjectMemberRole(
+      const updatedMember = await membersService.updateProjectMemberRole(
         membershipTestProject.id,
         testUser2.id,
         ProjectRole.admin,
@@ -297,9 +297,9 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should remove member from project', async () => {
-      const usersService = app.get(UsersService);
+      const membersService = app.get(MembersService);
 
-      await usersService.removeProjectMember(
+      await membersService.removeProjectMember(
         membershipTestProject.id,
         testUser2.id,
         testUser1.id,
@@ -318,10 +318,10 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should prevent removing project owner as member', async () => {
-      const usersService = app.get(UsersService);
+      const membersService = app.get(MembersService);
 
       await expect(
-        usersService.removeProjectMember(
+        membersService.removeProjectMember(
           membershipTestProject.id,
           testUser1.id, // Project owner
           testUser1.id,
@@ -330,10 +330,10 @@ describe('User-Project System (e2e)', () => {
     });
 
     it('should prevent changing project owner role', async () => {
-      const usersService = app.get(UsersService);
+      const membersService = app.get(MembersService);
 
       await expect(
-        usersService.updateProjectMemberRole(
+        membersService.updateProjectMemberRole(
           membershipTestProject.id,
           testUser1.id, // Project owner
           ProjectRole.member,
