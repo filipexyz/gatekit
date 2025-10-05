@@ -148,6 +148,51 @@ export class MessagesController {
     return this.messagesService.getMessageStats(project);
   }
 
+  @Get('sent')
+  @RequireScopes(ApiScope.MESSAGES_READ)
+  @SdkContract({
+    command: 'messages sent',
+    description: 'List sent messages for a project',
+    category: 'Messages',
+    requiredScopes: [ApiScope.MESSAGES_READ],
+    outputType: 'SentMessageListResponse',
+    options: {
+      platform: { description: 'Filter by platform', type: 'string' },
+      status: {
+        description: 'Filter by status (pending, sent, failed)',
+        type: 'string',
+        choices: ['pending', 'sent', 'failed'],
+      },
+      limit: {
+        description: 'Number of messages to return',
+        type: 'number',
+        default: 50,
+      },
+      offset: {
+        description: 'Number of messages to skip',
+        type: 'number',
+        default: 0,
+      },
+    },
+    examples: [
+      {
+        description: 'Get sent messages',
+        command: 'gatekit messages sent',
+      },
+      {
+        description: 'Get failed messages',
+        command: 'gatekit messages sent --status failed',
+      },
+    ],
+  })
+  async getSentMessages(
+    @Param('project') project: string,
+    @Query() query: any,
+    @AuthContextParam() authContext: AuthContext,
+  ) {
+    return this.messagesService.getSentMessages(project, query, authContext);
+  }
+
   @Get(':messageId')
   @RequireScopes(ApiScope.MESSAGES_READ)
   @SdkContract({
@@ -313,51 +358,6 @@ export class MessagesController {
     @Param('jobId') jobId: string,
   ) {
     return this.platformMessagesService.retryMessage(jobId);
-  }
-
-  @Get('sent')
-  @RequireScopes(ApiScope.MESSAGES_READ)
-  @SdkContract({
-    command: 'messages sent',
-    description: 'List sent messages for a project',
-    category: 'Messages',
-    requiredScopes: [ApiScope.MESSAGES_READ],
-    outputType: 'SentMessageResponse[]',
-    options: {
-      platform: { description: 'Filter by platform', type: 'string' },
-      status: {
-        description: 'Filter by status (pending, sent, failed)',
-        type: 'string',
-        choices: ['pending', 'sent', 'failed'],
-      },
-      limit: {
-        description: 'Number of messages to return',
-        type: 'number',
-        default: 50,
-      },
-      offset: {
-        description: 'Number of messages to skip',
-        type: 'number',
-        default: 0,
-      },
-    },
-    examples: [
-      {
-        description: 'Get sent messages',
-        command: 'gatekit messages sent',
-      },
-      {
-        description: 'Get failed messages',
-        command: 'gatekit messages sent --status failed',
-      },
-    ],
-  })
-  async getSentMessages(
-    @Param('project') project: string,
-    @Query() query: any,
-    @AuthContextParam() authContext: AuthContext,
-  ) {
-    return this.messagesService.getSentMessages(project, query, authContext);
   }
 
   @Post('react')
