@@ -15,6 +15,7 @@ import { RequireScopes } from '../common/decorators/scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
 import { AddMemberDto } from './dto/add-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { CreateInviteDto } from './dto/create-invite.dto';
 import { ApiScope } from '../common/enums/api-scopes.enum';
 
 @Controller('api/v1/projects/:project/members')
@@ -167,6 +168,43 @@ export class MembersController {
       project,
       userId,
       req.user.userId,
+    );
+  }
+
+  @Post('invite')
+  @RequireScopes(ApiScope.MEMBERS_WRITE)
+  @SdkContract({
+    command: 'members invite',
+    description: 'Invite a user to join a project',
+    category: 'Members',
+    requiredScopes: [ApiScope.MEMBERS_WRITE],
+    inputType: 'CreateInviteDto',
+    outputType: 'InviteResponse',
+    options: {
+      email: {
+        required: true,
+        description: 'Email address of user to invite',
+        type: 'string',
+      },
+    },
+    examples: [
+      {
+        description: 'Invite a user to project',
+        command: 'gatekit members invite my-project --email user@example.com',
+      },
+    ],
+  })
+  async inviteMember(
+    @Param('project') project: string,
+    @Body() dto: CreateInviteDto,
+    @Request() req: any,
+  ) {
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    return this.membersService.createInvite(
+      project,
+      dto.email,
+      req.user.userId,
+      baseUrl,
     );
   }
 }

@@ -159,4 +159,82 @@ export class LocalAuthService {
       user: user,
     };
   }
+
+  async acceptInvite(
+    token: string,
+    name: string,
+    password: string,
+  ): Promise<AuthResponse> {
+    // Find invite
+    const invite = await this.prisma.invite.findUnique({
+      where: { token },
+      include: { project: true },
+    });
+
+    if (!invite) {
+      throw new UnauthorizedException('Invalid or expired invite');
+    }
+
+    // Check if expired
+    if (invite.expiresAt < new Date()) {
+      await this.prisma.invite.delete({ where: { token } });
+      throw new UnauthorizedException('Invite has expired');
+    }
+
+    // Check if user already exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: invite.email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, this.SALT_ROUNDS);
+
+    // Create user and add to project in transaction
+    const result = await this.prisma.$transaction(async (prisma) => {
+      // Create user
+      const user = await prisma.user.create({
+        data: {
+          email: invite.email,
+          passwordHash,
+          name,
+          isAdmin: false,
+        },
+      });
+
+      // Add user to project as member
+      await prisma.projectMember.create({
+        data: {
+          projectId: invite.projectId,
+          userId: user.id,
+          role: 'member',
+        },
+      });
+
+      // Delete invite
+      await prisma.invite.delete({ where: { token } });
+
+      return user;
+    });
+
+    // Generate JWT token
+    const accessToken = this.generateToken(
+      result.id,
+      result.email,
+      result.isAdmin,
+    );
+
+    return {
+      accessToken,
+      user: {
+        id: result.id,
+        email: result.email,
+        name: result.name || undefined,
+        isAdmin: result.isAdmin,
+      },
+    };
+  }
 }

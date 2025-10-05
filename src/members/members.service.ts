@@ -385,4 +385,87 @@ export class MembersService {
 
     return project.members;
   }
+
+  async createInvite(
+    projectId: string,
+    email: string,
+    requesterId: string,
+    baseUrl: string,
+  ) {
+    // Check if requester is project owner or member
+    const hasAccess = await this.checkProjectAccess(
+      requesterId,
+      projectId,
+      ProjectRole.member,
+    );
+
+    if (!hasAccess) {
+      throw new NotFoundException(
+        'Project not found or insufficient permissions',
+      );
+    }
+
+    // Check if user already exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      // Check if already a member
+      const existingMember = await this.prisma.projectMember.findUnique({
+        where: {
+          projectId_userId: {
+            projectId,
+            userId: existingUser.id,
+          },
+        },
+      });
+
+      if (existingMember) {
+        throw new BadRequestException(
+          'User is already a member of this project',
+        );
+      }
+
+      // Add existing user directly as member
+      await this.prisma.projectMember.create({
+        data: {
+          projectId,
+          userId: existingUser.id,
+          role: ProjectRole.member,
+        },
+      });
+
+      return {
+        inviteLink: null,
+        email,
+        expiresAt: null,
+        message: 'User added to project successfully',
+      };
+    }
+
+    // User doesn't exist - create invite
+    const token = this.generateInviteToken();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await this.prisma.invite.create({
+      data: {
+        email,
+        projectId,
+        token,
+        expiresAt,
+      },
+    });
+
+    return {
+      inviteLink: `${baseUrl}/invite/${token}`,
+      email,
+      expiresAt,
+    };
+  }
+
+  private generateInviteToken(): string {
+    const crypto = require('crypto');
+    return crypto.randomBytes(32).toString('hex');
+  }
 }

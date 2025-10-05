@@ -12,6 +12,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { PermissionResponse } from './dto/permission-response.dto';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { AuthResponse } from './dto/auth-response';
 import { LocalAuthService } from './local-auth.service';
 
@@ -113,6 +114,48 @@ export class AuthController {
   })
   async login(@Body() loginDto: LoginDto): Promise<AuthResponse> {
     return this.localAuthService.login(loginDto);
+  }
+
+  @Post('accept-invite')
+  @Public()
+  @SdkContract({
+    command: 'auth accept-invite',
+    description: 'Accept a project invitation and create account',
+    category: 'Auth',
+    requiredScopes: [],
+    inputType: 'AcceptInviteDto',
+    outputType: 'AuthResponse',
+    options: {
+      token: {
+        required: true,
+        description: 'Invite token from invitation link',
+        type: 'string',
+      },
+      name: {
+        required: true,
+        description: 'Full name',
+        type: 'string',
+      },
+      password: {
+        required: true,
+        description: 'Password (min 8 chars, 1 uppercase, 1 number)',
+        type: 'string',
+      },
+    },
+    examples: [
+      {
+        description: 'Accept invitation',
+        command:
+          'gatekit auth accept-invite --token abc123... --name "John Doe" --password SecurePass123',
+      },
+    ],
+  })
+  async acceptInvite(@Body() dto: AcceptInviteDto): Promise<AuthResponse> {
+    return this.localAuthService.acceptInvite(
+      dto.token,
+      dto.name,
+      dto.password,
+    );
   }
 
   @Get('whoami')

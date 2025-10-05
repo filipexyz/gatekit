@@ -74,6 +74,7 @@ model Project {
 
   // New sharing relationships
   members          ProjectMember[]
+  invites          Invite[]
 
   // Identity relationships
   identities       Identity[]
@@ -97,6 +98,22 @@ model ProjectMember {
   @@unique([projectId, userId])
   @@index([userId])
   @@map("project_members")
+}
+
+model Invite {
+  id        String   @id @default(uuid())
+  email     String
+  projectId String   @map("project_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("invites")
 }
 
 model ApiKey {
