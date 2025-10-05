@@ -123,6 +123,21 @@ export class GateKitTrigger implements INodeType {
             value: 'message.failed',
             description: 'Trigger when a message fails to send',
           },
+          {
+            name: 'Button Clicked',
+            value: 'button.clicked',
+            description: 'Trigger when a button is clicked',
+          },
+          {
+            name: 'Reaction Added',
+            value: 'reaction.added',
+            description: 'Trigger when a reaction is added to a message',
+          },
+          {
+            name: 'Reaction Removed',
+            value: 'reaction.removed',
+            description: 'Trigger when a reaction is removed from a message',
+          },
         ],
         default: ['message.received'],
         required: true,
