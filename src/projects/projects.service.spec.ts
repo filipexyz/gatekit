@@ -249,6 +249,13 @@ describe('ProjectsService', () => {
       expect(mockPrismaService.project.findUnique).toHaveBeenCalledWith({
         where: { id: 'test-project' },
         include: {
+          owner: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+            },
+          },
           apiKeys: {
             where: { revokedAt: null },
             select: expect.any(Object),

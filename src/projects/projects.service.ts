@@ -156,6 +156,13 @@ export class ProjectsService {
     const project = await this.prisma.project.findUnique({
       where: { id: id },
       include: {
+        owner: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        },
         apiKeys: {
           where: { revokedAt: null },
           select: {

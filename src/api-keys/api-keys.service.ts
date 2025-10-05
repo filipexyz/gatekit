@@ -206,7 +206,13 @@ export class ApiKeysService {
       include: {
         project: {
           include: {
-            owner: true,
+            owner: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+              },
+            },
           },
         },
         scopes: true,
