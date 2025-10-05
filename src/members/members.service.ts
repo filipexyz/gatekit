@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProjectRole } from '@prisma/client';
 
@@ -9,7 +13,7 @@ export interface Auth0UserPayload {
 }
 
 @Injectable()
-export class UsersService {
+export class MembersService {
   constructor(private prisma: PrismaService) {}
 
   async upsertFromAuth0(auth0Payload: Auth0UserPayload) {
@@ -274,7 +278,7 @@ export class UsersService {
 
     // Cannot remove the project owner
     if (project.ownerId === userId) {
-      throw new NotFoundException('Cannot remove project owner from members');
+      throw new BadRequestException('Cannot remove project owner from members');
     }
 
     return this.prisma.projectMember.delete({
@@ -315,7 +319,7 @@ export class UsersService {
 
     // Cannot change role of project owner
     if (project.ownerId === userId) {
-      throw new NotFoundException('Cannot change role of project owner');
+      throw new BadRequestException('Cannot change role of project owner');
     }
 
     return this.prisma.projectMember.update({
@@ -379,20 +383,6 @@ export class UsersService {
       throw new NotFoundException(`Project '${projectId}' not found`);
     }
 
-    // Include project owner as a member with owner role
-    const allMembers = [
-      {
-        id: `owner-${project.owner.id}`,
-        projectId: project.id,
-        userId: project.owner.id,
-        role: ProjectRole.owner,
-        createdAt: project.createdAt,
-        updatedAt: project.updatedAt,
-        user: project.owner,
-      },
-      ...project.members,
-    ];
-
-    return allMembers;
+    return project.members;
   }
 }

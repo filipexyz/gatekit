@@ -4,15 +4,15 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { passportJwtSecret } from 'jwks-rsa';
 import { ConfigService } from '@nestjs/config';
 import { AppConfig } from '../../config/app.config';
-import { UsersService } from '../../users/users.service';
+import { MembersService } from '../../members/members.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   private isConfigured: boolean;
   private configService: ConfigService;
-  private usersService: UsersService;
+  private membersService: MembersService;
 
-  constructor(configService: ConfigService, usersService: UsersService) {
+  constructor(configService: ConfigService, membersService: MembersService) {
     const auth0Config = configService.get<AppConfig['auth0']>('app.auth0');
 
     console.log('JWT Strategy - Auth0 Config:', {
@@ -54,7 +54,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     this.isConfigured = !(!auth0Config?.domain || !auth0Config?.audience);
     this.configService = configService;
-    this.usersService = usersService;
+    this.membersService = membersService;
   }
 
   async validate(payload: {
@@ -92,7 +92,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     try {
       // Create or update user record from Auth0 token
       console.log('JWT Strategy - Creating/updating user from Auth0 token');
-      const user = await this.usersService.upsertFromAuth0({
+      const user = await this.membersService.upsertFromAuth0({
         sub: payload.sub,
         email: payload.email,
         name: payload.name,

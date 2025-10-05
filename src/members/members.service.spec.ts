@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UsersService } from './users.service';
+import { MembersService } from './members.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
 import { ProjectRole } from '@prisma/client';
 
-describe('UsersService', () => {
-  let service: UsersService;
+describe('MembersService', () => {
+  let service: MembersService;
   let prisma: jest.Mocked<PrismaService>;
 
   const mockUser = {
@@ -58,7 +58,7 @@ describe('UsersService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        UsersService,
+        MembersService,
         {
           provide: PrismaService,
           useValue: mockPrismaService,
@@ -66,7 +66,7 @@ describe('UsersService', () => {
       ],
     }).compile();
 
-    service = module.get<UsersService>(UsersService);
+    service = module.get<MembersService>(MembersService);
     prisma = module.get(PrismaService);
   });
 

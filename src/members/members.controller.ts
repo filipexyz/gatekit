@@ -9,7 +9,7 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { UsersService } from './users.service';
+import { MembersService } from './members.service';
 import { AppAuthGuard } from '../common/guards/app-auth.guard';
 import { RequireScopes } from '../common/decorators/scopes.decorator';
 import { SdkContract } from '../common/decorators/sdk-contract.decorator';
@@ -19,8 +19,8 @@ import { ApiScope } from '../common/enums/api-scopes.enum';
 
 @Controller('api/v1/projects/:project/members')
 @UseGuards(AppAuthGuard)
-export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+export class MembersController {
+  constructor(private readonly membersService: MembersService) {}
 
   @Get()
   @RequireScopes(ApiScope.MEMBERS_READ)
@@ -38,7 +38,7 @@ export class UsersController {
     ],
   })
   async listMembers(@Param('project') project: string, @Request() req: any) {
-    return this.usersService.getProjectMembers(project, req.user.userId);
+    return this.membersService.getProjectMembers(project, req.user.userId);
   }
 
   @Post()
@@ -81,7 +81,7 @@ export class UsersController {
     @Body() dto: AddMemberDto,
     @Request() req: any,
   ) {
-    return this.usersService.addProjectMember(
+    return this.membersService.addProjectMember(
       project,
       dto.email,
       dto.role,
@@ -128,7 +128,7 @@ export class UsersController {
     @Body() dto: UpdateMemberRoleDto,
     @Request() req: any,
   ) {
-    return this.usersService.updateProjectMemberRole(
+    return this.membersService.updateProjectMemberRole(
       project,
       userId,
       dto.role,
@@ -163,7 +163,7 @@ export class UsersController {
     @Param('userId') userId: string,
     @Request() req: any,
   ) {
-    return this.usersService.removeProjectMember(
+    return this.membersService.removeProjectMember(
       project,
       userId,
       req.user.userId,
