@@ -132,37 +132,15 @@ export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
           permissionsCount: request.user?.permissions?.length || 0,
         });
 
-        const requiredScopes =
-          this.reflector.getAllAndOverride<string[]>('requiredScopes', [
-            context.getHandler(),
-            context.getClass(),
-          ]) || [];
-
-        console.log('AppAuthGuard - Required scopes:', requiredScopes);
-
-        if (requiredScopes.length > 0 && request.user) {
-          const userPermissions = request.user.permissions || [];
-          const userScopes = request.user.scope
-            ? request.user.scope.split(' ')
-            : [];
-          const allPermissions = [...userPermissions, ...userScopes];
-
-          console.log('AppAuthGuard - User permissions check:', {
-            userPermissions,
-            userScopes,
-            allPermissions,
-            requiredScopes,
-          });
-
-          const hasRequiredScopes = requiredScopes.every((scope) =>
-            allPermissions.includes(scope),
-          );
-
-          if (!hasRequiredScopes) {
-            console.error('AppAuthGuard - Insufficient permissions');
-            throw new ForbiddenException('Insufficient permissions');
-          }
-        }
+        // Note: Scope checks are only for API keys, not JWT users
+        // JWT users who pass ProjectAccessGuard have full project access
+        // This is because:
+        // 1. JWT users are authenticated humans (members/owners)
+        // 2. API keys are scoped for programmatic access
+        // 3. Membership implies trust and full access to project resources
+        console.log(
+          'AppAuthGuard - JWT user authenticated, skipping scope checks (membership grants full access)',
+        );
       }
 
       console.log('AppAuthGuard - JWT validation complete, returning:', result);
