@@ -4,6 +4,11 @@
 
 GateKit now includes a **Model Context Protocol (MCP)** server that dynamically exposes all API endpoints as MCP tools. This integration leverages the existing contract system to automatically generate MCP tool definitions from `@SdkContract` decorators.
 
+**Two Ways to Use MCP:**
+
+1. **HTTP Transport** - Direct HTTP/SSE connection to backend `/mcp` endpoint
+2. **CLI Stdio** - Run `gatekit mcp` command for stdio-based MCP (recommended for Claude Desktop)
+
 ## Architecture
 
 ### Dynamic Tool Registration
@@ -296,6 +301,78 @@ create(@Body() dto: CreateProjectDto) { ... }
 - Session IDs are UUIDs, not predictable
 - Project-scoped API keys only access their projects
 - No exposure of internal system details
+
+## CLI Stdio Transport (Recommended)
+
+The GateKit CLI includes an MCP stdio server for seamless integration with Claude Desktop and other MCP clients.
+
+### Installation
+
+```bash
+# Install CLI globally
+npm install -g @gatekit/cli
+
+# Or use locally
+cd generated/cli
+npm install
+npm run build
+npm link
+```
+
+### Configuration
+
+```bash
+# Set API URL and key
+gatekit config set apiUrl http://localhost:3000
+gatekit config set apiKey gk_dev_your_api_key_here
+```
+
+### Usage
+
+```bash
+# Start MCP stdio server
+gatekit mcp
+
+# The server communicates via stdin/stdout using JSON-RPC
+# Perfect for Claude Desktop integration
+```
+
+### Claude Desktop Integration
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "gatekit": {
+      "command": "gatekit",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+**Configuration location:**
+
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+- Linux: `~/.config/Claude/claude_desktop_config.json`
+
+### How It Works
+
+1. Claude Desktop launches `gatekit mcp` as a subprocess
+2. CLI creates authenticated HTTP client using stored config
+3. All MCP requests are forwarded to backend `/mcp` endpoint
+4. Responses are sent back via stdout
+5. Simple, clean stdio-based JSON-RPC communication
+
+### Benefits
+
+- ✅ **No HTTP server needed** - CLI handles communication
+- ✅ **Uses existing auth** - Configured API key from CLI config
+- ✅ **Simple setup** - Just add command to Claude Desktop config
+- ✅ **All 51 tools available** - Full API access through MCP
+- ✅ **Works offline** - When backend is running locally
 
 ## Future Enhancements
 

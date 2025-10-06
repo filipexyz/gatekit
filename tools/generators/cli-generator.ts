@@ -13,6 +13,7 @@ interface GeneratedCLI {
   config: string;
   packageJson: string;
   messageUtils: string; // Message parsing utilities
+  mcpCommand: string; // MCP server command
   contracts: ExtractedContract[]; // Keep for README generation
   groups: Record<string, ExtractedContract[]>; // Keep for README generation
 }
@@ -72,6 +73,7 @@ export class CLIGenerator {
       config: this.generateConfig(),
       packageJson: this.generatePackageJson(),
       messageUtils: this.generateMessageUtils(platformMetadata),
+      mcpCommand: this.generateMcpCommand(contracts),
       contracts,
       groups,
     };
@@ -526,6 +528,10 @@ function parsePlatformOptions(options: MessageOptions): Record<string, Record<st
       )
       .join('\n');
 
+    // Add MCP command import and registration
+    const mcpImport = `import { createMcpCommand } from './commands/mcp';`;
+    const mcpRegistration = `  program.addCommand(createMcpCommand());`;
+
     return `#!/usr/bin/env node
 // Generated CLI entry point for GateKit
 // DO NOT EDIT - This file is auto-generated from backend contracts
@@ -533,6 +539,7 @@ function parsePlatformOptions(options: MessageOptions): Record<string, Record<st
 import { Command } from 'commander';
 import { saveConfig, getConfigValue, listConfig } from './lib/utils';
 ${commandImports}
+${mcpImport}
 
 const program = new Command();
 
@@ -608,6 +615,9 @@ program.addCommand(config);
 
 // Add permission-aware commands
 ${commandRegistrations}
+
+// Add MCP server command
+${mcpRegistration}
 
 program.parse(process.argv);
 `;
@@ -856,6 +866,7 @@ export function handleError(error: any): void {
         fs.writeFile(path.join(srcDir, 'index.ts'), cli.index),
         fs.writeFile(path.join(libDir, 'utils.ts'), cli.config),
         fs.writeFile(path.join(libDir, 'message-utils.ts'), cli.messageUtils),
+        fs.writeFile(path.join(commandsDir, 'mcp.ts'), cli.mcpCommand),
         fs.writeFile(path.join(outputDir, 'package.json'), cli.packageJson),
       ]);
     } catch (error) {
@@ -888,6 +899,424 @@ ${example?.command || `gatekit ${contract.contractMetadata.command} --help`}
       .join('\n\n');
 
     return commandExamples;
+  }
+
+  private generateMcpCommand(contracts: ExtractedContract[]): string {
+    // Serialize contracts as JSON for embedding
+    const contractsJson = JSON.stringify(contracts, null, 2);
+
+    return `// MCP Server command for GateKit CLI
+// Implements native stdio-based MCP server for Claude Desktop integration
+// AUTO-GENERATED - Uses embedded SDK contracts to build MCP tools
+
+import { Command } from 'commander';
+import * as readline from 'readline';
+import axios, { AxiosInstance } from 'axios';
+import { loadConfig } from '../lib/utils';
+
+const CONTRACTS = ${contractsJson};
+
+interface CLIConfig {
+  apiUrl: string;
+  apiKey?: string;
+  jwtToken?: string;
+  defaultProject?: string;
+  outputFormat?: string;
+}
+
+interface McpMessage {
+  jsonrpc: '2.0';
+  id?: string | number;
+  method?: string;
+  params?: any;
+  result?: any;
+  error?: any;
+}
+
+interface McpTool {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: 'object';
+    properties: Record<string, any>;
+    required?: string[];
+  };
+}
+
+export function createMcpCommand(): Command {
+  const mcp = new Command('mcp');
+  mcp.description('Start MCP server (for Claude Desktop integration)');
+
+  mcp.action(async () => {
+    try {
+      const config = await loadConfig();
+
+      if (!config.apiUrl) {
+        console.error('Error: API URL not configured. Run: gatekit config set apiUrl <url>');
+        process.exit(1);
+      }
+
+      if (!config.apiKey) {
+        console.error('Error: API key not configured. Run: gatekit config set apiKey <key>');
+        process.exit(1);
+      }
+
+      const client = axios.create({
+        baseURL: config.apiUrl,
+        headers: {
+          'X-API-Key': config.apiKey,
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000, // 30 second timeout
+      });
+
+      const server = new McpStdioServer(client, config);
+      await server.start();
+    } catch (error) {
+      console.error(\`Failed to start MCP server: \${error instanceof Error ? error.message : String(error)}\`);
+      process.exit(1);
+    }
+  });
+
+  return mcp;
+}
+
+class McpStdioServer {
+  private client: AxiosInstance;
+  private config: CLIConfig;
+  private rl: readline.Interface;
+  private tools: McpTool[] = [];
+  private contractMap: Map<string, typeof CONTRACTS[0]> = new Map();
+  private pendingWork = 0;
+  private shouldExit = false;
+  private userPermissions: string[] = [];
+  private permissionsFetched = false;
+
+  constructor(client: AxiosInstance, config: CLIConfig) {
+    this.client = client;
+    this.config = config;
+    this.rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: false,
+    });
+    this.loadContracts();
+  }
+
+  private loadContracts(): void {
+    for (const contract of CONTRACTS) {
+      // Skip contracts that are excluded from MCP
+      if (contract.contractMetadata.excludeFromMcp) {
+        continue;
+      }
+
+      const toolName = \`gatekit_\${contract.contractMetadata.command.replace(/\\s+/g, '_')}\`;
+      this.tools.push(this.contractToTool(contract));
+      this.contractMap.set(toolName, contract);
+    }
+  }
+
+  private async fetchUserPermissions(): Promise<void> {
+    if (this.permissionsFetched) return;
+
+    try {
+      const response = await this.client.get('/api/v1/auth/whoami');
+      this.userPermissions = response.data.permissions || [];
+      this.permissionsFetched = true;
+    } catch (error) {
+      this.permissionsFetched = true;
+      // Log to stderr so it doesn't interfere with JSON-RPC stdout
+      console.error('Warning: Failed to fetch permissions. Some tools may be unavailable.', error instanceof Error ? error.message : String(error));
+      this.userPermissions = [];
+    }
+  }
+
+  private hasRequiredScopes(contract: typeof CONTRACTS[0]): boolean {
+    const requiredScopes = contract.contractMetadata.requiredScopes || [];
+    if (requiredScopes.length === 0) return true;
+    return requiredScopes.every((scope: string) => this.userPermissions.includes(scope));
+  }
+
+  private getFilteredTools(): McpTool[] {
+    return this.tools.filter((tool) => {
+      const contract = this.contractMap.get(tool.name);
+      return contract && this.hasRequiredScopes(contract);
+    });
+  }
+
+  private contractToTool(contract: typeof CONTRACTS[0]): McpTool {
+    const inputSchema: {
+      type: 'object';
+      properties: Record<string, any>;
+      required?: string[];
+    } = { type: 'object', properties: {} };
+    const required: string[] = [];
+
+    const pathParams = contract.path.match(/:(\\w+)/g);
+    if (pathParams) {
+      for (const param of pathParams) {
+        const paramName = param.substring(1);
+        // Skip project parameter - it's auto-filled from config
+        if (paramName === 'project') continue;
+        inputSchema.properties[paramName] = {
+          type: 'string',
+          description: \`\${paramName.charAt(0).toUpperCase() + paramName.slice(1)} identifier\`,
+        };
+        required.push(paramName);
+      }
+    }
+
+    if (contract.contractMetadata.options) {
+      for (const [key, option] of Object.entries(contract.contractMetadata.options)) {
+        const opt = option as { type: string; description?: string; choices?: any[]; default?: any; required?: boolean };
+        const property: { type?: string; description: string; enum?: any[]; default?: any } = { description: opt.description || '' };
+
+        switch (opt.type) {
+          case 'string':
+          case 'target_pattern':
+          case 'targets_pattern':
+            property.type = 'string';
+            break;
+          case 'number':
+            property.type = 'number';
+            break;
+          case 'boolean':
+            property.type = 'boolean';
+            break;
+          case 'array':
+            property.type = 'array';
+            break;
+          case 'object':
+            property.type = 'object';
+            break;
+          default:
+            property.type = 'string';
+        }
+
+        if (opt.choices) property.enum = opt.choices;
+        if (opt.default !== undefined) property.default = opt.default;
+
+        inputSchema.properties[key] = property;
+        if (opt.required) required.push(key);
+      }
+    }
+
+    if (required.length > 0) inputSchema.required = required;
+
+    return {
+      name: \`gatekit_\${contract.contractMetadata.command.replace(/\\s+/g, '_')}\`,
+      description: contract.contractMetadata.description,
+      inputSchema,
+    };
+  }
+
+  async start(): Promise<void> {
+    this.rl.on('line', async (line: string) => {
+      this.pendingWork++;
+      try {
+        const message: McpMessage = JSON.parse(line);
+        const response = await this.handleMessage(message);
+        this.writeMessage(response);
+      } catch (error) {
+        this.writeMessage({
+          jsonrpc: '2.0',
+          id: undefined,
+          error: {
+            code: -32700,
+            message: 'Parse error',
+            data: error instanceof Error ? error.message : String(error),
+          },
+        });
+      } finally {
+        this.pendingWork--;
+        this.maybeExit();
+      }
+    });
+
+    this.rl.on('close', () => {
+      this.shouldExit = true;
+      this.maybeExit();
+    });
+  }
+
+  private maybeExit(): void {
+    if (this.shouldExit && this.pendingWork === 0) {
+      process.exit(0);
+    }
+  }
+
+  private async handleMessage(message: McpMessage): Promise<McpMessage> {
+    const { method, params, id } = message;
+
+    try {
+      switch (method) {
+        case 'initialize':
+          return this.handleInitialize(id);
+        case 'tools/list':
+          return await this.handleToolsList(id);
+        case 'tools/call':
+          return await this.handleToolCall(id, params);
+        default:
+          return {
+            jsonrpc: '2.0',
+            id,
+            error: { code: -32601, message: \`Method not found: \${method}\` },
+          };
+      }
+    } catch (error) {
+      return {
+        jsonrpc: '2.0',
+        id,
+        error: {
+          code: -32603,
+          message: 'Internal error',
+          data: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  }
+
+  private handleInitialize(id: string | number | undefined): McpMessage {
+    return {
+      jsonrpc: '2.0',
+      id,
+      result: {
+        protocolVersion: '2024-11-05',
+        capabilities: { tools: {} },
+        serverInfo: { name: 'gatekit-mcp-cli', version: '${packageJson.version}' },
+      },
+    };
+  }
+
+  private async handleToolsList(id: string | number | undefined): Promise<McpMessage> {
+    await this.fetchUserPermissions();
+    const filteredTools = this.getFilteredTools();
+    return { jsonrpc: '2.0', id, result: { tools: filteredTools } };
+  }
+
+  private async handleToolCall(id: string | number | undefined, params: any): Promise<McpMessage> {
+    try {
+      const { name, arguments: args } = params || {};
+      if (!name) throw new Error('Missing tool name');
+
+      const contract = this.contractMap.get(name);
+      if (!contract) throw new Error(\`Unknown tool: \${name}\`);
+
+      // Check if user has required permissions for this tool
+      await this.fetchUserPermissions();
+      if (!this.hasRequiredScopes(contract)) {
+        throw new Error('Access denied: insufficient permissions for this tool');
+      }
+
+      const convertedArgs = this.convertPatternArgs(args, contract);
+      let url = contract.path;
+      const usedParams = new Set<string>();
+
+      const pathParams = contract.path.match(/:(\\w+)/g);
+      if (pathParams) {
+        for (const param of pathParams) {
+          const paramName = param.substring(1);
+          usedParams.add(paramName);
+
+          // Auto-fill project parameter from config
+          let value = convertedArgs[paramName];
+          if (paramName === 'project' && !value) {
+            if (!this.config.defaultProject) {
+              throw new Error('Missing project parameter. Set a default project with: gatekit config set defaultProject <project-id>');
+            }
+            value = this.config.defaultProject;
+          }
+
+          if (!value) throw new Error(\`Missing required parameter: \${paramName}\`);
+          url = url.replace(param, value);
+        }
+      }
+
+      const body: Record<string, any> = {};
+      for (const [key, value] of Object.entries(convertedArgs)) {
+        if (!usedParams.has(key)) body[key] = value;
+      }
+
+      const response = await this.client.request({
+        method: contract.httpMethod,
+        url,
+        data: ['POST', 'PATCH', 'PUT'].includes(contract.httpMethod) ? body : undefined,
+        params: contract.httpMethod === 'GET' ? body : undefined,
+      });
+
+      return {
+        jsonrpc: '2.0',
+        id,
+        result: {
+          content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }],
+          isError: false,
+        },
+      };
+    } catch (error) {
+      let errorMessage: string;
+      if (axios.isAxiosError(error) && error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else {
+        errorMessage = error instanceof Error ? error.message : String(error);
+      }
+
+      return {
+        jsonrpc: '2.0',
+        id,
+        result: {
+          content: [{ type: 'text', text: \`Error: \${errorMessage}\` }],
+          isError: true,
+        },
+      };
+    }
+  }
+
+  private parseTargetPattern(pattern: string): { platformId: string; type: string; id: string } {
+    const parts = pattern.split(':');
+    if (parts.length !== 3) {
+      throw new Error(\`Invalid target pattern: "\${pattern}". Expected format: platformId:type:id\`);
+    }
+    const [platformId, type, id] = parts;
+    if (!platformId || !type || !id) {
+      throw new Error(\`Invalid target pattern: "\${pattern}". All parts must be non-empty\`);
+    }
+    return { platformId, type, id };
+  }
+
+  private convertPatternArgs(args: Record<string, any>, contract: any): Record<string, any> {
+    const converted = { ...args };
+    const options = contract.contractMetadata.options || {};
+
+    for (const [key, option] of Object.entries(options)) {
+      const value = args[key];
+      if (!value || typeof value !== 'string') continue;
+
+      const optionType = (option as any)?.type;
+
+      if (optionType === 'target_pattern') {
+        converted.targets = [this.parseTargetPattern(value)];
+        delete converted[key];
+      }
+
+      if (optionType === 'targets_pattern') {
+        converted.targets = value.split(',').map((p: string) => this.parseTargetPattern(p.trim()));
+        delete converted[key];
+      }
+    }
+
+    if (options.text && args.text && !args.content) {
+      converted.content = { text: args.text };
+      delete converted.text;
+    }
+
+    return converted;
+  }
+
+  private writeMessage(message: McpMessage): void {
+    console.log(JSON.stringify(message));
+  }
+}
+`;
   }
 }
 
