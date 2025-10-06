@@ -124,7 +124,9 @@
     ],
     "*": [
       "bash -c 'npm test'",
-      "bash -c 'npm run test:e2e'"
+      "bash -c 'npm run test:e2e'",
+      "bash -c 'npm run generate:all'",
+      "bash -c 'npm run build'"
     ]
   },
   "jest": {
