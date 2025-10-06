@@ -22,7 +22,7 @@ jobs:
 
       - name: Get package version
         id: pkg_version
-        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+        run: echo "VERSION=$(node -p 'require("./package.json").version')" >> $GITHUB_OUTPUT
 
       - name: Replace SDK file reference with npm version
         run: |
