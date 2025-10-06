@@ -182,9 +182,9 @@ export class McpController {
         include: { scopes: true, project: true },
       });
 
-      // Validate API key is active and not revoked
-      if (!apiKey || !apiKey.isActive) {
-        return res.status(401).json({
+      // Validate API key exists and is not revoked
+      if (!apiKey || apiKey.revokedAt) {
+        res.status(401).json({
           jsonrpc: '2.0',
           id: message.id,
           error: {
@@ -192,6 +192,7 @@ export class McpController {
             message: 'Invalid or revoked API key',
           },
         });
+        return;
       }
 
       scopes = apiKey.scopes.map((s) => s.scope);
