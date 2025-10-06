@@ -110,9 +110,8 @@ export class TypeExtractorService {
 
   private getProject(): Project {
     if (!this.project) {
-      // When running from dist, go up to project root
-      const projectRoot = path.join(__dirname, '../../../');
-      const tsConfigPath = path.join(projectRoot, 'tsconfig.json');
+      // Use process.cwd() which works in both dev and CI environments
+      const tsConfigPath = path.join(process.cwd(), 'tsconfig.json');
 
       this.project = new Project({
         tsConfigFilePath: tsConfigPath,
