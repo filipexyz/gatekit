@@ -764,7 +764,7 @@ export function handleError(error: any): void {
           prepublishOnly: 'npm run build',
         },
         dependencies: {
-          '@gatekit/sdk': 'latest',
+          '@gatekit/sdk': 'file:../sdk',
           commander: '^14.0.1',
           axios: '^1.12.2',
         },
