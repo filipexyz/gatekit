@@ -25,13 +25,13 @@ export class ApiKeysController {
   constructor(private readonly apiKeysService: ApiKeysService) {}
 
   @Post()
-  @RequireScopes(ApiScope.KEYS_MANAGE)
+  @RequireScopes(ApiScope.KEYS_WRITE)
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 key creations per minute
   @SdkContract({
     command: 'keys create',
     description: 'Generate a new API key',
     category: 'ApiKeys',
-    requiredScopes: [ApiScope.KEYS_MANAGE],
+    requiredScopes: [ApiScope.KEYS_WRITE],
     inputType: 'CreateApiKeyDto',
     outputType: 'ApiKeyResponse',
     options: {
@@ -83,12 +83,12 @@ export class ApiKeysController {
   }
 
   @Delete(':keyId')
-  @RequireScopes(ApiScope.KEYS_MANAGE)
+  @RequireScopes(ApiScope.KEYS_WRITE)
   @SdkContract({
     command: 'keys revoke',
     description: 'Revoke an API key',
     category: 'ApiKeys',
-    requiredScopes: [ApiScope.KEYS_MANAGE],
+    requiredScopes: [ApiScope.KEYS_WRITE],
     outputType: 'MessageResponse',
     options: {
       keyId: {
@@ -114,13 +114,13 @@ export class ApiKeysController {
 
   @Post(':keyId/roll')
   @HttpCode(200)
-  @RequireScopes(ApiScope.KEYS_MANAGE)
+  @RequireScopes(ApiScope.KEYS_WRITE)
   @Throttle({ default: { limit: 3, ttl: 60000 } }) // 3 key rolls per minute
   @SdkContract({
     command: 'keys roll',
     description: 'Roll an API key (generate new key, revoke old after 24h)',
     category: 'ApiKeys',
-    requiredScopes: [ApiScope.KEYS_MANAGE],
+    requiredScopes: [ApiScope.KEYS_WRITE],
     outputType: 'ApiKeyRollResponse',
     options: {
       keyId: {

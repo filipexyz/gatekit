@@ -37,7 +37,7 @@ describe('CLIGenerator', () => {
                 required: true,
               },
             },
-            requiredScopes: ['keys:manage'],
+            requiredScopes: ['keys:write'],
           },
           inputType: undefined,
           outputType: 'RevokeKeyResponseDto',
@@ -240,7 +240,7 @@ describe('CLIGenerator', () => {
             command: 'api-keys create',
             description: 'Create API key',
             options: {},
-            requiredScopes: ['keys:manage'],
+            requiredScopes: ['keys:write'],
           },
           inputType: 'CreateKeyDto',
           outputType: 'CreateKeyResponseDto',
@@ -260,7 +260,7 @@ describe('CLIGenerator', () => {
       );
 
       expect(commandFile).toContain('checkPermissions');
-      expect(commandFile).toContain('keys:manage');
+      expect(commandFile).toContain('keys:write');
       expect(commandFile).toContain('Insufficient permissions');
     });
 

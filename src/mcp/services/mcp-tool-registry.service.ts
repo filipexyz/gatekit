@@ -84,7 +84,7 @@ export class McpToolRegistryService {
       return true;
     }
 
-    // Wildcard support: "messages:*" matches "messages:send", "messages:read", etc.
+    // Wildcard support: "messages:*" matches "messages:write", "messages:read", etc.
     if (userScope.endsWith(':*')) {
       const prefix = userScope.slice(0, -2);
       return requiredScope.startsWith(prefix + ':');

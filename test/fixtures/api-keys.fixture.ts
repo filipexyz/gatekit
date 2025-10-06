@@ -24,7 +24,7 @@ export const createTestApiKey = async (
   const keyPrefix = CryptoUtil.getKeyPrefix(apiKey);
   const keySuffix = CryptoUtil.getKeySuffix(apiKey);
 
-  const scopes = overrides.scopes || ['messages:send', 'messages:read'];
+  const scopes = overrides.scopes || ['messages:write', 'messages:read'];
 
   const createdKey = await prisma.apiKey.create({
     data: {

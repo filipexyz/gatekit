@@ -37,7 +37,7 @@ describe('AuthController', () => {
           apiKey: {
             id: 'key-123',
             name: 'Test API Key',
-            scopes: ['projects:read', 'projects:write', 'messages:send'],
+            scopes: ['projects:read', 'projects:write', 'messages:write'],
           },
           project: {
             id: 'project-456',
@@ -50,7 +50,7 @@ describe('AuthController', () => {
 
         expect(result).toEqual({
           authType: 'api-key',
-          permissions: ['projects:read', 'projects:write', 'messages:send'],
+          permissions: ['projects:read', 'projects:write', 'messages:write'],
           project: {
             id: 'project-456',
             name: 'Test Project',

@@ -52,7 +52,7 @@ describe('Platforms (e2e)', () => {
     testProjectId = project.id;
 
     const { rawKey } = await createTestApiKey(prisma, project.id, {
-      scopes: ['platforms:read', 'platforms:write', 'messages:send'],
+      scopes: ['platforms:read', 'platforms:write', 'messages:write'],
     });
     testApiKey = rawKey;
   });

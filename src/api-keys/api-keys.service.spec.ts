@@ -58,7 +58,7 @@ describe('ApiKeysService', () => {
       const projectId = 'test-project';
       const createDto = {
         name: 'Test Key',
-        scopes: ['messages:send', 'messages:read'],
+        scopes: ['messages:write', 'messages:read'],
       };
 
       const mockProject = {
@@ -84,7 +84,7 @@ describe('ApiKeysService', () => {
         environment: 'test',
         expiresAt: null,
         createdAt: new Date(),
-        scopes: [{ scope: 'messages:send' }, { scope: 'messages:read' }],
+        scopes: [{ scope: 'messages:write' }, { scope: 'messages:read' }],
       });
 
       const result = await service.create(
@@ -95,7 +95,7 @@ describe('ApiKeysService', () => {
 
       expect(result).toHaveProperty('key', mockApiKey);
       expect(result).toHaveProperty('id', 'key-id');
-      expect(result.scopes).toEqual(['messages:send', 'messages:read']);
+      expect(result.scopes).toEqual(['messages:write', 'messages:read']);
       expect(mockPrismaService.apiKey.create).toHaveBeenCalledWith({
         data: {
           projectId: 'project-id',
@@ -106,7 +106,7 @@ describe('ApiKeysService', () => {
           expiresAt: null,
           createdBy: undefined,
           scopes: {
-            create: [{ scope: 'messages:send' }, { scope: 'messages:read' }],
+            create: [{ scope: 'messages:write' }, { scope: 'messages:read' }],
           },
         },
         include: { scopes: true },
@@ -121,7 +121,7 @@ describe('ApiKeysService', () => {
           'non-existent',
           {
             name: 'Test',
-            scopes: ['messages:send'],
+            scopes: ['messages:write'],
           },
           mockAuthContext,
         ),
@@ -131,7 +131,7 @@ describe('ApiKeysService', () => {
     it('should set expiration date when expiresInDays provided', async () => {
       const createDto = {
         name: 'Test Key',
-        scopes: ['messages:send'],
+        scopes: ['messages:write'],
         expiresInDays: 30,
       };
 
@@ -181,7 +181,7 @@ describe('ApiKeysService', () => {
           lastUsedAt: null,
           expiresAt: null,
           createdAt: new Date(),
-          scopes: [{ scope: 'messages:send' }],
+          scopes: [{ scope: 'messages:write' }],
         },
       ]);
 
@@ -271,7 +271,7 @@ describe('ApiKeysService', () => {
         project: { id: 'project-id', name: 'Test Project' },
         revokedAt: null,
         expiresAt: null,
-        scopes: [{ scope: 'messages:send' }],
+        scopes: [{ scope: 'messages:write' }],
         environment: 'test',
       };
 
@@ -284,7 +284,7 @@ describe('ApiKeysService', () => {
         id: 'key-id',
         projectId: 'project-id',
         project: mockKey.project,
-        scopes: ['messages:send'],
+        scopes: ['messages:write'],
       });
 
       expect(mockPrismaService.apiKey.update).toHaveBeenCalledWith({
