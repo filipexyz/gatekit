@@ -15,6 +15,7 @@ import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AuthResponse } from './dto/auth-response';
 import { LocalAuthService } from './local-auth.service';
 
@@ -269,6 +270,46 @@ export class AuthController {
     return this.localAuthService.updatePassword(
       req.user.userId,
       updatePasswordDto,
+    );
+  }
+
+  @Patch('profile')
+  @SdkContract({
+    command: 'auth update-profile',
+    description: 'Update your profile information',
+    category: 'Auth',
+    requiredScopes: [],
+    inputType: 'UpdateProfileDto',
+    outputType: 'UpdateProfileResponse',
+    options: {
+      name: {
+        required: false,
+        description: 'Full name',
+        type: 'string',
+      },
+    },
+    examples: [
+      {
+        description: 'Update your name',
+        command: 'gatekit auth update-profile --name "John Doe"',
+      },
+    ],
+  })
+  async updateProfile(
+    @Body() updateProfileDto: UpdateProfileDto,
+    @Request() req: any,
+  ): Promise<{
+    message: string;
+    user: { id: string; email: string; name: string | null };
+  }> {
+    // Only JWT users can update profile
+    if (req.authType !== 'jwt') {
+      throw new Error('Profile update only available for JWT authentication');
+    }
+
+    return this.localAuthService.updateProfile(
+      req.user.userId,
+      updateProfileDto,
     );
   }
 }
