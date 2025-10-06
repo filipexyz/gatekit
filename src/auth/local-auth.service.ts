@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AuthResponse } from './dto/auth-response';
 import { User } from '@prisma/client';
 
@@ -289,5 +290,39 @@ export class LocalAuthService {
     });
 
     return { message: 'Password updated successfully' };
+  }
+
+  async updateProfile(
+    userId: string,
+    updateProfileDto: UpdateProfileDto,
+  ): Promise<{
+    message: string;
+    user: { id: string; email: string; name: string | null };
+  }> {
+    // Find user
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Update user profile
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: updateProfileDto.name,
+      },
+    });
+
+    return {
+      message: 'Profile updated successfully',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+      },
+    };
   }
 }
