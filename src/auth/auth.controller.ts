@@ -54,6 +54,7 @@ export class AuthController {
     description: 'Create a new user account (first user becomes admin)',
     category: 'Auth',
     requiredScopes: [],
+    excludeFromMcp: true, // User account creation should not be automated by AI
     inputType: 'SignupDto',
     outputType: 'AuthResponse',
     options: {
@@ -92,6 +93,7 @@ export class AuthController {
     description: 'Login with email and password',
     category: 'Auth',
     requiredScopes: [],
+    excludeFromMcp: true, // Password login should not be automated by AI
     inputType: 'LoginDto',
     outputType: 'AuthResponse',
     options: {
@@ -125,6 +127,7 @@ export class AuthController {
     description: 'Accept a project invitation and create account',
     category: 'Auth',
     requiredScopes: [],
+    excludeFromMcp: true, // Invitation acceptance requires user interaction
     inputType: 'AcceptInviteDto',
     outputType: 'AuthResponse',
     options: {
@@ -231,6 +234,7 @@ export class AuthController {
     description: 'Update your password (requires current password)',
     category: 'Auth',
     requiredScopes: [],
+    excludeFromMcp: true, // Password changes should not be automated by AI
     inputType: 'UpdatePasswordDto',
     outputType: 'MessageResponse',
     options: {

@@ -23,6 +23,11 @@ export class McpToolRegistryService {
       const toolName = this.contractToToolName(
         contract.contractMetadata.command,
       );
+      // Skip endpoints marked as excluded from MCP
+      if (contract.contractMetadata.excludeFromMcp) {
+        continue;
+      }
+
       const tool = this.convertContractToTool(
         contract.contractMetadata,
         contract.path,
