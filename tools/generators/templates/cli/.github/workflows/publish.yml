@@ -20,6 +20,16 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Get package version
+        id: pkg_version
+        run: echo "VERSION=$(node -p 'require("./package.json").version')" >> $GITHUB_OUTPUT
+
+      - name: Replace SDK file reference with npm version
+        run: |
+          # Replace "file:../sdk" with actual version for publishing
+          sed -i 's|"@gatekit/sdk": "file:../sdk"|"@gatekit/sdk": "^${{ steps.pkg_version.outputs.VERSION }}"|g' package.json
+          echo "✅ Updated SDK dependency to version ^${{ steps.pkg_version.outputs.VERSION }}"
+
       - name: Install dependencies
         run: npm install
 
