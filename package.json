@@ -108,7 +108,6 @@
   },
   "lint-staged": {
     "tools/**/*.ts": [
-      "npm run validate:contracts:types",
       "eslint --fix",
       "prettier --write"
     ],
@@ -122,6 +121,10 @@
     ],
     "*.{json,md}": [
       "prettier --write"
+    ],
+    "*": [
+      "bash -c 'npm test'",
+      "bash -c 'npm run test:e2e'"
     ]
   },
   "jest": {
