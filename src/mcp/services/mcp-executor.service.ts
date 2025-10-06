@@ -48,9 +48,9 @@ export class McpExecutorService {
 
     // Build the API request
     const { httpMethod, path } = contractMetadata;
-    const url = this.buildUrl(path, args, authContext);
+    const { url, pathParams } = this.buildUrl(path, args, authContext);
     const headers = this.buildHeaders(authContext);
-    const body = this.buildBody(httpMethod, args);
+    const body = this.buildBody(httpMethod, args, pathParams);
 
     this.logger.debug(`Executing tool ${toolName}: ${httpMethod} ${url}`);
 
@@ -100,13 +100,13 @@ export class McpExecutorService {
   /**
    * Build API URL with path parameters
    * Priority: args > authContext.project > throw error
-   * Returns: { url, remainingArgs } where remainingArgs excludes path params
+   * Returns: { url, pathParams } where pathParams is set of params used in URL
    */
   private buildUrl(
     path: string,
     args: Record<string, any>,
     authContext: any,
-  ): string {
+  ): { url: string; pathParams: Set<string> } {
     let url = path;
     const pathParams = new Set<string>();
 
@@ -142,7 +142,7 @@ export class McpExecutorService {
       url += '?' + queryParams.join('&');
     }
 
-    return `${this.apiBaseUrl}${url}`;
+    return { url: `${this.apiBaseUrl}${url}`, pathParams };
   }
 
   /**
@@ -163,19 +163,27 @@ export class McpExecutorService {
   }
 
   /**
-   * Build request body
-   * Note: Path parameters are already removed from args in buildUrl()
+   * Build request body, excluding path parameters
+   * Path parameters should only be in the URL, not duplicated in the body
    */
   private buildBody(
     httpMethod: string,
     args: Record<string, any>,
+    pathParams: Set<string>,
   ): Record<string, any> | undefined {
     if (['GET', 'DELETE'].includes(httpMethod.toUpperCase())) {
       return undefined;
     }
 
-    // Args already cleaned by buildUrl(), just return as body
-    return { ...args };
+    // Exclude path parameters from body to avoid sending them twice
+    const body: Record<string, any> = {};
+    for (const [key, value] of Object.entries(args)) {
+      if (!pathParams.has(key)) {
+        body[key] = value;
+      }
+    }
+
+    return body;
   }
 
   /**
