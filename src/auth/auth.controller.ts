@@ -36,6 +36,7 @@ interface JwtRequest {
   user: {
     userId: string;
     email?: string;
+    name?: string;
     permissions?: string[];
     scope?: string;
   };
@@ -222,6 +223,7 @@ export class AuthController {
       response.user = {
         userId: user.userId,
         email: user.email,
+        name: user.name,
       };
     }
 

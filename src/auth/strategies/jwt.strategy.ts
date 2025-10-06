@@ -66,6 +66,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }): Promise<{
     userId: string;
     email?: string;
+    name?: string;
     permissions: string[];
     scope?: string;
     user: any;
@@ -101,6 +102,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       const result = {
         userId: payload.sub,
         email: payload.email,
+        name: payload.name,
         permissions: payload.permissions || [],
         scope: payload.scope,
         user: user, // Include full user record
