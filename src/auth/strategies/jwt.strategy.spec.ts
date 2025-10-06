@@ -76,6 +76,7 @@ describe('JwtStrategy', () => {
       expect(result).toEqual({
         userId: 'auth0|123456',
         email: 'test@example.com',
+        name: 'Test User',
         permissions: ['projects:read', 'projects:write'],
         scope: 'openid profile email',
         user: mockUser,
@@ -93,6 +94,7 @@ describe('JwtStrategy', () => {
       expect(result).toEqual({
         userId: 'auth0|123456',
         email: 'test@example.com',
+        name: undefined,
         permissions: [],
         scope: undefined,
         user: mockUser,

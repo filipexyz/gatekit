@@ -157,6 +157,7 @@ export class LocalAuthService {
     return {
       userId: user.id,
       email: user.email,
+      name: user.name,
       isAdmin: user.isAdmin,
       user: user,
     };

@@ -8,6 +8,7 @@ export class PermissionResponse {
   user?: {
     userId: string;
     email?: string;
+    name?: string;
   };
   apiKey?: {
     id: string;

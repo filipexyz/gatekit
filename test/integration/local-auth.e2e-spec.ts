@@ -254,6 +254,7 @@ describe('Local Authentication (e2e)', () => {
         user: {
           userId: expect.any(String),
           email: 'admin@test.com',
+          name: 'Admin User',
         },
       });
     });
