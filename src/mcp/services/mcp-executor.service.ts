@@ -48,9 +48,13 @@ export class McpExecutorService {
 
     // Build the API request
     const { httpMethod, path } = contractMetadata;
-    const { url, pathParams } = this.buildUrl(path, args, authContext);
+
+    // Convert simplified patterns to API format if needed (for messages send)
+    const convertedArgs = this.convertPatternArgs(args, toolName);
+
+    const { url, pathParams } = this.buildUrl(path, convertedArgs, authContext);
     const headers = this.buildHeaders(authContext);
-    const body = this.buildBody(httpMethod, args, pathParams);
+    const body = this.buildBody(httpMethod, convertedArgs, pathParams);
 
     this.logger.debug(`Executing tool ${toolName}: ${httpMethod} ${url}`);
 
@@ -184,6 +188,65 @@ export class McpExecutorService {
     }
 
     return body;
+  }
+
+  /**
+   * Convert simplified CLI-style arguments to API format
+   * Uses contract option types (target_pattern, targets_pattern) for conversion
+   */
+  private convertPatternArgs(
+    args: Record<string, any>,
+    toolName: string,
+  ): Record<string, any> {
+    const contract = this.toolRegistry.getContractMetadata(toolName);
+    if (!contract?.options) {
+      return args;
+    }
+
+    const converted: Record<string, any> = { ...args };
+    const options = contract.options;
+
+    // Process each option based on its type
+    for (const [key, option] of Object.entries(options)) {
+      const value = args[key];
+      if (!value || typeof value !== 'string') continue;
+
+      const optionType = (option as any)?.type;
+
+      // target_pattern: "platformId:user:123" -> { platformId, type, id }
+      if (optionType === 'target_pattern') {
+        const parts = value.split(':');
+        if (parts.length === 3) {
+          const [platformId, type, id] = parts;
+          converted.targets = [{ platformId, type, id }];
+          delete converted[key];
+        }
+      }
+
+      // targets_pattern: "p1:user:123,p2:channel:456" -> [{ platformId, type, id }, ...]
+      if (optionType === 'targets_pattern') {
+        const patterns = value.split(',').map((p: string) => p.trim());
+        converted.targets = patterns.map((pattern: string) => {
+          const parts = pattern.split(':');
+          if (parts.length === 3) {
+            const [platformId, type, id] = parts;
+            return { platformId, type, id };
+          }
+          throw new Error(
+            `Invalid target pattern: ${pattern}. Expected format: platformId:type:id`,
+          );
+        });
+        delete converted[key];
+      }
+    }
+
+    // Text shortcut -> content object (if text option exists and no content provided)
+    if (options.text && args.text && !args.content) {
+      converted.content = { text: args.text };
+      delete converted.text;
+    }
+
+    return converted;
   }
 
   /**

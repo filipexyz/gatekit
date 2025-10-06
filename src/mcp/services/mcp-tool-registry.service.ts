@@ -40,6 +40,7 @@ export class McpToolRegistryService {
         inputType: contract.contractMetadata.inputType,
         outputType: contract.contractMetadata.outputType,
         requiredScopes: contract.contractMetadata.requiredScopes || [],
+        options: contract.contractMetadata.options || {},
       });
     }
   }
