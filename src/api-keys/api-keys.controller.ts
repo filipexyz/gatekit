@@ -38,8 +38,9 @@ export class ApiKeysController {
       name: { required: true, description: 'API key name', type: 'string' },
       scopes: {
         required: true,
-        description: 'Comma-separated scopes',
-        type: 'string',
+        description:
+          'Array of scope strings (e.g., ["messages:read", "messages:write"])',
+        type: 'array',
       },
       expiresInDays: { description: 'Expiration in days', type: 'number' },
     },
