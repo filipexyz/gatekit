@@ -51,6 +51,7 @@ export class PlatformHealthController {
     description: 'List supported platforms with credential requirements',
     category: 'Platforms',
     requiredScopes: [],
+    excludeFromMcp: true, // Static platform info, not needed for AI automation
     outputType: 'SupportedPlatformsResponse',
     examples: [
       {

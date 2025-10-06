@@ -21,6 +21,7 @@ import { MessagesModule } from './messages/messages.module';
 import { MembersModule } from './members/members.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { IdentitiesModule } from './identities/identities.module';
+import { McpModule } from './mcp/mcp.module';
 import { sentryConfig } from './config/sentry.config';
 
 @Module({
@@ -100,6 +101,7 @@ import { sentryConfig } from './config/sentry.config';
     MembersModule,
     WebhooksModule,
     IdentitiesModule,
+    McpModule,
   ],
   controllers: [AppController],
   providers: [

@@ -252,12 +252,12 @@ export class MessagesController {
   }
 
   @Post('send')
-  @RequireScopes(ApiScope.MESSAGES_SEND)
+  @RequireScopes(ApiScope.MESSAGES_WRITE)
   @SdkContract({
     command: 'messages send',
     description: 'Send a message to platforms',
     category: 'Messages',
-    requiredScopes: [ApiScope.MESSAGES_SEND],
+    requiredScopes: [ApiScope.MESSAGES_WRITE],
     inputType: 'SendMessageDto',
     outputType: 'MessageSendResponse',
     options: {
@@ -332,12 +332,12 @@ export class MessagesController {
   }
 
   @Post('retry/:jobId')
-  @RequireScopes(ApiScope.MESSAGES_SEND)
+  @RequireScopes(ApiScope.MESSAGES_WRITE)
   @SdkContract({
     command: 'messages retry',
     description: 'Retry a failed message',
     category: 'Messages',
-    requiredScopes: [ApiScope.MESSAGES_SEND],
+    requiredScopes: [ApiScope.MESSAGES_WRITE],
     outputType: 'MessageRetryResponse',
     options: {
       jobId: {
@@ -361,12 +361,12 @@ export class MessagesController {
   }
 
   @Post('react')
-  @RequireScopes(ApiScope.MESSAGES_SEND)
+  @RequireScopes(ApiScope.MESSAGES_WRITE)
   @SdkContract({
     command: 'messages react',
     description: 'Add a reaction to a message',
     category: 'Messages',
-    requiredScopes: [ApiScope.MESSAGES_SEND],
+    requiredScopes: [ApiScope.MESSAGES_WRITE],
     inputType: 'SendReactionDto',
     outputType: 'MessageResponse',
     options: {
@@ -412,12 +412,12 @@ export class MessagesController {
   }
 
   @Post('unreact')
-  @RequireScopes(ApiScope.MESSAGES_SEND)
+  @RequireScopes(ApiScope.MESSAGES_WRITE)
   @SdkContract({
     command: 'messages unreact',
     description: 'Remove a reaction from a message',
     category: 'Messages',
-    requiredScopes: [ApiScope.MESSAGES_SEND],
+    requiredScopes: [ApiScope.MESSAGES_WRITE],
     inputType: 'SendReactionDto',
     outputType: 'MessageResponse',
     options: {

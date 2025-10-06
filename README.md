@@ -213,11 +213,49 @@ GateKit integrates with WhatsApp through the [Evolution API](https://evolution-a
 
 > **Note:** All platforms (Discord, Telegram, WhatsApp) support media attachments via URL or base64 data when sending messages.
 
+## 🧠 **MCP (Model Context Protocol) Integration**
+
+All 56 API endpoints are exposed as MCP tools.
+
+**Example Configuration:**
+
+```json
+{
+  "mcpServers": {
+    "gatekit": {
+      "url": "http://localhost:3000/mcp",
+      "transport": "http",
+      "headers": {
+        "X-API-Key": "gk_live_xxxxx"
+      }
+    }
+  }
+}
+```
+
+Or use JWT token:
+
+```json
+{
+  "mcpServers": {
+    "gatekit": {
+      "url": "http://localhost:3000/mcp",
+      "transport": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      }
+    }
+  }
+}
+```
+
+📚 **[MCP Documentation](docs/MCP_INTEGRATION.md)**
+
 ## 🔮 **Future: Native Agentic Layer**
 
 ### **🎯 Planned Agent Integration:**
 
-- **Memory System** - Native agent memory with MCP protocol support
+- **Memory System** - Native agent memory with enhanced MCP protocol support
 - **Event Querying** - Internal event system with queryable metrics APIs
 - **Subconscious Conversations** - Background conversation processing
 - **Agent Orchestration** - Multi-agent coordination across platforms
@@ -229,6 +267,7 @@ GateKit integrates with WhatsApp through the [Evolution API](https://evolution-a
 3. **User Tracking** - We track users across platforms
 4. **Activity Logs** - Rich metadata for agent decision-making
 5. **Queue System** - Reliable message delivery infrastructure
+6. **MCP Integration** - Direct AI agent integration for conversational control
 
 ## 🛠️ **Get Started (Agent Developers)**
 

@@ -110,8 +110,11 @@ export class TypeExtractorService {
 
   private getProject(): Project {
     if (!this.project) {
+      // Use process.cwd() which works in both dev and CI environments
+      const tsConfigPath = path.join(process.cwd(), 'tsconfig.json');
+
       this.project = new Project({
-        tsConfigFilePath: path.join(__dirname, '../../tsconfig.json'),
+        tsConfigFilePath: tsConfigPath,
         skipAddingFilesFromTsConfig: false,
       });
     }

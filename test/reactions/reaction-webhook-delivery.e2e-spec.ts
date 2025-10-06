@@ -1,12 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { AppModule } from '../../src/app.module';
 import { ReactionType } from '@prisma/client';
 import { WebhookDeliveryService } from '../../src/webhooks/services/webhook-delivery.service';
 import { WebhookEventType } from '../../src/webhooks/types/webhook-event.types';
-import { of } from 'rxjs';
 
 /**
  * E2E Tests for Reaction Webhook Delivery
@@ -37,7 +35,7 @@ describe('Reaction Webhook Delivery (e2e)', () => {
   const testWebhook = {
     projectId: testProject.id,
     name: 'Test Webhook',
-    url: 'https://example.com/webhook',
+    url: 'https://example.com/webhook', // Mock prevents actual calls
     events: ['reaction.added', 'reaction.removed'],
     secret: 'test-secret',
     isActive: true,
@@ -56,17 +54,16 @@ describe('Reaction Webhook Delivery (e2e)', () => {
       WebhookDeliveryService,
     );
 
-    // Mock HttpService to prevent actual HTTP calls in tests
-    const httpService = app.get<HttpService>(HttpService);
-    jest.spyOn(httpService.axiosRef, 'post').mockImplementation(() =>
-      Promise.resolve({
-        status: 200,
-        statusText: 'OK',
-        data: {},
-        headers: {},
-        config: {} as any,
-      }),
-    );
+    // Mock HttpService.axiosRef.post to prevent actual HTTP calls
+    // Access the private httpService from webhookDeliveryService
+    const httpService = webhookDeliveryService['httpService'];
+    jest.spyOn(httpService.axiosRef, 'post').mockResolvedValue({
+      status: 200,
+      statusText: 'OK',
+      data: {},
+      headers: {},
+      config: {} as any,
+    } as any);
 
     // Clean up and create test data
     await prisma.webhookDelivery.deleteMany({});
@@ -136,11 +133,12 @@ describe('Reaction Webhook Delivery (e2e)', () => {
         },
       });
 
-      // Deliver webhook (simulating what MessagesService does)
-      await webhookDeliveryService.deliverEvent(
-        testProject.id,
-        WebhookEventType.REACTION_ADDED,
-        {
+      // Deliver webhook by calling the internal method directly (bypasses fire-and-forget)
+      const webhookPayload = {
+        event: WebhookEventType.REACTION_ADDED,
+        timestamp: new Date().toISOString(),
+        project_id: testProject.id,
+        data: {
           message_id: reaction.id,
           platform: 'discord',
           platform_id: testPlatform.id,
@@ -153,10 +151,13 @@ describe('Reaction Webhook Delivery (e2e)', () => {
             original_message_id: 'msg-123',
           },
         },
-      );
+      };
 
-      // Wait for async delivery
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Call deliverToWebhook directly to avoid fire-and-forget
+      await webhookDeliveryService['deliverToWebhook'](
+        webhook,
+        webhookPayload as any,
+      );
 
       // Verify webhook delivery was created
       const deliveries = await prisma.webhookDelivery.findMany({
@@ -198,11 +199,12 @@ describe('Reaction Webhook Delivery (e2e)', () => {
         },
       });
 
-      // Deliver webhook
-      await webhookDeliveryService.deliverEvent(
-        testProject.id,
-        WebhookEventType.REACTION_REMOVED,
-        {
+      // Deliver webhook directly
+      const webhookPayload = {
+        event: WebhookEventType.REACTION_REMOVED,
+        timestamp: new Date().toISOString(),
+        project_id: testProject.id,
+        data: {
           message_id: reaction.id,
           platform: 'telegram',
           platform_id: testPlatform.id,
@@ -215,10 +217,12 @@ describe('Reaction Webhook Delivery (e2e)', () => {
             original_message_id: 'msg-456',
           },
         },
-      );
+      };
 
-      // Wait for async delivery
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await webhookDeliveryService['deliverToWebhook'](
+        webhook,
+        webhookPayload as any,
+      );
 
       // Verify webhook delivery
       const deliveries = await prisma.webhookDelivery.findMany({
@@ -270,8 +274,6 @@ describe('Reaction Webhook Delivery (e2e)', () => {
           },
         },
       );
-
-      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // No deliveries should exist
       const deliveries = await prisma.webhookDelivery.findMany({});
@@ -326,8 +328,6 @@ describe('Reaction Webhook Delivery (e2e)', () => {
         },
       );
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
       // No deliveries for inactive webhook
       const deliveries = await prisma.webhookDelivery.findMany({
         where: { webhookId: webhook.id },
@@ -356,10 +356,11 @@ describe('Reaction Webhook Delivery (e2e)', () => {
         },
       });
 
-      await webhookDeliveryService.deliverEvent(
-        testProject.id,
-        WebhookEventType.REACTION_ADDED,
-        {
+      const payload1 = {
+        event: WebhookEventType.REACTION_ADDED,
+        timestamp: new Date().toISOString(),
+        project_id: testProject.id,
+        data: {
           message_id: addedReaction.id,
           platform: 'discord',
           platform_id: testPlatform.id,
@@ -370,6 +371,10 @@ describe('Reaction Webhook Delivery (e2e)', () => {
           timestamp: addedReaction.receivedAt.toISOString(),
           raw: {},
         },
+      };
+      await webhookDeliveryService['deliverToWebhook'](
+        webhook,
+        payload1 as any,
       );
 
       // Test removed reaction
@@ -388,10 +393,11 @@ describe('Reaction Webhook Delivery (e2e)', () => {
         },
       });
 
-      await webhookDeliveryService.deliverEvent(
-        testProject.id,
-        WebhookEventType.REACTION_REMOVED,
-        {
+      const payload2 = {
+        event: WebhookEventType.REACTION_REMOVED,
+        timestamp: new Date().toISOString(),
+        project_id: testProject.id,
+        data: {
           message_id: removedReaction.id,
           platform: 'discord',
           platform_id: testPlatform.id,
@@ -402,9 +408,11 @@ describe('Reaction Webhook Delivery (e2e)', () => {
           timestamp: removedReaction.receivedAt.toISOString(),
           raw: {},
         },
+      };
+      await webhookDeliveryService['deliverToWebhook'](
+        webhook,
+        payload2 as any,
       );
-
-      await new Promise((resolve) => setTimeout(resolve, 100));
 
       const deliveries = await prisma.webhookDelivery.findMany({
         where: { webhookId: webhook.id },

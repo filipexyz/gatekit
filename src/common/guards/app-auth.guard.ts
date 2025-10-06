@@ -96,41 +96,28 @@ export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
   }
 
   private async validateJwt(context: ExecutionContext): Promise<boolean> {
-    console.log('AppAuthGuard - validateJwt() called');
-
     // Try local JWT first (our own JWT_SECRET)
     try {
       const localJwtResult = await this.validateLocalJwt(context);
       if (localJwtResult) {
-        console.log('AppAuthGuard - Local JWT validation successful');
         return localJwtResult;
       }
     } catch (error) {
-      console.log('AppAuthGuard - Local JWT validation failed:', error.message);
+      // Fall through to Auth0 JWT validation
     }
 
     // Try Auth0 JWT only if configured
     const auth0Config = this.configService.get<AppConfig['auth0']>('app.auth0');
     if (!auth0Config?.domain || !auth0Config?.audience) {
-      console.log('AppAuthGuard - Auth0 not configured, JWT validation failed');
       throw new UnauthorizedException('Invalid or expired token');
     }
 
     try {
-      console.log('AppAuthGuard - Calling Auth0 super.canActivate()');
       const result = await super.canActivate(context);
-      console.log('AppAuthGuard - super.canActivate() result:', result);
 
       if (result) {
         const request = context.switchToHttp().getRequest();
         request.authType = 'jwt';
-
-        console.log('AppAuthGuard - JWT validation successful, user:', {
-          hasUser: !!request.user,
-          userId: request.user?.userId,
-          email: request.user?.email,
-          permissionsCount: request.user?.permissions?.length || 0,
-        });
 
         // Note: Scope checks are only for API keys, not JWT users
         // JWT users who pass ProjectAccessGuard have full project access
@@ -138,20 +125,10 @@ export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
         // 1. JWT users are authenticated humans (members/owners)
         // 2. API keys are scoped for programmatic access
         // 3. Membership implies trust and full access to project resources
-        console.log(
-          'AppAuthGuard - JWT user authenticated, skipping scope checks (membership grants full access)',
-        );
       }
 
-      console.log('AppAuthGuard - JWT validation complete, returning:', result);
       return result as boolean;
     } catch (error) {
-      console.error('AppAuthGuard - JWT validation error:', {
-        error: error.message,
-        type: error.constructor.name,
-        stack: error.stack,
-      });
-
       if (error instanceof ForbiddenException) {
         throw error;
       }
@@ -174,7 +151,6 @@ export class AppAuthGuard extends AuthGuard('jwt') implements CanActivate {
 
       if (result) {
         request.authType = 'jwt';
-        console.log('AppAuthGuard - Local JWT validation successful');
       }
 
       return result as boolean;

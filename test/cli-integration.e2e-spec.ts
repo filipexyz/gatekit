@@ -140,11 +140,10 @@ describe('CLI Integration Tests (e2e)', () => {
         fail('Should have thrown an error');
       } catch (error: any) {
         // Should fail with a network/auth error, not a syntax error
-        expect(error.stderr || error.stdout).not.toContain('SyntaxError');
-        expect(error.stderr || error.stdout).not.toContain('TypeError');
-        expect(error.stderr || error.stdout).not.toContain(
-          'Cannot find module',
-        );
+        const output = error.stderr || error.stdout || error.message || '';
+        expect(output).not.toContain('SyntaxError');
+        expect(output).not.toContain('TypeError');
+        expect(output).not.toContain('Cannot find module');
       }
     }, 30000);
 

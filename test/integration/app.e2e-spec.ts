@@ -51,11 +51,11 @@ describe('GateKit API (e2e)', () => {
 
     const { rawKey } = await createTestApiKey(prisma, project.id, {
       scopes: [
-        'messages:send',
+        'messages:write',
         'messages:read',
         'projects:read',
         'projects:write',
-        'keys:manage',
+        'keys:write',
         'keys:read',
       ],
     });
@@ -223,7 +223,7 @@ describe('GateKit API (e2e)', () => {
       it('should create a new API key with valid API key', () => {
         const keyData = {
           name: 'New API Key',
-          scopes: ['messages:send'],
+          scopes: ['messages:write'],
         };
 
         return request(app.getHttpServer())
@@ -235,14 +235,14 @@ describe('GateKit API (e2e)', () => {
             expect(res.body).toHaveProperty('key');
             expect(res.body.key).toMatch(/^gk_dev_/);
             expect(res.body).toHaveProperty('name', 'New API Key');
-            expect(res.body.scopes).toEqual(['messages:send']);
+            expect(res.body.scopes).toEqual(['messages:write']);
           });
       });
 
       it('should return 401 without API key', () => {
         const keyData = {
           name: 'Unauthorized Key',
-          scopes: ['messages:send'],
+          scopes: ['messages:write'],
         };
 
         return request(app.getHttpServer())
@@ -266,7 +266,7 @@ describe('GateKit API (e2e)', () => {
       it('should return 404 for non-existent project with valid API key', () => {
         const keyData = {
           name: 'Key for Non-existent',
-          scopes: ['messages:send'],
+          scopes: ['messages:write'],
         };
 
         return request(app.getHttpServer())

@@ -52,7 +52,7 @@ describe('Platforms (e2e)', () => {
     testProjectId = project.id;
 
     const { rawKey } = await createTestApiKey(prisma, project.id, {
-      scopes: ['platforms:read', 'platforms:write', 'messages:send'],
+      scopes: ['platforms:read', 'platforms:write', 'messages:write'],
     });
     testApiKey = rawKey;
   });
@@ -409,9 +409,9 @@ describe('Platforms (e2e)', () => {
         });
     });
 
-    it('should require messages:send scope', async () => {
+    it('should require messages:write scope', async () => {
       const { rawKey } = await createTestApiKey(prisma, testProjectId, {
-        scopes: ['platforms:read'], // Missing messages:send
+        scopes: ['platforms:read'], // Missing messages:write
       });
 
       return request(app.getHttpServer())

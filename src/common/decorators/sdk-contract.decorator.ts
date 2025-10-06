@@ -29,6 +29,7 @@ export interface SdkContractMetadata {
     description: string;
     command: string;
   }>;
+  excludeFromMcp?: boolean; // Exclude this endpoint from MCP tool exposure
 }
 
 export const SdkContract = (metadata: SdkContractMetadata) =>
